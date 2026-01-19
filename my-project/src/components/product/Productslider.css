@@ -1,0 +1,27 @@
+/* src/components/product/ProductSlider.css */
+
+/* container padding */
+.product-slider {
+  position: relative;
+  width: 100%;
+  padding: 20px 0;
+}
+
+/* Swiper navigation arrows */
+.swiper-button-next,
+.swiper-button-prev {
+  color: #333;           /* arrow color */
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.swiper-button-next:hover,
+.swiper-button-prev:hover {
+  color: #ff6600;        /* hover color */
+  transform: scale(1.2); /* hover effect */
+}
+
+/* space below slider */
+.swiper {
+  padding-bottom: 30px;
+}

@@ -1,0 +1,336 @@
+//         </div>
+
+//         <button
+//           type="button"
+//           onClick={handleAddToCart}
+//           disabled={isAddingToCart || normalized.stock <= 0}
+//           className={
+//             isList
+//               ? "mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+//               : "mt-auto w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+//           }
+//         >
+//           {justAdded ? (
+//             <>
+//               <FaCheck />
+//               Added
+//             </>
+//           ) : (
+//             <>
+//               <FaShoppingCart />
+//               {isAddingToCart ? "Adding..." : "Add to cart"}
+//             </>
+//           )}
+//         </button>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ProductCard;
+
+
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaBolt, FaCheck, FaHeart, FaRegHeart, FaShoppingCart, FaStar } from "react-icons/fa";
+import { useCart } from "../../context/CartContext";
+import { useWishlist } from "../../context/WishlistContext";
+import ColorPicker from "./ColorPicker";
+import { normalizeProductForColorVariants } from "../../utils/colorVariants";
+
+const ProductCard = ({ product, view = "grid" }) => {
+  const navigate = useNavigate();
+  const { addToCart } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
+
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const [hoveredImage, setHoveredImage] = useState(null);
+  const [selectedColorVariant, setSelectedColorVariant] = useState(null);
+
+  const normalized = useMemo(() => {
+    if (!product) return null;
+    const baseProduct = normalizeProductForColorVariants(product);
+    const id = baseProduct.id || baseProduct._id;
+    const name = baseProduct.name ?? baseProduct.title ?? "";
+
+    // Handle color variants
+    const hasColorVariants = baseProduct.colorVariants && baseProduct.colorVariants.length > 0;
+    const defaultVariant = hasColorVariants ? baseProduct.colorVariants[0] : null;
+    const currentVariant = selectedColorVariant || defaultVariant;
+
+    // Get image from variant or fallback to product image
+    const image = currentVariant?.images?.[0] || baseProduct.image || baseProduct.img || baseProduct.galleryImages?.[0] || "";
+
+    // Get price from variant or fallback to product price
+    const price = Number(currentVariant?.price ?? baseProduct.price ?? 0);
+
+    const originalPrice = Number(baseProduct?.originalPrice ?? baseProduct?.management?.pricing?.originalPrice ?? 0);
+
+    // Get stock from variant or fallback to product stock
+    const stock = Number(currentVariant?.stock ?? baseProduct.stock ?? 0);
+
+    // Get SKU from variant or fallback to product SKU
+    const sku = currentVariant?.sku || baseProduct.sku || "";
+
+    const brand = baseProduct.brand || baseProduct.category || "";
+
+    const saleEnabled = !!baseProduct.saleEnabled;
+    const saleDiscount = Number(baseProduct.saleDiscount ?? baseProduct.discount ?? 0);
+    const saleStart = baseProduct.saleStartDate ? new Date(baseProduct.saleStartDate) : null;
+    const saleEnd = baseProduct.saleEndDate ? new Date(baseProduct.saleEndDate) : null;
+
+    const now = new Date();
+    const isSaleActive =
+      saleEnabled &&
+      saleDiscount > 0 &&
+      (!saleStart || Number.isNaN(saleStart.getTime()) || saleStart <= now) &&
+      (!saleEnd || Number.isNaN(saleEnd.getTime()) || saleEnd >= now);
+
+    const displayPrice = isSaleActive ? price - (price * saleDiscount) / 100 : price;
+
+    const displayMrp = originalPrice > 0 ? originalPrice : price;
+
+    const rating = Number(baseProduct.rating ?? 4.2);
+    const reviews = Number(baseProduct.reviews ?? 0);
+
+    return {
+      id,
+      name,
+      brand,
+      price,
+      originalPrice: displayMrp,
+      image,
+      galleryImages: currentVariant?.images ?? (Array.isArray(baseProduct.galleryImages) ? baseProduct.galleryImages : []),
+      isSaleActive,
+      saleDiscount,
+      displayPrice,
+      rating,
+      reviews,
+      stock,
+      sku,
+      hasColorVariants,
+      colorVariants: baseProduct.colorVariants || [],
+      currentVariant,
+    };
+  }, [product, selectedColorVariant]);
+
+  const productHash = useMemo(() => {
+    if (!normalized?.id) return 0;
+    return String(normalized.id).split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+  }, [normalized?.id]);
+
+  const specialOffersAmount = Math.abs(productHash % 500) + 100;
+  const specialOffersCount = Math.abs(productHash) % 3 + 1;
+
+  if (!normalized) return null;
+
+  const displayImage = hoveredImage || normalized.image;
+  const wishlisted = isInWishlist(normalized.id);
+
+  const formatPrice = (value) => `₹${Number(value || 0).toLocaleString()}`;
+
+  const handleProductClick = (e) => {
+    e.stopPropagation();
+    navigate(`/product/${normalized.id}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    if (!normalized.id) return;
+
+    setIsAddingToCart(true);
+    try {
+      const result = await addToCart(normalized.id, 1, {
+        name: normalized.name,
+        image: normalized.image,
+        price: normalized.displayPrice,
+        brand: normalized.brand,
+        sku: normalized.sku,
+      });
+      if (result?.success) {
+        setJustAdded(true);
+        setTimeout(() => setJustAdded(false), 2000);
+      }
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
+  const handleWishlistToggle = async (e) => {
+    e.stopPropagation();
+    if (!normalized.id) return;
+    await toggleWishlist(normalized.id);
+  };
+
+  const isList = view === "list";
+
+  return (
+    <div className="animate-fade-in">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={handleProductClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleProductClick();
+        }}
+        className={
+          isList
+            ? "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 flex h-[280px]"
+            : "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0"
+        }
+      >
+        <div className="transition-transform duration-300">
+          {/* Image Section */}
+          <div
+            className={
+              isList
+                ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
+                : "aspect-square bg-gray-50 overflow-hidden relative"
+            }
+          >
+            <div className="relative overflow-hidden w-full h-full">
+              <img
+                src={displayImage}
+                alt={normalized.name}
+                className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                loading="lazy"
+              />
+            </div>
+
+            {/* Discount Badge */}
+            {normalized.isSaleActive && normalized.saleDiscount > 0 && (
+              <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md font-bold shadow-md animate-bounce-in">
+                {normalized.saleDiscount}% OFF
+              </div>
+            )}
+
+            {/* Wishlist Button */}
+            <button
+              type="button"
+              onClick={handleWishlistToggle}
+              className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white transition-all"
+              aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            >
+              {wishlisted ? (
+                <FaHeart className="text-pink-600" />
+              ) : (
+                <FaRegHeart className="text-gray-700" />
+              )}
+            </button>
+
+            {/* Gallery Thumbnails */}
+            {normalized.galleryImages?.length > 1 && !isList && (
+              <div className="absolute bottom-2 left-2 flex items-center gap-1">
+                {normalized.galleryImages.slice(0, 4).map((url, idx) => (
+                  <button
+                    key={`${normalized.id}-thumb-${idx}`}
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={(e) => {
+                      e.stopPropagation();
+                      setHoveredImage(url);
+                    }}
+                    onMouseLeave={(e) => {
+                      e.stopPropagation();
+                      setHoveredImage(null);
+                    }}
+                    className={
+                      hoveredImage === url
+                        ? "h-7 w-7 rounded-full border-2 border-blue-600 overflow-hidden"
+                        : "h-7 w-7 rounded-full border border-white/60 overflow-hidden"
+                    }
+                  >
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Content Section */}
+          <div className="p-3 space-y-2">
+            {/* Product Title */}
+            <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+              {normalized.name}
+            </h3>
+
+            {/* Brand */}
+
+            {/* Price Section */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-lg font-bold text-gray-900">
+                {formatPrice(normalized.displayPrice)}
+              </span>
+
+              {normalized.originalPrice > normalized.displayPrice && (
+                <span className="text-sm text-gray-400 line-through">
+                  {formatPrice(normalized.originalPrice)}
+                </span>
+              )}
+
+              {normalized.isSaleActive && (
+                <span className="text-sm text-green-600 font-semibold">
+                  {normalized.saleDiscount}% off
+                </span>
+              )}
+            </div>
+
+            {/* Special Offers Badge */}
+            <div className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-md font-medium inline-block border border-green-200">
+              ₹{specialOffersAmount} with {specialOffersCount} Special Offers
+            </div>
+
+            {/* Free Delivery */}
+            <div className="text-xs text-gray-600 font-medium">
+              🚚 Free Delivery
+            </div>
+
+            {/* Rating and Stock */}
+            <div className="flex items-center justify-between">
+              {/* Rating */}
+              <div className="flex items-center gap-1 bg-green-600 px-2 py-1 rounded-md text-white text-xs font-medium">
+                <span className="font-bold">{normalized.rating.toFixed(1)}</span>
+                <FaStar className="h-3 w-3 fill-current" />
+                <span>({normalized.reviews})</span>
+              </div>
+
+              {/* Stock Status */}
+              {normalized.stock > 0 ? (
+                <span className="text-xs text-green-600 font-medium">In Stock</span>
+              ) : (
+                <span className="text-xs text-red-600 font-semibold">Out of Stock</span>
+              )}
+            </div>
+
+            {/* Add to Cart Button */}
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={isAddingToCart || normalized.stock <= 0}
+              className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-green-600 border border-green-600  hover:text-white text-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {justAdded ? (
+                <>
+                  <FaCheck />
+                  Added to Cart
+                </>
+              ) : (
+                <>
+                  <FaShoppingCart />
+                  {isAddingToCart ? "Adding..." : "Add to Cart"}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
