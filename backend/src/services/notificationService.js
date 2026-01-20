@@ -22,6 +22,7 @@ class WhatsAppProvider {
 // Concrete implementations
 class MSG91SMS extends SMSProvider {
   constructor() {
+    super();
     this.authKey = process.env.MSG91_AUTH_KEY;
     this.sender = process.env.MSG91_SENDER || 'TROZZY';
   this.route = process.env.MSG91_ROUTE || '4';
@@ -57,6 +58,7 @@ class MSG91SMS extends SMSProvider {
 
 class TwilioSMS extends SMSProvider {
   constructor() {
+    super();
     this.accountSid = process.env.TWILIO_ACCOUNT_SID;
     this.authToken = process.env.TWILIO_AUTH_TOKEN;
     this.fromNumber = process.env.TWILIO_FROM_NUMBER;
@@ -83,6 +85,7 @@ class TwilioSMS extends SMSProvider {
 
 class SMTPEmail extends EmailProvider {
   constructor() {
+    super();
     this.transport = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'localhost',
       port: Number(process.env.SMTP_PORT) || 587,
