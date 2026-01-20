@@ -166,6 +166,8 @@ const CheckoutPage = lazy(() => import('./Pages/CheckoutPage'));
 const WishlistPage = lazy(() => import('./Pages/WishlistPage'));
 const LoginPage = lazy(() => import('./Pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./Pages/auth/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./Pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./Pages/auth/ResetPasswordPage'));
 const PrivacyPolicy = lazy(() => import('./Pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./Pages/TermsOfService'));
 const RefundPolicy = lazy(() => import('./Pages/RefundPolicy'));
@@ -265,6 +267,22 @@ function App() {
                                                     element={
                                                         <PublicRoute>
                                                             <RegisterPage />
+                                                        </PublicRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/forgot-password"
+                                                    element={
+                                                        <PublicRoute>
+                                                            <ForgotPasswordPage />
+                                                        </PublicRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/reset-password"
+                                                    element={
+                                                        <PublicRoute>
+                                                            <ResetPasswordPage />
                                                         </PublicRoute>
                                                     }
                                                 />

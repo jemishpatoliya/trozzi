@@ -107,13 +107,12 @@ const LoginPage = () => {
                         </div>
 
                         <div className="text-sm">
-                            <button
-                                type="button"
+                            <Link
+                                to="/forgot-password"
                                 className="font-medium text-indigo-600 hover:text-indigo-500"
-                                onClick={() => console.log('Forgot password clicked')}
                             >
                                 Forgot your password?
-                            </button>
+                            </Link>
                         </div>
                     </div>
 

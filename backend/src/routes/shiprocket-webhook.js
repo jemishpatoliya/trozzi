@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const { Shipment } = require('../models/shipment');
 const { Order } = require('../models/order');
 const { verifyShiprocketSignature, ensureIdempotency, logWebhookFailure } = require('../middleware/webhookSecurity');
+const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
 
@@ -51,14 +52,8 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
     const eventId = String(body.event_id || '');
     const now = new Date();
 
-    // State machine: validate shipment status transition
+    // State machine helper
     const { validateTransition } = require('../middleware/stateMachine');
-    try {
-      validateTransition('shipment', shipment.status, currentStatus);
-    } catch (e) {
-      console.error('Invalid shipment transition:', e.message);
-      return res.status(400).json({ ok: false, message: e.message });
-    }
 
     if (!awb && !orderNumber) {
       return res.status(400).json({ ok: false, message: 'Missing AWB or order_id' });
@@ -76,6 +71,14 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
 
     if (!shipment) {
       return res.status(200).json({ ok: true, received: true, updated: false, message: 'Shipment not found' });
+    }
+
+    // State machine: validate shipment status transition (now that shipment is loaded)
+    try {
+      validateTransition('shipment', shipment.status, currentStatus);
+    } catch (e) {
+      console.error('Invalid shipment transition:', e.message);
+      return res.status(400).json({ ok: false, message: e.message });
     }
 
     // 4. Idempotency: reject duplicate events
@@ -142,6 +145,27 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
         },
       }
     );
+
+    // Emit domain events for notifications + emails
+    try {
+      const updatedOrder = await Order.findById(shipment.order).populate('user');
+      if (updatedOrder && updatedOrder.user) {
+        const user = updatedOrder.user;
+        const io = req.app.get('io');
+
+        if (orderStatus === 'shipped') {
+          domainEvents.emit('order:shipped', { user, order: updatedOrder, shipment, io });
+        }
+        if (orderStatus === 'delivered') {
+          domainEvents.emit('order:delivered', { user, order: updatedOrder, io });
+        }
+        if (orderStatus === 'cancelled') {
+          domainEvents.emit('order:cancelled', { user, order: updatedOrder, by: 'admin', io });
+        }
+      }
+    } catch (e) {
+      console.error('Shiprocket domain event emit error:', e);
+    }
 
     const io = req.app.get('io');
     if (io) {

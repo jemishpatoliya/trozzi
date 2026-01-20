@@ -6,6 +6,7 @@ const { Payment } = require('../models/payment');
 const { createShiprocketOrder } = require('../services/shiprocket');
 const { verifyShiprocketSignature, ensureIdempotency, logWebhookFailure } = require('../middleware/webhookSecurity');
 const { validateTransition } = require('../middleware/stateMachine');
+const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
 
@@ -189,6 +190,16 @@ router.post('/admin/shipments/:shipmentId/cancel', async (req, res) => {
           },
         }
       );
+
+      try {
+        const updatedOrder = await Order.findById(order._id).populate('user');
+        if (updatedOrder && updatedOrder.user) {
+          const io = req.app.get('io');
+          domainEvents.emit('order:cancelled', { user: updatedOrder.user, order: updatedOrder, by: 'admin', io });
+        }
+      } catch (e) {
+        console.error('Admin cancel order domain event error:', e);
+      }
     }
 
     return res.json({ success: true, message: 'Shipment cancelled' });
@@ -227,6 +238,16 @@ router.post('/admin/orders/:orderId/deliver', async (req, res) => {
         },
       }
     );
+
+    try {
+      const updatedOrder = await Order.findById(order._id).populate('user');
+      if (updatedOrder && updatedOrder.user) {
+        const io = req.app.get('io');
+        domainEvents.emit('order:delivered', { user: updatedOrder.user, order: updatedOrder, io });
+      }
+    } catch (e) {
+      console.error('Admin deliver order domain event error:', e);
+    }
 
     return res.json({ success: true, message: 'Order marked as delivered' });
   } catch (e) {

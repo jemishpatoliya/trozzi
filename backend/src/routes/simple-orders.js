@@ -6,6 +6,7 @@ const { AdminModel } = require('../models/admin');
 const { ProductModel } = require('../models/product');
 const jwt = require('jsonwebtoken');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
+const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
 
@@ -192,6 +193,27 @@ router.post('/cod', async (req, res) => {
       } catch (_e) {
         // ignore
       }
+    }
+
+    try {
+      const user = await UserModel.findById(auth.userId);
+      const orderDoc = {
+        _id: insert.insertedId,
+        orderNumber,
+        total,
+        items: items.map((it) => ({
+          name: String(it?.name || ''),
+          quantity: Math.max(1, Number(it?.quantity ?? 1) || 1),
+          price: Number(it?.price ?? 0) || 0,
+        })),
+        customer: {
+          name: String(customer?.name || ''),
+          email: String(customer?.email || '').toLowerCase(),
+        },
+      };
+      domainEvents.emit('order:placed', { user, order: orderDoc, io });
+    } catch (e) {
+      console.error('COD order placed domain event error:', e);
     }
 
     return res.status(201).json({ success: true, id: String(insert.insertedId), orderNumber });
@@ -597,6 +619,18 @@ router.post('/:id/cancel', async (req, res) => {
       } catch (_e) {
         // ignore
       }
+    }
+
+    try {
+      const user = await UserModel.findById(auth.userId);
+      const updatedOrder = {
+        _id: order._id,
+        orderNumber: String(order.orderNumber || ''),
+        customer: order.customer || { name: '', email: '' },
+      };
+      domainEvents.emit('order:cancelled', { user, order: updatedOrder, by: 'user', io: req.app.get('io') });
+    } catch (e) {
+      console.error('User cancel order domain event error:', e);
     }
 
     return res.json({ success: true, message: 'Order cancelled', data: { id: String(order._id), status: 'cancelled' } });

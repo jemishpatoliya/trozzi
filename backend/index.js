@@ -35,6 +35,7 @@ const contentSettingsRouter = require('./src/routes/content-settings');
 const sizeGuidesRouter = require('./src/routes/size-guides');
 const shiprocketWebhookRouter = require('./src/routes/shiprocket-webhook');
 const adminOverridesRouter = require('./src/routes/adminOverrides');
+const notificationsRouter = require('./src/routes/notifications');
 
 const { AdminModel } = require('./src/models/admin');
 const { UserModel } = require('./src/models/user');
@@ -120,6 +121,7 @@ app.use('/api/wishlist', wishlistRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/size-guides', sizeGuidesRouter);
+app.use('/api/notifications', notificationsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

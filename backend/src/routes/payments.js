@@ -7,6 +7,7 @@ const https = require('https');
 const { AdminModel } = require('../models/admin');
 const { UserModel } = require('../models/user');
 const { ProductModel } = require('../models/product');
+const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
 
@@ -887,15 +888,14 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
     }
 
     // Emit domain events for notifications
-    const { domainEvents } = require('../services/domainEvents');
     if (nextStatus === 'completed' && updatedOrder) {
       await updatedOrder.populate('user');
-      domainEvents.emit('payment:completed', { user: updatedOrder.user, order: updatedOrder, payment });
+      domainEvents.emit('payment:completed', { user: updatedOrder.user, order: updatedOrder, payment, io });
     }
     if (nextStatus === 'failed' && payment.order) {
       const orderForNotify = await Order.findById(payment.order).populate('user');
       if (orderForNotify) {
-        domainEvents.emit('payment:failed', { user: orderForNotify.user, order: orderForNotify });
+        domainEvents.emit('payment:failed', { user: orderForNotify.user, order: orderForNotify, io });
       }
     }
 
@@ -965,6 +965,15 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         createdAtIso: nowIso,
       });
       orderObjectId = orderDoc._id;
+
+      // In-app + email notifications for order placed
+      try {
+        const io = req.app.get('io');
+        const user = await UserModel.findById(req.userId);
+        domainEvents.emit('order:placed', { user, order: orderDoc, io });
+      } catch (e) {
+        console.error('Order placed notification emit error:', e);
+      }
     }
 
     const providerOrderId = makeProviderOrderId(provider);

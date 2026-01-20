@@ -1,5 +1,13 @@
 const { EventEmitter } = require('events');
 const { NotificationService } = require('../services/notificationService');
+const { createNotification, createAdminNotification } = require('./notificationCenter');
+const { sendMail } = require('./mailer');
+const {
+  orderConfirmationEmail,
+  orderCancellationEmail,
+  orderShippedEmail,
+  orderDeliveredEmail,
+} = require('./emailTemplates');
 
 class DomainEvents extends EventEmitter {
   constructor() {
@@ -19,6 +27,14 @@ class DomainEvents extends EventEmitter {
     });
 
     // Order/Shipping events
+    this.on('order:placed', async (data) => {
+      await this.notifyOrderPlaced(data);
+    });
+
+    this.on('order:cancelled', async (data) => {
+      await this.notifyOrderCancelled(data);
+    });
+
     this.on('order:shipped', async (data) => {
       await this.notifyOrderShipped(data);
     });
@@ -38,8 +54,40 @@ class DomainEvents extends EventEmitter {
   }
 
   async notifyPaymentSuccess(data) {
-    const { user, order, payment } = data;
+    const { user, order, payment, io } = data;
     if (!user || !order) return;
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Payment Successful',
+        message: `Payment received for order ${String(order.orderNumber || '')}.`,
+        type: 'payment_success',
+        io,
+      });
+    } catch (e) {
+      console.error('Payment success in-app notification error:', e);
+    }
+
+    try {
+      const customerName = String(order.customer?.name || user.firstName || 'Customer');
+      const to = String(order.customer?.email || user.email || '').trim();
+      if (to) {
+        await sendMail({
+          to,
+          subject: `Order Confirmed - ${String(order.orderNumber || '')}`,
+          html: orderConfirmationEmail({
+            customerName,
+            orderNumber: String(order.orderNumber || ''),
+            total: Number(order.total ?? 0),
+            items: order.items || [],
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('Order confirmation email error:', e);
+    }
+
     const variables = {
       amount: payment.amount,
       orderNumber: order.orderNumber,
@@ -57,8 +105,21 @@ class DomainEvents extends EventEmitter {
   }
 
   async notifyPaymentFailed(data) {
-    const { user, order } = data;
+    const { user, order, io } = data;
     if (!user || !order) return;
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Payment Failed',
+        message: `Payment failed for order ${String(order.orderNumber || '')}. Please try again.`,
+        type: 'payment_failed',
+        io,
+      });
+    } catch (e) {
+      console.error('Payment failed in-app notification error:', e);
+    }
+
     const variables = {
       orderNumber: order.orderNumber,
       customerName: order.customer?.name || 'Customer',
@@ -75,8 +136,40 @@ class DomainEvents extends EventEmitter {
   }
 
   async notifyOrderShipped(data) {
-    const { user, order, shipment } = data;
+    const { user, order, shipment, io } = data;
     if (!user || !order || !shipment) return;
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Order Shipped',
+        message: `Your order ${String(order.orderNumber || '')} has been shipped.`,
+        type: 'order_shipped',
+        io,
+      });
+    } catch (e) {
+      console.error('Order shipped in-app notification error:', e);
+    }
+
+    try {
+      const to = String(order.customer?.email || user.email || '').trim();
+      if (to) {
+        await sendMail({
+          to,
+          subject: `Order Shipped - ${String(order.orderNumber || '')}`,
+          html: orderShippedEmail({
+            customerName: String(order.customer?.name || user.firstName || 'Customer'),
+            orderNumber: String(order.orderNumber || ''),
+            courierName: String(shipment.courierName || ''),
+            awbNumber: String(shipment.awbNumber || ''),
+            trackingUrl: String(shipment.trackingUrl || ''),
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('Order shipped email error:', e);
+    }
+
     const variables = {
       orderNumber: order.orderNumber,
       customerName: order.customer?.name || 'Customer',
@@ -112,8 +205,37 @@ class DomainEvents extends EventEmitter {
   }
 
   async notifyOrderDelivered(data) {
-    const { user, order } = data;
+    const { user, order, io } = data;
     if (!user || !order) return;
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Order Delivered',
+        message: `Your order ${String(order.orderNumber || '')} has been delivered.`,
+        type: 'order_delivered',
+        io,
+      });
+    } catch (e) {
+      console.error('Order delivered in-app notification error:', e);
+    }
+
+    try {
+      const to = String(order.customer?.email || user.email || '').trim();
+      if (to) {
+        await sendMail({
+          to,
+          subject: `Order Delivered - ${String(order.orderNumber || '')}`,
+          html: orderDeliveredEmail({
+            customerName: String(order.customer?.name || user.firstName || 'Customer'),
+            orderNumber: String(order.orderNumber || ''),
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('Order delivered email error:', e);
+    }
+
     const variables = {
       orderNumber: order.orderNumber,
       customerName: order.customer?.name || 'Customer',
@@ -144,6 +266,105 @@ class DomainEvents extends EventEmitter {
       ]);
     } catch (e) {
       console.error('Refund processed notification error:', e);
+    }
+  }
+
+  async notifyOrderPlaced(data) {
+    const { user, order, io } = data;
+    if (!order) return;
+
+    try {
+      if (user) {
+        await createNotification({
+          userId: user._id,
+          title: 'Order Placed',
+          message: `Your order ${String(order.orderNumber || '')} has been placed.`,
+          type: 'order_placed',
+          io,
+        });
+      }
+    } catch (e) {
+      console.error('Order placed user notification error:', e);
+    }
+
+    try {
+      await createAdminNotification({
+        title: 'New Order Placed',
+        message: `New order ${String(order.orderNumber || '')} placed by ${String(order.customer?.name || '')}.`,
+        type: 'new_order',
+        io,
+      });
+    } catch (e) {
+      console.error('Order placed admin notification error:', e);
+    }
+
+    try {
+      const to = String(order.customer?.email || user?.email || '').trim();
+      if (to) {
+        await sendMail({
+          to,
+          subject: `Order Confirmed - ${String(order.orderNumber || '')}`,
+          html: orderConfirmationEmail({
+            customerName: String(order.customer?.name || user?.firstName || 'Customer'),
+            orderNumber: String(order.orderNumber || ''),
+            total: Number(order.total ?? 0),
+            items: order.items || [],
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('Order placed email error:', e);
+    }
+  }
+
+  async notifyOrderCancelled(data) {
+    const { user, order, reason, by, io } = data;
+    if (!order) return;
+
+    const orderNumber = String(order.orderNumber || '');
+
+    try {
+      if (user) {
+        await createNotification({
+          userId: user._id,
+          title: 'Order Cancelled',
+          message: `Your order ${orderNumber} has been cancelled.`,
+          type: 'order_cancelled',
+          io,
+        });
+      }
+    } catch (e) {
+      console.error('Order cancelled user notification error:', e);
+    }
+
+    try {
+      if (String(by || '').toLowerCase() === 'user') {
+        await createAdminNotification({
+          title: 'Order Cancelled (By User)',
+          message: `Order ${orderNumber} cancelled by ${String(order.customer?.name || '')}.`,
+          type: 'order_cancelled_by_user',
+          io,
+        });
+      }
+    } catch (e) {
+      console.error('Order cancelled admin notification error:', e);
+    }
+
+    try {
+      const to = String(order.customer?.email || user?.email || '').trim();
+      if (to) {
+        await sendMail({
+          to,
+          subject: `Order Cancelled - ${orderNumber}`,
+          html: orderCancellationEmail({
+            customerName: String(order.customer?.name || user?.firstName || 'Customer'),
+            orderNumber,
+            reason: reason ? String(reason) : '',
+          }),
+        });
+      }
+    } catch (e) {
+      console.error('Order cancelled email error:', e);
     }
   }
 }
