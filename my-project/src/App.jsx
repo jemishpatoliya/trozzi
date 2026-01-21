@@ -141,16 +141,15 @@
 //     );
 // }
 
-// export default App;
-
 // App.js - Fixed Layout with Homecatslider on all pages
 import React, { createContext, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { CompareProvider } from './context/CompareContext';
 import { ContentSettingsProvider } from './context/ContentSettingsContext';
+import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
 
 // Import components that are needed immediately
@@ -185,8 +184,12 @@ export const MyContext = createContext();
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
+    const location = useLocation();
     if (loading) return null;
-    return isAuthenticated ? children : <Navigate to="/login" replace />;
+    const redirectTo = `${location.pathname}${location.search || ''}`;
+    return isAuthenticated
+        ? children
+        : <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;
 };
 
 const PublicRoute = ({ children }) => {
@@ -220,32 +223,33 @@ function App() {
                 <CartProvider>
                     <WishlistProvider>
                         <CompareProvider>
-                            <MyContext.Provider value={myContextValue}>
-                                <Router
-                                    future={{
-                                        v7_startTransition: true,
-                                        v7_relativeSplatPath: true,
-                                    }}
-                                >
-                                    <div className="App flex h-screen overflow-hidden">
-                                    {/* Right Content Area */}
-                                    <div className="flex-1 flex flex-col overflow-hidden">
-                                        {/* Header - Sticky */}
-                                        <Header />
+                            <NotificationProvider>
+                                <MyContext.Provider value={myContextValue}>
+                                    <Router
+                                        future={{
+                                            v7_startTransition: true,
+                                            v7_relativeSplatPath: true,
+                                        }}
+                                    >
+                                        <div className="App flex h-screen overflow-hidden">
+                                        {/* Right Content Area */}
+                                        <div className="flex-1 flex flex-col overflow-hidden">
+                                            {/* Header - Sticky */}
+                                            <Header />
 
-                                        {/* Main Content - Scrollable */}
-                                        <main className="flex-1 overflow-y-auto bg-gray-50">
-                                            <Suspense fallback={
-                                                <div className="flex items-center justify-center h-64">
-                                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                                                </div>
-                                            }>
-                                                <Routes>
+                                            {/* Main Content - Scrollable */}
+                                            <main className="flex-1 overflow-y-auto bg-gray-50">
+                                                <Suspense fallback={
+                                                    <div className="flex items-center justify-center h-64">
+                                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                                    </div>
+                                                }>
+                                                    <Routes>
                                                 {/* Public Routes */}
-                                                <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-                                                <Route path="/ProductListing" element={<ProtectedRoute><ProductListing /></ProtectedRoute>} />
-                                                <Route path="/ProductListing/:category" element={<ProtectedRoute><ProductListing /></ProtectedRoute>} />
-                                                <Route path="/product/:id" element={<ProtectedRoute><Productsdetailsh /></ProtectedRoute>} />
+                                                <Route path="/" element={<Home />} />
+                                                <Route path="/ProductListing" element={<ProductListing />} />
+                                                <Route path="/ProductListing/:category" element={<ProductListing />} />
+                                                <Route path="/product/:id" element={<Productsdetailsh />} />
                                                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                                 <Route path="/terms-of-service" element={<TermsOfService />} />
                                                 <Route path="/refund-policy" element={<RefundPolicy />} />
@@ -351,12 +355,13 @@ function App() {
                                             </Suspense>
                                             {/* Footer */}
                                             <Footer />
-                                        </main>
+                                            </main>
 
+                                        </div>
                                     </div>
-                                </div>
-                            </Router>
-                        </MyContext.Provider>
+                                </Router>
+                            </MyContext.Provider>
+                        </NotificationProvider>
                     </CompareProvider>
                 </WishlistProvider>
             </CartProvider>

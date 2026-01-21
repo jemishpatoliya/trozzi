@@ -16,6 +16,23 @@ class DomainEvents extends EventEmitter {
     this.bindEvents();
   }
 
+  async notifyOrderConfirmed(data) {
+    const { user, order, io } = data;
+    if (!user || !order) return;
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Order Confirmed',
+        message: `Your order ${String(order.orderNumber || '')} has been confirmed.`,
+        type: 'order_confirmed',
+        io,
+      });
+    } catch (e) {
+      console.error('Order confirmed in-app notification error:', e);
+    }
+  }
+
   bindEvents() {
     // Payment events
     this.on('payment:completed', async (data) => {
@@ -29,6 +46,10 @@ class DomainEvents extends EventEmitter {
     // Order/Shipping events
     this.on('order:placed', async (data) => {
       await this.notifyOrderPlaced(data);
+    });
+
+    this.on('order:confirmed', async (data) => {
+      await this.notifyOrderConfirmed(data);
     });
 
     this.on('order:cancelled', async (data) => {
@@ -67,6 +88,18 @@ class DomainEvents extends EventEmitter {
       });
     } catch (e) {
       console.error('Payment success in-app notification error:', e);
+    }
+
+    try {
+      await createNotification({
+        userId: user._id,
+        title: 'Order Confirmed',
+        message: `Your order ${String(order.orderNumber || '')} has been confirmed.`,
+        type: 'order_confirmed',
+        io,
+      });
+    } catch (e) {
+      console.error('Order confirmed (via payment) in-app notification error:', e);
     }
 
     try {
@@ -137,7 +170,7 @@ class DomainEvents extends EventEmitter {
 
   async notifyOrderShipped(data) {
     const { user, order, shipment, io } = data;
-    if (!user || !order || !shipment) return;
+    if (!user || !order) return;
 
     try {
       await createNotification({
@@ -150,6 +183,14 @@ class DomainEvents extends EventEmitter {
     } catch (e) {
       console.error('Order shipped in-app notification error:', e);
     }
+
+    const hasShipment = shipment && typeof shipment === 'object' && (
+      String(shipment.awbNumber || '').trim() ||
+      String(shipment.courierName || '').trim() ||
+      String(shipment.trackingUrl || '').trim()
+    );
+
+    if (!hasShipment) return;
 
     try {
       const to = String(order.customer?.email || user.email || '').trim();

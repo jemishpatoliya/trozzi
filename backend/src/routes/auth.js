@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { UserModel } = require('../models/user');
 const auth = require('../middleware/auth');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
+const { sendMail } = require('../services/mailer');
 
 function pickUserForClient(userDoc, settings) {
     const u = userDoc && typeof userDoc.toObject === 'function' ? userDoc.toObject() : userDoc;
@@ -216,7 +217,11 @@ router.post('/forgot-password', [
             user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
             await user.save();
 
-            const appBaseUrl = String(process.env.APP_BASE_URL || '').trim();
+            const envAppBaseUrl = String(process.env.APP_BASE_URL || '').trim();
+            const originHeader = String(req.headers?.origin || '').trim();
+            const inferredBaseUrl = originHeader || '';
+            const appBaseUrl = envAppBaseUrl || inferredBaseUrl;
+
             const resetUrl = appBaseUrl
                 ? `${appBaseUrl.replace(/\/$/, '')}/reset-password?token=${rawToken}`
                 : `RESET_TOKEN=${rawToken}`;
@@ -229,6 +234,30 @@ router.post('/forgot-password', [
 
             console.log('🔐 Password reset requested for:', email);
             console.log('🔗 Reset link/token:', resetUrl);
+
+            if (appBaseUrl) {
+                try {
+                    await sendMail({
+                        to: user.email,
+                        subject: 'Reset your password',
+                        html: `
+                          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111;">
+                            <h2 style="margin: 0 0 12px 0;">Password reset</h2>
+                            <p style="margin: 0 0 12px 0;">We received a request to reset your password.</p>
+                            <p style="margin: 0 0 12px 0;">Click this link to reset your password (valid for 1 hour):</p>
+                            <p style="margin: 0 0 16px 0;">
+                              <a href="${resetUrl}" style="color: #2563eb;">Reset Password</a>
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #555;">If you didn’t request this, you can ignore this email.</p>
+                          </div>
+                        `,
+                    });
+                } catch (mailError) {
+                    console.error('Forgot password email send error:', mailError);
+                }
+            } else {
+                console.warn('APP_BASE_URL missing and Origin header missing; forgot-password email not sent.');
+            }
         }
 
         return res.json({

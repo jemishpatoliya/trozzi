@@ -6,12 +6,18 @@ const { CategoryModel } = require('../models/category');
 // GET /api/subcategories?parentCategoryId=XXX - Get subcategories for a parent category
 router.get('/', async (req, res) => {
     try {
+        const mode = String(req.query?.mode ?? 'admin');
         const parentCategoryId = typeof req.query?.parentCategoryId === 'string' ? req.query.parentCategoryId : '';
         if (!parentCategoryId.trim()) {
             return res.status(400).json({ success: false, message: 'parentCategoryId is required' });
         }
 
-        const categories = await CategoryModel.find({ parentId: parentCategoryId }).sort({ order: 1 }).lean();
+        const filter = { parentId: parentCategoryId };
+        if (mode === 'public') {
+            filter.active = true;
+        }
+
+        const categories = await CategoryModel.find(filter).sort({ order: 1 }).lean();
         res.json(
             categories.map((c) => ({
                 id: String(c._id),

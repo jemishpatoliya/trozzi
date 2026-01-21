@@ -22,9 +22,13 @@ router.get('/', authenticateAny, async (req, res) => {
       filter.userId = new mongoose.Types.ObjectId(String(req.userId));
     }
 
-    const [items, total] = await Promise.all([
+    const [items, total, unreadCount] = await Promise.all([
       NotificationModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
       NotificationModel.countDocuments(filter),
+      NotificationModel.countDocuments({
+        ...filter,
+        isRead: { $ne: true },
+      }).catch(() => 0),
     ]);
 
     return res.json({
@@ -38,10 +42,32 @@ router.get('/', authenticateAny, async (req, res) => {
         isRead: Boolean(n.isRead),
         createdAt: n.createdAt,
       })),
-      meta: { page, limit, total },
+      meta: { page, limit, total, unreadCount: Number(unreadCount ?? 0) || 0 },
     });
   } catch (e) {
     return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
+  }
+});
+
+// GET /api/notifications/unread-count
+router.get('/unread-count', authenticateAny, async (req, res) => {
+  try {
+    const filter = {};
+    if (req.admin) {
+      filter.userId = null;
+      filter.type = { $regex: /^admin_/ };
+    } else {
+      filter.userId = new mongoose.Types.ObjectId(String(req.userId));
+    }
+
+    const count = await NotificationModel.countDocuments({
+      ...filter,
+      isRead: { $ne: true },
+    });
+
+    return res.json({ success: true, data: { count: Number(count ?? 0) || 0 } });
+  } catch (_e) {
+    return res.status(500).json({ success: false, message: 'Failed to load unread count' });
   }
 });
 
@@ -73,6 +99,28 @@ router.post('/mark-read', authenticateAny, async (req, res) => {
     return res.json({ success: true, data: { modifiedCount: result.modifiedCount } });
   } catch (e) {
     return res.status(500).json({ success: false, message: 'Failed to mark notifications as read' });
+  }
+});
+
+// POST /api/notifications/mark-all-read
+router.post('/mark-all-read', authenticateAny, async (req, res) => {
+  try {
+    const filter = {};
+    if (req.admin) {
+      filter.userId = null;
+      filter.type = { $regex: /^admin_/ };
+    } else {
+      filter.userId = new mongoose.Types.ObjectId(String(req.userId));
+    }
+
+    const result = await NotificationModel.updateMany(
+      { ...filter, isRead: { $ne: true } },
+      { $set: { isRead: true } },
+    );
+
+    return res.json({ success: true, data: { modifiedCount: result.modifiedCount } });
+  } catch (_e) {
+    return res.status(500).json({ success: false, message: 'Failed to mark all notifications as read' });
   }
 });
 

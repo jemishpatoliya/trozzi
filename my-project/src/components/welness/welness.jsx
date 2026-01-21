@@ -63,7 +63,7 @@ const WellnessSection = () => {
           Elevate your well-being with our curated wellness collection. From yoga to nutrition, we've got you covered.
         </p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {items.map((item) => (
             <ProductCard key={item.id || item._id} product={item} />
           ))}

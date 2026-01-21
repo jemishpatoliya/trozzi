@@ -6,8 +6,12 @@ const { CategoryModel } = require('../models/category');
 // GET /api/categories - Get all categories
 router.get('/', async (req, res) => {
     try {
+        const mode = String(req.query?.mode ?? 'admin');
         const parentId = typeof req.query?.parentId === 'string' ? req.query.parentId : undefined;
         const filter = parentId !== undefined ? { parentId } : {};
+        if (mode === 'public') {
+            filter.active = true;
+        }
         const categories = await CategoryModel.find(filter).sort({ order: 1 }).lean();
         res.json(
             categories.map((c) => ({

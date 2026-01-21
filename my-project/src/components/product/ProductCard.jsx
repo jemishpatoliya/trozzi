@@ -31,15 +31,18 @@
 
 
 import React, { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FaBolt, FaCheck, FaHeart, FaRegHeart, FaShoppingCart, FaStar } from "react-icons/fa";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 import { useWishlist } from "../../context/WishlistContext";
 import ColorPicker from "./ColorPicker";
 import { normalizeProductForColorVariants } from "../../utils/colorVariants";
 
 const ProductCard = ({ product, view = "grid" }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
@@ -91,8 +94,17 @@ const ProductCard = ({ product, view = "grid" }) => {
 
     const displayMrp = originalPrice > 0 ? originalPrice : price;
 
-    const rating = Number(baseProduct.rating ?? 4.2);
-    const reviews = Number(baseProduct.reviews ?? 0);
+    const reviewsArray = Array.isArray(baseProduct.reviews) ? baseProduct.reviews : [];
+    const reviewsCount = Number.isFinite(Number(baseProduct.reviews))
+      ? Number(baseProduct.reviews)
+      : reviewsArray.length;
+
+    const ratingNumber = Number(baseProduct.rating);
+    const avgFromReviews = reviewsArray.length
+      ? reviewsArray.reduce((sum, r) => sum + Number(r?.rating ?? 0), 0) / reviewsArray.length
+      : 0;
+    const rating = Number.isFinite(ratingNumber) && ratingNumber > 0 ? ratingNumber : avgFromReviews;
+    const reviews = Number.isFinite(reviewsCount) ? reviewsCount : 0;
 
     return {
       id,
@@ -115,17 +127,6 @@ const ProductCard = ({ product, view = "grid" }) => {
     };
   }, [product, selectedColorVariant]);
 
-  const productHash = useMemo(() => {
-    if (!normalized?.id) return 0;
-    return String(normalized.id).split("").reduce((a, b) => {
-      a = (a << 5) - a + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-  }, [normalized?.id]);
-
-  const specialOffersAmount = Math.abs(productHash % 500) + 100;
-  const specialOffersCount = Math.abs(productHash) % 3 + 1;
-
   if (!normalized) return null;
 
   const displayImage = hoveredImage || normalized.image;
@@ -142,6 +143,10 @@ const ProductCard = ({ product, view = "grid" }) => {
   const handleAddToCart = async (e) => {
     e.stopPropagation();
     if (!normalized.id) return;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ''}`)}`);
+      return;
+    }
 
     setIsAddingToCart(true);
     try {
@@ -278,16 +283,6 @@ const ProductCard = ({ product, view = "grid" }) => {
                   {normalized.saleDiscount}% off
                 </span>
               )}
-            </div>
-
-            {/* Special Offers Badge */}
-            <div className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded-md font-medium inline-block border border-green-200">
-              ₹{specialOffersAmount} with {specialOffersCount} Special Offers
-            </div>
-
-            {/* Free Delivery */}
-            <div className="text-xs text-gray-600 font-medium">
-              🚚 Free Delivery
             </div>
 
             {/* Rating and Stock */}

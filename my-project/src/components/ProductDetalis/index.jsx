@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import Qtybox from '../QtyBox';
 import Rating from '@mui/material/Rating';
@@ -10,6 +11,7 @@ import { FaRegHeart } from "react-icons/fa";
 import { IoIosGitCompare } from "react-icons/io";
 import ColorPicker from '../product/ColorPicker';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCompare } from '../../context/CompareContext';
 import { normalizeColorKey, normalizeToken } from '../../utils/colorVariants';
@@ -23,6 +25,10 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   const [isAdding, setIsAdding] = useState(false);
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [sizeGuideData, setSizeGuideData] = useState(null);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
 
   useEffect(() => {
     setSelectedSimpleColor(product?.colors?.[0] || '');
@@ -155,6 +161,10 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   // Debounce: disable actions for 1s after any action
   const handleAddToCart = async () => {
     if (isAdding || !productId) return;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ''}`)}`);
+      return;
+    }
     setIsAdding(true);
     try {
       await addToCart(productId, quantity, {
@@ -166,6 +176,29 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         color: hasColorVariants ? currentVariant?.colorName : selectedSimpleColor,
         size: selectedSize,
       });
+    } finally {
+      setTimeout(() => setIsAdding(false), 1000);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (isAdding || !productId) return;
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ''}`)}`);
+      return;
+    }
+    setIsAdding(true);
+    try {
+      await addToCart(productId, quantity, {
+        name: product?.name,
+        image: currentImages?.[0],
+        price: currentPrice,
+        brand: product?.brand,
+        sku: currentSku,
+        color: hasColorVariants ? currentVariant?.colorName : selectedSimpleColor,
+        size: selectedSize,
+      });
+      navigate('/checkout');
     } finally {
       setTimeout(() => setIsAdding(false), 1000);
     }
@@ -380,11 +413,6 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         </div>
       )}
 
-      {/* Shipping Info */}
-      <p className="text-[15px] mb-4 text-[#000] font-[500]">
-        ✅ Free Shipping (Est. Delivery Time 2-3 Days)
-      </p>
-
       {/* Quantity + Add to Cart */}
       <div className="flex items-center gap-4 py-4">
         <div className="QtyBoxWrapper w-[80px]">
@@ -403,6 +431,15 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           className="!bg-red-600 !text-white !px-6 !py-3 !rounded-md hover:!bg-black transition-all duration-300 flex items-center gap-2"
         >
           <FaCartShopping className="text-[20px]" /> {isAdding ? 'Adding...' : 'Add To Cart'}
+        </Button>
+
+        <Button
+          variant="contained"
+          disabled={isAdding || !productId}
+          onClick={handleBuyNow}
+          className="!bg-black !text-white !px-6 !py-3 !rounded-md hover:!bg-red-600 transition-all duration-300"
+        >
+          {isAdding ? 'Please wait...' : 'Buy Now'}
         </Button>
       </div>
 

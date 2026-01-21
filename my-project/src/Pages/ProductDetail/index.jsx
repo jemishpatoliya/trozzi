@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { FaStar, FaShoppingCart, FaHeart, FaRegHeart, FaTruck, FaShieldAlt, FaUndo, FaQuestionCircle, FaUser, FaThumbsUp, FaCheck } from 'react-icons/fa';
 import { fetchProductDetails, fetchProductQuestions, askQuestion, answerQuestion, upvoteQuestion, fetchProductReviews, submitProductReview } from '../../api/productDetails';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { normalizeColorKey, normalizeProductForColorVariants, normalizeToken } from '../../utils/colorVariants';
 
@@ -10,7 +11,9 @@ const ProductDetail = () => {
     const { productId } = useParams();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
     const { addToCart } = useCart();
+    const { user } = useAuth();
     const { toggleWishlist, isInWishlist } = useWishlist();
 
     const [product, setProduct] = useState(null);
@@ -226,6 +229,10 @@ const ProductDetail = () => {
     const handleAddToCart = async () => {
         const stock = Number(product?.stock ?? 0);
         if (!productDocId || !product || stock <= 0) return;
+        if (!user) {
+            navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ''}`)}`);
+            return;
+        }
 
         try {
             setIsAddingToCart(true);

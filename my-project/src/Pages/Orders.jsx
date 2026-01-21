@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useContentSettings } from '../context/ContentSettingsContext';
 import { apiClient } from '../api/client';
+import { useNotifications } from '../context/NotificationContext';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const Orders = () => {
   const { settings } = useContentSettings();
+  const { socket } = useNotifications();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [orders, setOrders] = useState([]);
@@ -41,6 +43,24 @@ const Orders = () => {
       cancelled = true;
     };
   }, [showOrderHistory]);
+
+  useEffect(() => {
+    if (!showOrderHistory) return;
+    if (!socket) return;
+
+    const onStatusChanged = (evt) => {
+      const id = String(evt?.id || '');
+      const status = String(evt?.status || '').toLowerCase();
+      if (!id || !status) return;
+
+      setOrders((prev) => prev.map((o) => (String(o?.id) === id ? { ...o, status } : o)));
+    };
+
+    socket.on('order:status_changed', onStatusChanged);
+    return () => {
+      socket.off('order:status_changed', onStatusChanged);
+    };
+  }, [socket, showOrderHistory]);
 
   const canCancel = (status) => {
     const s = String(status || '').toLowerCase();

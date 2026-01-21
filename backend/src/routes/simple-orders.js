@@ -7,6 +7,7 @@ const { ProductModel } = require('../models/product');
 const jwt = require('jsonwebtoken');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
 const domainEvents = require('../services/domainEvents');
+const { validateTransition } = require('../middleware/stateMachine');
 
 const router = express.Router();
 
@@ -928,17 +929,88 @@ router.put('/:id/status', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing status' });
     }
 
+    const nowIso = new Date().toISOString();
     const _id = new mongoose.Types.ObjectId(id);
-    const result = await db
-      .collection('orders')
-      .findOneAndUpdate(
-        { _id },
-        { $set: { status } },
-        { returnDocument: 'after' },
-      );
+
+    const existing = await db.collection('orders').findOne({ _id });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const currentStatus = normalizeStatus(existing.status);
+    try {
+      validateTransition('order', currentStatus, status);
+    } catch (e) {
+      return res.status(400).json({ success: false, message: e.message });
+    }
+
+    const result = await db.collection('orders').findOneAndUpdate(
+      { _id },
+      {
+        $set: {
+          status,
+          updatedAt: new Date(nowIso),
+          updatedAtIso: nowIso,
+          [`statusTimestamps.${status}`]: nowIso,
+        },
+        $push: { statusHistory: { status, at: nowIso, source: 'admin', by: String(auth.admin?._id || '') } },
+      },
+      { returnDocument: 'after' },
+    );
 
     if (!result?.value) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const updated = result.value;
+    const io = req.app.get('io');
+
+    const orderPayload = {
+      id: String(updated._id),
+      orderNumber: String(updated.orderNumber || ''),
+      status: normalizeStatus(updated.status),
+      updatedAt: nowIso,
+      source: 'admin',
+    };
+
+    if (io) {
+      io.to('admin').emit('order:status_changed', orderPayload);
+
+      const userId = updated.user ? String(updated.user) : '';
+      const userEmail = String(updated?.customer?.email || '').toLowerCase();
+      if (userId) {
+        io.to(`user:${userId}`).emit('order:status_changed', orderPayload);
+        io.to(`user_${userId}`).emit('order:status_changed', orderPayload);
+      }
+      if (userEmail) {
+        io.to(`user_email:${userEmail}`).emit('order:status_changed', orderPayload);
+      }
+    }
+
+    try {
+      const userDoc = updated.user ? await UserModel.findById(String(updated.user)) : null;
+      const orderDoc = {
+        _id: updated._id,
+        orderNumber: String(updated.orderNumber || ''),
+        customer: updated.customer || { name: '', email: '' },
+        total: Number(updated.total ?? 0) || 0,
+        items: Array.isArray(updated.items) ? updated.items : [],
+      };
+
+      if (status === 'processing') {
+        domainEvents.emit('order:confirmed', { user: userDoc, order: orderDoc, io });
+      }
+      if (status === 'shipped') {
+        domainEvents.emit('order:shipped', { user: userDoc, order: orderDoc, shipment: updated.shipment || {}, io });
+      }
+      if (status === 'delivered') {
+        domainEvents.emit('order:delivered', { user: userDoc, order: orderDoc, io });
+      }
+      if (status === 'cancelled') {
+        domainEvents.emit('order:cancelled', { user: userDoc, order: orderDoc, by: 'admin', io });
+      }
+    } catch (e) {
+      console.error('Admin order status domain event error:', e);
     }
 
     res.json({

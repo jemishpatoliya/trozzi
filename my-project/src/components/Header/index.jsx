@@ -13,6 +13,7 @@ import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useContentSettings } from '../../context/ContentSettingsContext';
 import CartDrawer from '../CartPanel/CartDrawer';
+import NotificationBell from './NotificationBell';
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
   "& .MuiBadge-badge": {
@@ -111,6 +112,8 @@ const Header = () => {
               <div className="hidden md:block">
                 <UserMenu />
               </div>
+
+              <NotificationBell />
 
               {/* Cart Icon */}
               <Tooltip title="Cart" arrow>

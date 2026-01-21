@@ -318,7 +318,7 @@ const Productsdetailsh = () => {
                                 className={`${activeTab === 2 ? 'text-blue-600' : ''} link text-lg cursor-pointer font-medium hover:text-blue-600 transition`}
                                 onClick={() => setActiveTab(2)}
                             >
-                                Reviews (5)
+                                Reviews ({reviews.length})
                             </span>
                         </div>
 

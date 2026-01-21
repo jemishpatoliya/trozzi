@@ -869,6 +869,12 @@ useEffect(() => {
                 const ids = p?.management?.basic?.categoryIds;
                 if (Array.isArray(ids) && ids.some((id) => allowedIds.has(String(id)))) return true;
 
+                const subId = p?.management?.basic?.subCategoryId;
+                if (subId && allowedIds.has(String(subId))) return true;
+
+                const directSubId = p?.subCategoryId;
+                if (directSubId && allowedIds.has(String(directSubId))) return true;
+
                 const catId = resolveCategoryId(p?.category);
                 if (catId && allowedIds.has(catId)) return true;
             }

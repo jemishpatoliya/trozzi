@@ -109,7 +109,9 @@ const OrderTracking = () => {
         };
 
         const token = localStorage.getItem('token');
-        const socketUrl = process.env.REACT_APP_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:5050`;
+        const socketUrl = process.env.REACT_APP_SOCKET_URL || (String(window.location.port) === '3000'
+            ? `${window.location.protocol}//${window.location.hostname}:5051`
+            : window.location.origin);
 
         const socket = io(socketUrl, {
             auth: token ? { token } : {},

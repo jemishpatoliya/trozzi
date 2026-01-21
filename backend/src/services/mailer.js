@@ -5,6 +5,11 @@ let cachedTransport = null;
 function getTransport() {
   if (cachedTransport) return cachedTransport;
 
+  const host = String(process.env.MAIL_HOST || '').trim();
+  const port = Number(process.env.MAIL_PORT || 0) || 0;
+  const secure = String(process.env.MAIL_SECURE || '').trim();
+  const service = String(process.env.MAIL_SERVICE || '').trim();
+
   const user = String(process.env.MAIL_USER || '').trim();
   const pass = String(process.env.MAIL_PASS || '').trim();
 
@@ -12,10 +17,19 @@ function getTransport() {
     throw new Error('Missing MAIL_USER or MAIL_PASS');
   }
 
-  cachedTransport = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  });
+  if (host || port) {
+    cachedTransport = nodemailer.createTransport({
+      host: host || undefined,
+      port: port || undefined,
+      secure: secure ? String(secure).toLowerCase() === 'true' : port === 465,
+      auth: { user, pass },
+    });
+  } else {
+    cachedTransport = nodemailer.createTransport({
+      service: service || 'gmail',
+      auth: { user, pass },
+    });
+  }
 
   return cachedTransport;
 }

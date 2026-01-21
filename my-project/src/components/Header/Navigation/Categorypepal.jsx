@@ -1,14 +1,137 @@
 // Categorypepal.js
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { FcCloseUpMode } from "react-icons/fc";
 import { BiSolidPlusCircle } from "react-icons/bi";
 import { Link } from 'react-router-dom';
+import { fetchCategories } from '../../../api/catalog';
 
 const routeForCategory = (category) => `/ProductListing?category=${encodeURIComponent(String(category))}`;
 
 const Categorypepal = (props) => {
+  const [categories, setCategories] = useState([]);
+  const [openCategoryIds, setOpenCategoryIds] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const data = await fetchCategories();
+        if (cancelled) return;
+        const list = Array.isArray(data) ? data : [];
+        setCategories(list.filter((c) => c && c.name));
+      } catch (_e) {
+        if (!cancelled) setCategories([]);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const topCategories = useMemo(() => {
+    return categories.filter((c) => !c.parentId);
+  }, [categories]);
+
+  const childrenByParent = useMemo(() => {
+    const map = new Map();
+    categories.forEach((c) => {
+      if (!c || !c.parentId) return;
+      const key = String(c.parentId);
+      const prev = map.get(key) || [];
+      prev.push(c);
+      map.set(key, prev);
+    });
+    return map;
+  }, [categories]);
+
+  const toggleOpen = (id) => {
+    const key = String(id);
+    setOpenCategoryIds((prev) => ({
+      ...prev,
+      [key]: !prev?.[key],
+    }));
+  };
+
+  const DynamicDrawerList = (
+    <Box sx={{ width: 280 }} role="presentation" className="CategoryPanel">
+      {/* Header */}
+      <h3 className="p-3 text-[17px] font-[500] flex items-center justify-between border-b">
+        Shop by category
+        <FcCloseUpMode
+          onClick={() => props.setopenCategorypepal(false)}
+          className="text-[25px] cursor-pointer"
+        />
+      </h3>
+
+      {/* Scrollable list */}
+      <div className="overflow-y-auto max-h-[90vh]">
+        <ul className="w-full">
+          <li>
+            <Link
+              to="/"
+              className="block px-3 py-2 hover:bg-gray-100"
+              onClick={() => props.setopenCategorypepal(false)}
+            >
+              Home
+            </Link>
+          </li>
+
+          {topCategories.map((cat) => {
+            const id = cat.id || cat._id || cat.name;
+            const children = childrenByParent.get(String(cat.id)) || [];
+            const isOpen = Boolean(openCategoryIds?.[String(cat.id)]);
+
+            if (!children || children.length === 0) {
+              return (
+                <li key={id}>
+                  <Link
+                    to={routeForCategory(cat.id || cat.name)}
+                    className="block px-3 py-2 hover:bg-gray-100"
+                    onClick={() => props.setopenCategorypepal(false)}
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              );
+            }
+
+            return (
+              <li key={id}>
+                <div
+                  className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-100"
+                  onClick={() => toggleOpen(cat.id)}
+                >
+                  <span>{cat.name}</span>
+                  <BiSolidPlusCircle className={`transition-transform ${isOpen ? "rotate-45" : ""}`} />
+                </div>
+
+                {isOpen && (
+                  <ul className="pl-5">
+                    {children.map((child) => (
+                      <li key={child.id || child._id || child.name}>
+                        <Link
+                          to={routeForCategory(child.id || child.name)}
+                          className="block px-3 py-2 text-[14px] hover:bg-gray-50"
+                          onClick={() => props.setopenCategorypepal(false)}
+                        >
+                          {child.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </Box>
+  );
+
   // --- States for dropdowns ---
   // Fashion
   const [isFashionOpen, setIsFashionOpen] = useState(false);
@@ -363,7 +486,7 @@ const Categorypepal = (props) => {
       open={props.isopenCatpanel}
       onClose={() => props.setopenCategorypepal(false)}
     >
-      {DrawerList}
+      {topCategories.length > 0 ? DynamicDrawerList : DrawerList}
     </Drawer>
   );
 };
