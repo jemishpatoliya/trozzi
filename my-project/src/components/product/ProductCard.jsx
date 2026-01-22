@@ -186,16 +186,16 @@ const ProductCard = ({ product, view = "grid" }) => {
         className={
           isList
             ? "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 flex h-[280px]"
-            : "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0"
+            : "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 h-full"
         }
       >
-        <div className="transition-transform duration-300">
+        <div className="transition-transform duration-300 flex flex-col h-full">
           {/* Image Section */}
           <div
             className={
               isList
                 ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
-                : "aspect-square bg-gray-50 overflow-hidden relative"
+                : "aspect-[4/3] sm:aspect-square bg-gray-50 overflow-hidden relative"
             }
           >
             <div className="relative overflow-hidden w-full h-full">
@@ -218,7 +218,7 @@ const ProductCard = ({ product, view = "grid" }) => {
             <button
               type="button"
               onClick={handleWishlistToggle}
-              className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white transition-all"
+              className="absolute top-2 right-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white transition-all"
               aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             >
               {wishlisted ? (
@@ -246,8 +246,8 @@ const ProductCard = ({ product, view = "grid" }) => {
                     }}
                     className={
                       hoveredImage === url
-                        ? "h-7 w-7 rounded-full border-2 border-blue-600 overflow-hidden"
-                        : "h-7 w-7 rounded-full border border-white/60 overflow-hidden"
+                        ? "h-6 w-6 sm:h-7 sm:w-7 rounded-full border-2 border-blue-600 overflow-hidden"
+                        : "h-6 w-6 sm:h-7 sm:w-7 rounded-full border border-white/60 overflow-hidden"
                     }
                   >
                     <img src={url} alt="" className="h-full w-full object-cover" />
@@ -258,9 +258,9 @@ const ProductCard = ({ product, view = "grid" }) => {
           </div>
 
           {/* Content Section */}
-          <div className="p-3 space-y-2">
+          <div className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 flex flex-col flex-1">
             {/* Product Title */}
-            <h3 className="font-medium text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="font-medium text-[13px] sm:text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
               {normalized.name}
             </h3>
 
@@ -268,18 +268,18 @@ const ProductCard = ({ product, view = "grid" }) => {
 
             {/* Price Section */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-bold text-gray-900">
+              <span className="text-base sm:text-lg font-bold text-gray-900">
                 {formatPrice(normalized.displayPrice)}
               </span>
 
               {normalized.originalPrice > normalized.displayPrice && (
-                <span className="text-sm text-gray-400 line-through">
+                <span className="text-xs sm:text-sm text-gray-400 line-through">
                   {formatPrice(normalized.originalPrice)}
                 </span>
               )}
 
               {normalized.isSaleActive && (
-                <span className="text-sm text-green-600 font-semibold">
+                <span className="text-xs sm:text-sm text-green-600 font-semibold">
                   {normalized.saleDiscount}% off
                 </span>
               )}
@@ -288,7 +288,7 @@ const ProductCard = ({ product, view = "grid" }) => {
             {/* Rating and Stock */}
             <div className="flex items-center justify-between">
               {/* Rating */}
-              <div className="flex items-center gap-1 bg-green-600 px-2 py-1 rounded-md text-white text-xs font-medium">
+              <div className="flex items-center gap-1 bg-green-600 px-2 py-1 rounded-md text-white text-[11px] sm:text-xs font-medium">
                 <span className="font-bold">{normalized.rating.toFixed(1)}</span>
                 <FaStar className="h-3 w-3 fill-current" />
                 <span>({normalized.reviews})</span>
@@ -307,7 +307,7 @@ const ProductCard = ({ product, view = "grid" }) => {
               type="button"
               onClick={handleAddToCart}
               disabled={isAddingToCart || normalized.stock <= 0}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-green-600 border border-green-600  hover:text-white text-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full mt-auto inline-flex items-center justify-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm font-semibold hover:bg-green-600 border border-green-600 hover:text-white text-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {justAdded ? (
                 <>
@@ -316,8 +316,15 @@ const ProductCard = ({ product, view = "grid" }) => {
                 </>
               ) : (
                 <>
-                  <FaShoppingCart />
-                  {isAddingToCart ? "Adding..." : "Add to Cart"}
+                  <FaShoppingCart className="hidden sm:inline" />
+                  {isAddingToCart ? (
+                    "Adding..."
+                  ) : (
+                    <>
+                      <span className="sm:hidden">ADD</span>
+                      <span className="hidden sm:inline">Add to Cart</span>
+                    </>
+                  )}
                 </>
               )}
             </button>

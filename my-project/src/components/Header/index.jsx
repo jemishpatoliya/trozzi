@@ -22,6 +22,17 @@ const StyledBadge = styled(Badge)(({ theme }) => ({
     border: `2px solid ${(theme.vars ?? theme).palette.background.paper}`,
     padding: "0 4px",
   },
+  [theme.breakpoints.down('sm')]: {
+    "& .MuiBadge-badge": {
+      right: -2,
+      top: 10,
+      padding: "0 3px",
+      fontSize: 10,
+      minWidth: 16,
+      height: 16,
+      lineHeight: '16px',
+    },
+  },
 }));
 
 const Header = () => {
@@ -78,13 +89,13 @@ const Header = () => {
       </div>
 
       {/* MAIN HEADER */}
-      <div className="header py-3 md:py-4 bg-white dark:bg-surface-900">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between gap-4">
+      <div className="header py-2 md:py-4 bg-white dark:bg-surface-900">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Mobile Menu Button */}
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden text-2xl text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors p-2 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl"
+              className="md:hidden w-10 h-10 flex items-center justify-center text-[22px] text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl"
             >
               {isMobileMenuOpen ? <FiX /> : <FiMenu />}
             </button>
@@ -93,7 +104,7 @@ const Header = () => {
             <div className="col1 flex-shrink-0">
               <Link to="/">
                 <span
-                  className="block font-serif font-semibold tracking-[0.22em] text-2xl md:text-5xl leading-none"
+                  className="block font-serif font-semibold tracking-[0.18em] text-lg sm:text-2xl md:text-5xl leading-none"
                   style={{ color: "#5A0B5A" }}
                 >
                   TROZZI
@@ -107,7 +118,7 @@ const Header = () => {
             </div>
 
             {/* Icons - Right Side */}
-            <div className="col3 flex items-center gap-1 md:gap-2">
+            <div className="col3 flex items-center gap-0.5 sm:gap-1 md:gap-2">
               {/* Desktop User Menu */}
               <div className="hidden md:block">
                 <UserMenu />
@@ -120,10 +131,10 @@ const Header = () => {
                 <IconButton
                   aria-label="cart"
                   onClick={toggleCart}
-                  className="hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
+                  className="!w-10 !h-10 sm:!w-11 sm:!h-11 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
                 >
                   <StyledBadge badgeContent={itemCount} color="secondary">
-                    <FiShoppingCart className="text-xl md:text-2xl text-text-700 dark:text-text-300" />
+                    <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-text-700 dark:text-text-300" />
                   </StyledBadge>
                 </IconButton>
               </Tooltip>
@@ -133,10 +144,10 @@ const Header = () => {
                 <Link to="/wishlist">
                   <IconButton
                     aria-label="wishlist"
-                    className="hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
+                    className="!w-10 !h-10 sm:!w-11 sm:!h-11 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
                   >
                     <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
-                      <FiHeart className="text-xl md:text-2xl text-text-700 dark:text-text-300" />
+                      <FiHeart className="text-lg sm:text-xl md:text-2xl text-text-700 dark:text-text-300" />
                     </StyledBadge>
                   </IconButton>
                 </Link>
@@ -156,8 +167,18 @@ const Header = () => {
             </div>
           </div>
 
+          <div className="md:hidden mt-2.5">
+            <button
+              type="button"
+              className="w-full min-h-[44px] rounded-2xl bg-surface-50 dark:bg-surface-800 border border-border-200 dark:border-border-700 px-3.5 py-2 text-left shadow-sm"
+            >
+              <div className="text-[11px] text-text-500 dark:text-text-400 leading-tight">Deliver to</div>
+              <div className="text-[13px] font-semibold text-text-900 dark:text-text-100 truncate">Select your location</div>
+            </button>
+          </div>
+
           {/* Mobile Search - Below header */}
-          <div className="md:hidden mt-3">
+          <div className="md:hidden mt-2.5">
             <GlobalSearch />
           </div>
         </div>

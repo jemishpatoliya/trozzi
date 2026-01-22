@@ -556,14 +556,13 @@
 // };
 
 // export default ProductListing;
-
-
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import ProductCard from "../../components/product/ProductCard";
+import ProductSlider from "../../components/product/productslider";
 import Button from "@mui/material/Button";
 import { IoGrid } from "react-icons/io5";
 import { TfiMenuAlt } from "react-icons/tfi";
@@ -900,9 +899,9 @@ useEffect(() => {
 }, [allItems, category, page, limit, categories]);
 
 return (
-    <section className="py-5 bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-4">
-            <Breadcrumbs aria-label="breadcrumb" className="mb-4">
+    <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
+        <div className="container mx-auto px-3 sm:px-4">
+            <Breadcrumbs aria-label="breadcrumb" className="mb-3 sm:mb-4">
                 <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
                     Home
                 </Link>
@@ -912,7 +911,61 @@ return (
             </Breadcrumbs>
         </div>
 
-        <div className="container mx-auto px-4">
+        {categories.length > 0 && (
+            <div className="container mx-auto px-3 sm:px-4 lg:hidden">
+                <div className="-mx-3 sm:-mx-4 px-3 sm:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
+                    <div className="flex items-center gap-2 w-max">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCategory("");
+                                setPage(1);
+                                const nextParams = new URLSearchParams(searchParams);
+                                nextParams.delete("category");
+                                setSearchParams(nextParams, { replace: true });
+                            }}
+                            className={
+                                String(category || "").trim()
+                                    ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                    : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
+                            }
+                        >
+                            All
+                        </button>
+
+                        {categories
+                            .filter((c) => c && c.active)
+                            .filter((c) => !c.parentId)
+                            .map((c) => {
+                                const name = String(c.name || "");
+                                const isActive = String(category || "").trim().toLowerCase() === name.trim().toLowerCase();
+                                return (
+                                    <button
+                                        key={c.id || c._id || name}
+                                        type="button"
+                                        onClick={() => {
+                                            setCategory(name);
+                                            setPage(1);
+                                            const nextParams = new URLSearchParams(searchParams);
+                                            nextParams.set("category", name);
+                                            setSearchParams(nextParams, { replace: true });
+                                        }}
+                                        className={
+                                            isActive
+                                                ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                                : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                        }
+                                    >
+                                        {name}
+                                    </button>
+                                );
+                            })}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        <div className="container mx-auto px-3 sm:px-4">
             <div className="flex gap-6">
                 {/* Sidebar */}
                 <div className="hidden lg:block w-64 flex-shrink-0">
@@ -962,27 +1015,27 @@ return (
                 {/* Main Content */}
                 <div className="flex-1">
                     {/* Toolbar */}
-                    <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 sm:mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                                     <Button
-                                        className={`!w-10 !h-10 !min-w-0 !rounded-md transition-all ${itemView === "grid" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
+                                        className={`!w-9 !h-9 sm:!w-10 sm:!h-10 !min-w-0 !rounded-md transition-all ${itemView === "grid" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
                                         onClick={() => setItemView("grid")}
                                         title="Grid View"
                                     >
-                                        <IoGrid className="text-lg" />
+                                        <IoGrid className="text-base sm:text-lg" />
                                     </Button>
                                     <Button
-                                        className={`!w-10 !h-10 !min-w-0 !rounded-md transition-all ${itemView === "list" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
+                                        className={`!w-9 !h-9 sm:!w-10 sm:!h-10 !min-w-0 !rounded-md transition-all ${itemView === "list" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
                                         onClick={() => setItemView("list")}
                                         title="List View"
                                     >
-                                        <TfiMenuAlt className="text-lg" />
+                                        <TfiMenuAlt className="text-base sm:text-lg" />
                                     </Button>
                                 </div>
 
-                                <div className="text-sm text-gray-600 font-medium">
+                                <div className="text-[13px] sm:text-sm text-gray-600 font-medium">
                                     {loading ? (
                                         <span>Loading products...</span>
                                     ) : (
@@ -998,13 +1051,13 @@ return (
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                                 <Button
                                     aria-controls={filterOpen ? "filter-menu" : undefined}
                                     aria-haspopup="true"
                                     aria-expanded={filterOpen ? "true" : undefined}
                                     onClick={handleFilterClick}
-                                    className="!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-4 !py-2.5 flex items-center gap-2 transition-all"
+                                    className="!text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center gap-2 transition-all"
                                 >
                                     <FaFilter className="text-sm" />
                                     <span className="hidden sm:inline">Filters</span>
@@ -1020,7 +1073,7 @@ return (
                                     aria-haspopup="true"
                                     aria-expanded={open ? "true" : undefined}
                                     onClick={handleClick}
-                                    className="!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-4 !py-2.5 flex items-center gap-2 transition-all"
+                                    className="!text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center gap-2 transition-all"
                                 >
                                     <FaSortAmountDown className="text-sm" />
                                     <span className="hidden sm:inline">{getCurrentSortLabel()}</span>
@@ -1031,26 +1084,26 @@ return (
 
                         {/* Active Filters Display */}
                         {getActiveFiltersCount() > 0 && (
-                            <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm text-gray-600 font-medium">Active Filters:</span>
+                                    <span className="text-[13px] sm:text-sm text-gray-600 font-medium">Active Filters:</span>
 
                                     {selectedFilters.inStock && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
+                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
                                             In Stock
                                             <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('inStock', false)} />
                                         </span>
                                     )}
 
                                     {selectedFilters.freeShipping && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
+                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
                                             Free Shipping
                                             <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('freeShipping', false)} />
                                         </span>
                                     )}
 
                                     {selectedFilters.onSale && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
+                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
                                             On Sale
                                             <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('onSale', false)} />
                                         </span>
@@ -1137,15 +1190,15 @@ return (
                             onClose={handleFilterClose}
                             PaperProps={{
                                 style: {
-                                    minWidth: '380px',
-                                    maxHeight: '600px',
+                                    minWidth: 'min(380px, 92vw)',
+                                    maxHeight: 'min(600px, 80vh)',
                                     borderRadius: '12px'
                                 }
                             }}
                         >
-                            <div className="p-6">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-bold text-gray-900">Filters</h3>
+                            <div className="p-4 sm:p-6">
+                                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                                    <h3 className="text-base sm:text-lg font-bold text-gray-900">Filters</h3>
                                     <button
                                         onClick={handleFilterClose}
                                         className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -1155,10 +1208,11 @@ return (
                                 </div>
 
                                 {/* Price Range Filter */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                <div className="mb-5 sm:mb-6">
+                                    <label className="block text-[13px] sm:text-sm font-semibold text-gray-700 mb-2.5 sm:mb-3">
                                         Price Range
                                     </label>
+
                                     <Slider
                                         value={tempPriceRange}
                                         onChange={(e, newValue) => setTempPriceRange(newValue)}
@@ -1170,14 +1224,14 @@ return (
                                         className="!text-blue-600"
                                     />
                                     <div className="flex items-center justify-between mt-2">
-                                        <span className="text-sm text-gray-600 font-medium">₹{tempPriceRange[0]}</span>
-                                        <span className="text-sm text-gray-600 font-medium">₹{tempPriceRange[1]}</span>
+                                        <span className="text-[13px] sm:text-sm text-gray-600 font-medium">₹{tempPriceRange[0]}</span>
+                                        <span className="text-[13px] sm:text-sm text-gray-600 font-medium">₹{tempPriceRange[1]}</span>
                                     </div>
                                 </div>
 
                                 {/* Size Filter */}
-                                <div className="mb-6">
-                                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                                <div className="mb-5 sm:mb-6">
+                                    <label className="block text-[13px] sm:text-sm font-semibold text-gray-700 mb-2.5 sm:mb-3">
                                         Size
                                     </label>
                                     <div className="flex flex-wrap gap-2">
@@ -1185,7 +1239,7 @@ return (
                                             <button
                                                 key={size}
                                                 onClick={() => toggleArrayFilter('sizes', size)}
-                                                className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedFilters.sizes.includes(size)
+                                                className={`px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-lg border-2 text-[13px] sm:text-sm font-medium transition-all ${selectedFilters.sizes.includes(size)
                                                     ? 'bg-blue-600 text-white border-blue-600'
                                                     : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
                                                     }`}
@@ -1342,52 +1396,74 @@ return (
                         </Menu>
 
                         {/* Products Grid/List */}
-                        <div
-                            className={
-                                itemView === "grid"
-                                    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                                    : "flex flex-col gap-4"
-                            }
-                        >
-                            {loading && items.length === 0 ? (
-                                <div className="col-span-full py-20 text-center">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                                    <p className="mt-4 text-gray-600">Loading products...</p>
+                        {loading && items.length === 0 ? (
+                            <div className="py-16 text-center">
+                                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                                <p className="mt-4 text-gray-600">Loading products...</p>
+                            </div>
+                        ) : error ? (
+                            <div className="py-16 text-center">
+                                <p className="text-red-600 text-base sm:text-lg">{error}</p>
+                            </div>
+                        ) : items.length === 0 ? (
+                            <div className="py-16 text-center">
+                                <p className="text-gray-600 text-base sm:text-lg">No products found</p>
+                                <p className="text-gray-500 text-[13px] sm:text-sm mt-2">Try adjusting your filters</p>
+                            </div>
+                        ) : itemView === "grid" ? (
+                            <>
+                                <div className="md:hidden">
+                                    <ProductSlider products={items} />
                                 </div>
-                            ) : error ? (
-                                <div className="col-span-full py-20 text-center">
-                                    <p className="text-red-600 text-lg">{error}</p>
+
+                                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                                    {items.map((product) => (
+                                        <ProductCard
+                                            key={product.id || product._id}
+                                            product={product}
+                                            view={itemView}
+                                        />
+                                    ))}
                                 </div>
-                            ) : items.length === 0 ? (
-                                <div className="col-span-full py-20 text-center">
-                                    <p className="text-gray-600 text-lg">No products found</p>
-                                    <p className="text-gray-500 text-sm mt-2">Try adjusting your filters</p>
-                                </div>
-                            ) : (
-                                items.map((product) => (
+                            </>
+                        ) : (
+                            <div className="flex flex-col gap-4">
+                                {items.map((product) => (
                                     <ProductCard
                                         key={product.id || product._id}
                                         product={product}
                                         view={itemView}
                                     />
-                                ))
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Pagination */}
                         {!loading && !error && totalPages > 1 && (
-                            <div className="flex justify-center mt-8">
+                            <div className="flex justify-center mt-6 sm:mt-8">
                                 <Pagination
                                     count={totalPages}
                                     page={page}
                                     onChange={(_e, value) => setPage(value)}
                                     showFirstButton
                                     showLastButton
-                                    size="large"
+                                    size="small"
                                     siblingCount={1}
                                     boundaryCount={1}
                                     className="pagination"
                                     sx={{
+                                        '& .MuiPaginationItem-root': {
+                                            fontSize: '0.85rem',
+                                            minWidth: 30,
+                                            height: 30,
+                                        },
+                                        '@media (min-width: 768px)': {
+                                            '& .MuiPaginationItem-root': {
+                                                fontSize: '1rem',
+                                                minWidth: 36,
+                                                height: 36,
+                                            },
+                                        },
                                         '& .MuiPaginationItem-root': {
                                             '&.Mui-selected': {
                                                 backgroundColor: '#2563eb',

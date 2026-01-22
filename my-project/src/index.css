@@ -26,6 +26,19 @@ body{
   color: #3e3e3e;
   overflow-x: hidden;
 }
+
+html,
+#root{
+  overflow-x: hidden;
+}
+
+.scrollbar-hide::-webkit-scrollbar{
+  display:none;
+}
+.scrollbar-hide{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
 p{
   font-size: 14px;
   line-height: 25px;

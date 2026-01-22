@@ -4,7 +4,14 @@
 .product-slider {
   position: relative;
   width: 100%;
-  padding: 20px 0;
+  padding: 12px 0;
+}
+
+@media (max-width: 767px) {
+  .product-slider .swiper-button-next,
+  .product-slider .swiper-button-prev {
+    display: none;
+  }
 }
 
 /* Swiper navigation arrows */
@@ -22,6 +29,6 @@
 }
 
 /* space below slider */
-.swiper {
-  padding-bottom: 30px;
+.product-slider .swiper {
+  padding-bottom: 12px;
 }

@@ -31,8 +31,8 @@ const Home = () => {
       </section>
 
       {/* Promotions Section */}
-      <section className="promotions-section py-12 bg-white">
-        <div className="container mx-auto px-4">
+      <section className="promotions-section py-6 sm:py-12 bg-white">
+        <div className="container mx-auto px-3 sm:px-4">
           {/* <FreeShippingBanner /> */}
           <Adsbennerslider items={4} />
         </div>

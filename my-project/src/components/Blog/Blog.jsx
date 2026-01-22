@@ -33,35 +33,35 @@ const blogs = [
 
 const BlogSection = () => {
   return (
-    <section className="py-16 px-6 bg-white">
+    <section className="py-6 sm:py-16 px-3 sm:px-6 bg-white">
       <div className="">
-        <h2 className="text-4xl font-bold text-gray-900 mb-4 text-center">From The Blog</h2>
-        <p className="text-lg text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+        <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4 text-center">From The Blog</h2>
+        <p className="text-[13px] sm:text-lg text-gray-600 mb-4 sm:mb-12 text-center max-w-3xl mx-auto leading-relaxed">
           Tips, trends, and insights from our experts. Stay updated with the latest in lifestyle and wellness.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
           {blogs.map((blog) => (
             <div
               key={blog.id}
               className="bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
             >
               {/* Blog Image */}
-              <div className="relative h-56 overflow-hidden">
+              <div className="relative h-44 sm:h-56 overflow-hidden">
                 <img
                   src={blog.image}
                   alt={blog.title}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
                 {/* Date Badge */}
-                <span className="absolute bottom-4 right-4 bg-blue-600 text-white text-sm font-medium px-3 py-1 rounded-full shadow-lg">
+                <span className="absolute bottom-3 right-3 bg-blue-600 text-white text-[11px] sm:text-sm font-medium px-2.5 sm:px-3 py-1 rounded-full shadow-lg">
                   {blog.date}
                 </span>
               </div>
 
               {/* Blog Content */}
-              <div className="p-6">
-                <h3 className="font-bold text-lg mb-3 text-gray-900 line-clamp-2">
+              <div className="p-4 sm:p-6">
+                <h3 className="font-bold text-[15px] sm:text-lg mb-2.5 sm:mb-3 text-gray-900 line-clamp-2">
                   {blog.title}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4 line-clamp-3">{blog.desc}</p>

@@ -69,9 +69,9 @@ const Home = () => {
   return (
     <>
       {/* Slider + Banners Section */}
-      <section className="py-12 bg-white">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-12 gap-6">
+      <section className="py-6 md:py-12 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-12 gap-3 sm:gap-4 lg:gap-6">
 
             {/* LEFT SIDE SLIDER */}
             <div className="col-span-12 lg:col-span-8">
@@ -88,7 +88,7 @@ const Home = () => {
                       <img
                         src={b.imageUrl}
                         alt="img"
-                        className="rounded-xl shadow-md"
+                        className="w-full aspect-[16/9] sm:aspect-[16/7] object-cover rounded-xl shadow-sm sm:shadow-md"
                       />
                     </Link>
                   </SwiperSlide>
@@ -99,7 +99,7 @@ const Home = () => {
             {/* RIGHT SIDE BANNERS */}
             <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
               {finalSideItems.slice(0, 2).map((b, idx) => (
-                <div key={b.id || idx} className="banner h-[200px] rounded-xl overflow-hidden relative">
+                <div key={b.id || idx} className="banner h-[140px] sm:h-[160px] md:h-[200px] rounded-xl overflow-hidden relative">
                   <Link to={b.linkUrl || '/ProductListing'} className="block w-full h-full">
                     <img
                       src={b.imageUrl}
@@ -107,7 +107,7 @@ const Home = () => {
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <button className="bg-red-500 text-white px-4 py-2 rounded-lg shadow">
+                      <button className="bg-red-500 text-white px-3 py-2 rounded-lg shadow text-sm">
                         Shop Now
                       </button>
                     </div>

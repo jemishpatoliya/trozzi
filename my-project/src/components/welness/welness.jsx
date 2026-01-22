@@ -56,14 +56,14 @@ const WellnessSection = () => {
   }, []);
 
   return (
-    <section className="py-16 px-6 bg-gray-50">
+    <section className="py-6 sm:py-16 px-3 sm:px-6 bg-gray-50">
       <div className="">
-        <h2 className="text-4xl font-bold text-gray-900 mb-4 text-center">Wellness</h2>
-        <p className="text-lg text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+        <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2 sm:mb-4 text-center">Wellness</h2>
+        <p className="text-[13px] sm:text-lg text-gray-600 mb-4 sm:mb-12 text-center max-w-3xl mx-auto leading-relaxed">
           Elevate your well-being with our curated wellness collection. From yoga to nutrition, we've got you covered.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
           {items.map((item) => (
             <ProductCard key={item.id || item._id} product={item} />
           ))}

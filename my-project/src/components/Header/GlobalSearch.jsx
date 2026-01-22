@@ -128,11 +128,11 @@ const GlobalSearch = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchOpen(true)}
                             placeholder="Search products, brands, categories..."
-                            className="flex-1 px-4 py-3 bg-transparent outline-none text-sm text-text-900 dark:text-text-100 placeholder-text-500 dark:placeholder-text-400"
+                            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-transparent outline-none text-sm text-text-900 dark:text-text-100 placeholder-text-500 dark:placeholder-text-400"
                         />
                         <button
                             type="submit"
-                            className="p-3 text-text-500 dark:text-text-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                            className="p-2.5 sm:p-3 text-text-500 dark:text-text-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                         >
                             <IoSearchSharp className="text-xl" />
                         </button>
@@ -140,7 +140,7 @@ const GlobalSearch = () => {
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="p-3 text-text-400 dark:text-text-500 hover:text-text-600 dark:hover:text-text-300 transition-colors"
+                                className="p-2.5 sm:p-3 text-text-400 dark:text-text-500 hover:text-text-600 dark:hover:text-text-300 transition-colors"
                             >
                                 <IoClose className="text-lg" />
                             </button>

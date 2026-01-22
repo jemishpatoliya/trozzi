@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import "./Banner.css";
 
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import "swiper/css/pagination";
+import { Autoplay, Pagination } from "swiper/modules";
+
 import { fetchBanners } from "../../api/catalog";
 
 const AdBannerSection = () => {
@@ -24,12 +29,32 @@ const AdBannerSection = () => {
 
   return (
     <section className="container banner-section">
-      <div className="banner-container">
-        {items.map((item) => (
-          <div className="banner-card" key={item.id}>
-            <img src={item.imageUrl} alt={`banner-${item.id}`} />
-          </div>
-        ))}
+      <div className="md:hidden -mx-3">
+        <Swiper
+          slidesPerView={1.15}
+          spaceBetween={10}
+          pagination={{ clickable: true }}
+          autoplay={{ delay: 2500, disableOnInteraction: false }}
+          modules={[Autoplay, Pagination]}
+        >
+          {items.map((item) => (
+            <SwiperSlide key={item.id}>
+              <div className="banner-card px-3">
+                <img src={item.imageUrl} alt={`banner-${item.id}`} />
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </div>
+
+      <div className="hidden md:block">
+        <div className="banner-container">
+          {items.map((item) => (
+            <div className="banner-card" key={item.id}>
+              <img src={item.imageUrl} alt={`banner-${item.id}`} />
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

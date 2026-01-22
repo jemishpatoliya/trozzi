@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import { Navigation } from 'swiper/modules';
+import { FreeMode } from 'swiper/modules';
+import { Autoplay, Pagination } from 'swiper/modules';
 import BannerBox from '../BannerBox';
 
 import { fetchBanners } from '../../api/catalog';
@@ -27,8 +30,25 @@ const Adsbennerslider = (props) => {
   }, []);
 
   return (
-    <div className='py-5 w-full'>
-      <Swiper slidesPerView={props.items} spaceBetween={10} navigation={true} modules={[Navigation]} className="smlbtn">
+    <div className='py-2 sm:py-4 w-full -mx-3 sm:mx-0'>
+      <Swiper
+        slidesPerView={1}
+        spaceBetween={12}
+        centeredSlides={false}
+        freeMode={false}
+        autoplay={{ delay: 2500, disableOnInteraction: false }}
+        pagination={{ clickable: true }}
+        navigation={false}
+        modules={[Navigation, FreeMode, Autoplay, Pagination]}
+        breakpoints={{
+          360: { slidesPerView: 1.05, spaceBetween: 10, pagination: { clickable: true }, autoplay: { delay: 2500, disableOnInteraction: false } },
+          430: { slidesPerView: 1.1, spaceBetween: 10, pagination: { clickable: true }, autoplay: { delay: 2500, disableOnInteraction: false } },
+          640: { slidesPerView: 3, freeMode: true, autoplay: false, pagination: false },
+          768: { slidesPerView: 4, freeMode: true, autoplay: false, pagination: false },
+          1024: { slidesPerView: props.items || 4, navigation: true, freeMode: false, autoplay: false, pagination: false },
+        }}
+        className="smlbtn w-full"
+      >
         {items.map((b) => (
           <SwiperSlide key={b.id}>
             <BannerBox img={b.imageUrl} link={b.linkUrl} />

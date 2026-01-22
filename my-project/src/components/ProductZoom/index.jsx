@@ -35,9 +35,9 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
 
     return (
         <>
-            <div className='flex gap-3'>
+            <div className='flex flex-col md:flex-row gap-3 max-w-full'>
                 {/* Thumbnail Slider */}
-                <div className='slider w-[15%]'>
+                <div className='slider hidden md:block md:w-[15%]'>
                     <Swiper
                         ref={zoomSliderSml} // ✅ moved here
                         direction="vertical"
@@ -71,7 +71,7 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
                 </div>
 
                 {/* Main Zoom Image */}
-                <div className='zoomContainer w-[85%] h-[500px] overflow-hidden rounded-md'>
+                <div className='zoomContainer w-full md:w-[85%] h-[320px] sm:h-[380px] md:h-[500px] overflow-hidden rounded-md'>
                     <Swiper
                         ref={zoomSliderBig}
                         slidesPerView={1}

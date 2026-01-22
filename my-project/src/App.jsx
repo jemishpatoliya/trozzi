@@ -143,7 +143,7 @@
 
 // App.js - Fixed Layout with Homecatslider on all pages
 import React, { createContext, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, NavLink } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -151,6 +151,9 @@ import { CompareProvider } from './context/CompareContext';
 import { ContentSettingsProvider } from './context/ContentSettingsContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
+import { useCart } from './context/CartContext';
+import { useWishlist } from './context/WishlistContext';
+import { FiHome, FiGrid, FiHeart, FiShoppingCart, FiUser } from 'react-icons/fi';
 
 // Import components that are needed immediately
 import Header from './components/Header';
@@ -198,6 +201,94 @@ const PublicRoute = ({ children }) => {
     return !isAuthenticated ? children : <Navigate to="/" replace />;
 };
 
+const MobileBottomNav = () => {
+    const location = useLocation();
+    const { itemCount } = useCart();
+    const { itemCount: wishlistCount } = useWishlist();
+    const { isAuthenticated } = useAuth();
+
+    const pathname = String(location?.pathname || '');
+    const hideOn = (
+        pathname.startsWith('/product/') ||
+        pathname === '/checkout' ||
+        pathname === '/payment' ||
+        pathname === '/cart' ||
+        pathname === '/login' ||
+        pathname === '/register' ||
+        pathname === '/forgot-password' ||
+        pathname === '/reset-password'
+    );
+
+    if (hideOn) return null;
+
+    const linkBase = 'flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 text-[11px] font-medium';
+
+    const linkActive = 'text-[#5A0B5A]';
+    const linkInactive = 'text-gray-600';
+
+    const Badge = ({ value }) => {
+        const v = Number(value || 0);
+        if (!v) return null;
+        return (
+            <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[11px] leading-[18px] text-center">
+                {v > 99 ? '99+' : v}
+            </span>
+        );
+    };
+
+    return (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]">
+            <div className="grid grid-cols-5">
+                <NavLink
+                    to="/"
+                    className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+                >
+                    <FiHome className="text-lg" />
+                    <span>Home</span>
+                </NavLink>
+
+                <NavLink
+                    to="/ProductListing"
+                    className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+                >
+                    <FiGrid className="text-lg" />
+                    <span>Shop</span>
+                </NavLink>
+
+                <NavLink
+                    to="/cart"
+                    className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+                >
+                    <span className="relative">
+                        <FiShoppingCart className="text-lg" />
+                        <Badge value={itemCount} />
+                    </span>
+                    <span>Cart</span>
+                </NavLink>
+
+                <NavLink
+                    to="/wishlist"
+                    className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+                >
+                    <span className="relative">
+                        <FiHeart className="text-lg" />
+                        <Badge value={wishlistCount} />
+                    </span>
+                    <span>Wishlist</span>
+                </NavLink>
+
+                <NavLink
+                    to={isAuthenticated ? '/profile' : '/login'}
+                    className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+                >
+                    <FiUser className="text-lg" />
+                    <span>Account</span>
+                </NavLink>
+            </div>
+        </nav>
+    );
+};
+
 function App() {
     // Basic MyContext functionality for backward compatibility
     const [isCartPanelOpen, setIsCartPanelOpen] = React.useState(false);
@@ -238,7 +329,7 @@ function App() {
                                             <Header />
 
                                             {/* Main Content - Scrollable */}
-                                            <main className="flex-1 overflow-y-auto bg-gray-50">
+                                            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 pb-16 md:pb-0">
                                                 <Suspense fallback={
                                                     <div className="flex items-center justify-center h-64">
                                                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -356,6 +447,8 @@ function App() {
                                             {/* Footer */}
                                             <Footer />
                                             </main>
+
+                                            <MobileBottomNav />
 
                                         </div>
                                     </div>

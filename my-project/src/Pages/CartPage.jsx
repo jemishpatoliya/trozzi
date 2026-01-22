@@ -79,10 +79,10 @@ const CartPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">Shopping Cart</h1>
+        <div className="min-h-screen bg-gray-50 pb-24 sm:pb-0">
+            <div className="container mx-auto py-6 sm:py-8 px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between mb-5 sm:mb-8">
+                    <h1 className="text-xl sm:text-3xl font-bold text-gray-900">Shopping Cart</h1>
                     <button
                         onClick={handleClearCart}
                         className="text-red-600 hover:text-red-800 text-sm font-medium"
@@ -95,23 +95,23 @@ const CartPage = () => {
                     {/* Cart Items */}
                     <div className="divide-y divide-gray-200">
                         {items.map((item) => (
-                            <div key={`${item.product?._id || item.product}-${item.size || ''}-${item.color || ''}`} className="p-6">
-                                <div className="flex items-center">
+                            <div key={`${item.product?._id || item.product}-${item.size || ''}-${item.color || ''}`} className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                     {/* Product Image */}
-                                    <div className="flex-shrink-0 w-24 h-24">
+                                    <div className="flex-shrink-0 w-full sm:w-24 h-40 sm:h-24 bg-gray-50 rounded-md overflow-hidden">
                                         <img
                                             src={item.image || item.product?.image || item.product?.galleryImages?.[0] || FALLBACK_IMAGE}
                                             alt={item.product?.name || item.name}
-                                            className="w-full h-full object-cover rounded-md"
+                                            className="w-full h-full object-contain"
                                             onError={(e) => { e.currentTarget.src = FALLBACK_IMAGE; }}
                                         />
                                     </div>
 
                                     {/* Product Details */}
-                                    <div className="ml-6 flex-1">
-                                        <div className="flex justify-between">
-                                            <div>
-                                                <h3 className="text-lg font-medium text-gray-900">
+                                    <div className="sm:ml-2 flex-1 min-w-0">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                                                     {item.product?.name || item.name}
                                                 </h3>
                                                 <p className="mt-1 text-sm text-gray-500">
@@ -122,26 +122,26 @@ const CartPage = () => {
                                                         {item?.size ? `Size: ${item.size}` : ''}{item?.size && item?.color ? ' | ' : ''}{item?.color ? `Color: ${item.color}` : ''}
                                                     </p>
                                                 ) : null}
-                                                <p className="mt-2 text-lg font-semibold text-gray-900">
+                                                <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900">
                                                     ₹{(item.price ?? item.product?.price ?? 0).toFixed(2)}
                                                 </p>
                                             </div>
 
                                             {/* Quantity Controls */}
-                                            <div className="flex items-center space-x-3">
-                                                <div className="flex items-center border border-gray-300 rounded-md">
+                                            <div className="flex items-center justify-between sm:justify-end gap-3">
+                                                <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
                                                     <button
                                                         onClick={() => handleQuantityChange(item.product?._id || item.product, item.quantity - 1, { size: item?.size || '', color: item?.color || '' })}
-                                                        className="p-2 text-gray-600 hover:text-gray-900"
+                                                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:text-gray-900"
                                                     >
                                                         <FaMinus className="h-3 w-3" />
                                                     </button>
-                                                    <span className="px-3 py-1 text-gray-900 font-medium">
+                                                    <span className="min-w-[44px] text-center px-3 py-1 text-gray-900 font-semibold">
                                                         {item.quantity}
                                                     </span>
                                                     <button
                                                         onClick={() => handleQuantityChange(item.product?._id || item.product, item.quantity + 1, { size: item?.size || '', color: item?.color || '' })}
-                                                        className="p-2 text-gray-600 hover:text-gray-900"
+                                                        className="w-10 h-10 flex items-center justify-center text-gray-700 hover:text-gray-900"
                                                     >
                                                         <FaPlus className="h-3 w-3" />
                                                     </button>
@@ -149,7 +149,7 @@ const CartPage = () => {
 
                                                 <button
                                                     onClick={() => handleRemoveItem(item.product?._id || item.product, { size: item?.size || '', color: item?.color || '' })}
-                                                    className="text-red-600 hover:text-red-800"
+                                                    className="w-10 h-10 inline-flex items-center justify-center text-red-600 hover:text-red-800"
                                                 >
                                                     <FaTrash className="h-4 w-4" />
                                                 </button>
@@ -157,11 +157,11 @@ const CartPage = () => {
                                         </div>
 
                                         {/* Item Total */}
-                                        <div className="mt-4 flex justify-between">
+                                        <div className="mt-3 flex items-center justify-between">
                                             <span className="text-sm text-gray-500">
                                                 Subtotal ({item.quantity} items)
                                             </span>
-                                            <span className="text-lg font-semibold text-gray-900">
+                                            <span className="text-base sm:text-lg font-semibold text-gray-900">
                                                 ₹{((item.price ?? item.product?.price ?? 0) * item.quantity).toFixed(2)}
                                             </span>
                                         </div>
@@ -173,10 +173,10 @@ const CartPage = () => {
 
                     {/* Cart Summary */}
                     <div className="border-t border-gray-200 p-6">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                             <div>
                                 <p className="text-sm text-gray-600">Total ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</p>
-                                <p className="text-3xl font-bold text-gray-900">₹{total.toFixed(2)}</p>
+                                <p className="text-2xl sm:text-3xl font-bold text-gray-900">₹{total.toFixed(2)}</p>
                                 <div className="mt-2 space-y-1 text-sm text-gray-600">
                                     <div className="flex justify-between gap-6">
                                         <span>Subtotal</span>
@@ -189,7 +189,7 @@ const CartPage = () => {
                                 </div>
                             </div>
 
-                            <div className="space-x-4">
+                            <div className="hidden sm:flex items-center gap-4">
                                 <Link
                                     to="/"
                                     className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -206,6 +206,21 @@ const CartPage = () => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="text-[12px] text-gray-500">Grand Total</div>
+                        <div className="text-lg font-bold text-gray-900 truncate">₹{total.toFixed(2)}</div>
+                    </div>
+                    <Link
+                        to="/checkout"
+                        className="h-11 px-5 inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white text-sm font-semibold shadow-sm"
+                    >
+                        Checkout
+                    </Link>
                 </div>
             </div>
         </div>

@@ -283,8 +283,8 @@ const Productsdetailsh = () => {
                     <div className='container py-6 text-center text-red-600'>{error}</div>
                 )}
 
-                <div className='container flex gap-8 items-center'>
-                    <div className='productzoomcontainer w-[40%]'>
+                <div className='container flex flex-col md:flex-row gap-6 md:gap-8 items-start min-w-0'>
+                    <div className='productzoomcontainer w-full md:w-[40%] min-w-0'>
                         <ProductZoom product={product} selectedColorVariant={selectedColorVariant} useVariantImages={hasUserSelectedColor} />
                     </div>
                     <ProductDetalisComponent

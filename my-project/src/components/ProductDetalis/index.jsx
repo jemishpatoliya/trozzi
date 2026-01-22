@@ -245,9 +245,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   };
 
   return (
-    <div className="productContanet w-full md:w-[60%] px-5 md:px-10">
+    <div className="productContanet w-full md:w-[60%] px-4 md:px-10 pb-24 md:pb-0">
       {/* Title */}
-      <h1 className="text-[24px] md:text-[28px] font-[600] mb-3 leading-snug">
+      <h1 className="text-[18px] md:text-[28px] font-[600] mb-2 md:mb-3 leading-snug">
         {product?.name ?? (
           <>
             Siril Poly White & Beign Color Saree With Blouse Piece <br />
@@ -257,44 +257,44 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       </h1>
 
       {/* Brand + Rating + Review */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <span className="text-gray-400 text-[14px]">
+      <div className="flex flex-wrap items-center gap-3 mb-3 md:mb-4">
+        <span className="text-gray-400 text-[12px] md:text-[14px]">
           Brands:{" "}
           <span className="font-[500] text-black opacity-75">
             {product?.brand || product?.category || "House of Chikankari"}
           </span>
         </span>
         <Rating name="size-small" defaultValue={4} size="small" readOnly />
-        <span className="text-gray-500 text-[14px] cursor-pointer hover:underline">
+        <span className="text-gray-500 text-[12px] md:text-[14px] cursor-pointer hover:underline">
           Review (5)
         </span>
       </div>
 
       {/* Price */}
-      <div className="flex flex-wrap items-center gap-4 mt-2 mb-6">
+      <div className="flex flex-wrap items-center gap-3 md:gap-4 mt-1 md:mt-2 mb-4 md:mb-6">
         {Number(product?.originalPrice ?? 0) > Number(currentPrice ?? product?.price ?? 0) && (
-          <span className="oldprice line-through text-gray-400 text-[20px] font-[500]">
+          <span className="oldprice line-through text-gray-400 text-[16px] md:text-[20px] font-[500]">
             Rs. {product?.originalPrice ?? 999}
           </span>
         )}
-        <span className="newprice text-[22px] font-[700] text-red-600">
+        <span className="newprice text-[18px] md:text-[22px] font-[700] text-red-600">
           Rs. {currentPrice ?? 799}
         </span>
-        <span className="text-gray-500 text-[14px] cursor-pointer mt-1">
+        <span className="text-gray-500 text-[12px] md:text-[14px] cursor-pointer mt-1">
           Available In Stock:{" "}
-          <span className="text-green-600 text-[16px] font-bold">
+          <span className="text-green-600 text-[13px] md:text-[16px] font-bold">
             {typeof currentStock === "number" ? `${currentStock} Items` : "147 Items"}
           </span>
         </span>
         {hasColorVariants && currentVariant && (
-          <span className="text-gray-500 text-[14px]">
+          <span className="text-gray-500 text-[12px] md:text-[14px]">
             SKU: <span className="font-medium">{currentSku}</span>
           </span>
         )}
       </div>
 
       {/* Description */}
-      <p className="text-gray-600 text-[15px] leading-6 mb-6">
+      <p className="text-gray-600 text-[13px] md:text-[15px] leading-5 md:leading-6 mb-4 md:mb-6">
         {product?.description ?? (
           <>
             Our Chikankari kurta is a beautiful example of Lucknowi craftsmanship.
@@ -306,13 +306,13 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       </p>
 
       {/* Sizes */}
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-gray-600 text-[16px] font-[500]">Size:</span>
+      <div className="flex items-center gap-3 mb-4 md:mb-6">
+        <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Size:</span>
         <div className="flex items-center gap-2">
           {sizesList.map((size) => (
             <Button
               key={size}
-              className={`!min-w-[50px] !rounded-md !py-1 !px-3 border ${selectedSize === size
+              className={`!min-w-[38px] md:!min-w-[50px] !rounded-md !py-0.5 md:!py-1 !px-2 md:!px-3 !text-xs md:!text-sm border ${selectedSize === size
                 ? "!bg-black !text-white"
                 : "!bg-gray-100 !text-gray-700 hover:!bg-black hover:!text-white"
                 }`}
@@ -379,8 +379,8 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       {(hasColorVariants || colorOptions.length > 0) && (
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-3">
-            <span className="text-gray-600 text-[16px] font-[500]">Color:</span>
-            <span className="text-gray-500 text-[14px]">
+            <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Color:</span>
+            <span className="text-gray-500 text-[12px] md:text-[14px]">
               {hasColorVariants ? (currentVariant?.colorName || 'Select a color') : (selectedSimpleColor || 'Select a color')}
             </span>
           </div>
@@ -397,7 +397,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
               {colorOptions.map((c) => (
                 <Button
                   key={c}
-                  className={`!min-w-[50px] !rounded-md !py-1 !px-3 border ${String(c) === String(selectedSimpleColor || '')
+                  className={`!min-w-[38px] md:!min-w-[50px] !rounded-md !py-0.5 md:!py-1 !px-2 md:!px-3 !text-xs md:!text-sm border ${String(c) === String(selectedSimpleColor || '')
                     ? "!bg-black !text-white"
                     : "!bg-gray-100 !text-gray-700 hover:!bg-black hover:!text-white"
                     }`}
@@ -414,7 +414,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       )}
 
       {/* Quantity + Add to Cart */}
-      <div className="flex items-center gap-4 py-4">
+      <div className="hidden md:flex items-center gap-4 py-4">
         <div className="QtyBoxWrapper w-[80px]">
           <input
             type="number"
@@ -449,18 +449,39 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           type="button"
           disabled={isAdding || !productId}
           onClick={handleWishlist}
-          className="flex items-center gap-2 text-[15px] font-[500] text-gray-700 hover:text-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 text-[13px] md:text-[15px] font-[500] text-gray-700 hover:text-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <FaRegHeart className="text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Wishlist'}
+          <FaRegHeart className="text-[16px] md:text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Wishlist'}
         </button>
         <button
           type="button"
           disabled={isAdding || !productId}
           onClick={handleCompare}
-          className="flex items-center gap-2 text-[15px] font-[500] text-gray-700 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 text-[13px] md:text-[15px] font-[500] text-gray-700 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <IoIosGitCompare className="text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Compare'}
+          <IoIosGitCompare className="text-[16px] md:text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Compare'}
         </button>
+      </div>
+
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-3">
+        <div className="flex gap-3">
+          <button
+            type="button"
+            disabled={isAdding || !productId}
+            onClick={handleAddToCart}
+            className="flex-1 h-11 rounded-lg border border-green-600 text-green-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAdding ? 'Please wait...' : 'Add to Cart'}
+          </button>
+          <button
+            type="button"
+            disabled={isAdding || !productId}
+            onClick={handleBuyNow}
+            className="flex-1 h-11 rounded-lg bg-black text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAdding ? 'Please wait...' : 'Buy Now'}
+          </button>
+        </div>
       </div>
     </div>
   );

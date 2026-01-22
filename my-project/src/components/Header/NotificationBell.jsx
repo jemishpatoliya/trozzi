@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Badge from '@mui/material/Badge';
 import IconButton from '@mui/material/IconButton';
+import { styled } from '@mui/material/styles';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
@@ -8,6 +9,26 @@ import Tooltip from '@mui/material/Tooltip';
 import { FiBell } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
+
+const StyledBadge = styled(Badge)(({ theme }) => ({
+  "& .MuiBadge-badge": {
+    right: -3,
+    top: 13,
+    border: `2px solid ${(theme.vars ?? theme).palette.background.paper}`,
+    padding: "0 4px",
+  },
+  [theme.breakpoints.down('sm')]: {
+    "& .MuiBadge-badge": {
+      right: -2,
+      top: 10,
+      padding: "0 3px",
+      fontSize: 10,
+      minWidth: 16,
+      height: 16,
+      lineHeight: '16px',
+    },
+  },
+}));
 
 const NotificationBell = () => {
   const navigate = useNavigate();
@@ -42,11 +63,11 @@ const NotificationBell = () => {
         <IconButton
           aria-label="notifications"
           onClick={handleOpen}
-          className="hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
+          className="!w-10 !h-10 sm:!w-11 sm:!h-11 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
         >
-          <Badge badgeContent={unreadCount} color="secondary">
-            <FiBell className="text-xl md:text-2xl text-text-700 dark:text-text-300" />
-          </Badge>
+          <StyledBadge badgeContent={unreadCount} color="secondary">
+            <FiBell className="text-lg sm:text-xl md:text-2xl text-text-700 dark:text-text-300" />
+          </StyledBadge>
         </IconButton>
       </Tooltip>
 
