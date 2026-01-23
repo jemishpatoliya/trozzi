@@ -1,11 +1,14 @@
 import { Router, type Request, type Response } from "express";
-import jwt from "jsonwebtoken";
 import type { PipelineStage } from "mongoose";
 
+const jwt: any = require("jsonwebtoken");
+
+import { AdminModel } from "../models/admin";
 import { ProductModel } from "../models/product";
 import { OrderModel } from "../models/order";
-import { UserModel } from "../models/user";
 import { CategoryModel } from "../models/category";
+
+const { UserModel }: any = require("../models/user");
 
 const router = Router();
 
@@ -26,7 +29,7 @@ const authenticateAdmin = (req: AuthedReq, res: Response, next: () => void) => {
     if (!req.userId) return res.status(401).json({ error: "Invalid token" });
 
     UserModel.findById(req.userId)
-      .then((user) => {
+      .then((user: any) => {
         if (!user) return res.status(401).json({ error: "Invalid token" });
         if (user.role !== "admin") return res.status(403).json({ error: "Admin access required" });
         next();
@@ -34,6 +37,48 @@ const authenticateAdmin = (req: AuthedReq, res: Response, next: () => void) => {
       .catch(() => res.status(401).json({ error: "Invalid token" }));
   } catch (_error) {
     return res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+const authenticateAdminOverview = (req: Request, res: Response, next: () => void) => {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Access token required" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    // Admin tokens issued via adminAuth: { id, type: 'admin' }
+    if (String(decoded?.type || "").toLowerCase() === "admin") {
+      const adminId = decoded?.id;
+      if (!adminId) return res.status(401).json({ success: false, message: "Invalid token" });
+
+      AdminModel.findById(adminId)
+        .then((admin: any) => {
+          if (!admin) return res.status(401).json({ success: false, message: "Invalid token" });
+          if (!admin.active) return res.status(401).json({ success: false, message: "Admin account is deactivated" });
+          if (String(admin.role || "").toLowerCase() !== "admin") return res.status(403).json({ success: false, message: "Admin access required" });
+          next();
+        })
+        .catch(() => res.status(401).json({ success: false, message: "Invalid token" }));
+      return;
+    }
+
+    // User tokens issued via /api/auth/login: { id, userId }
+    const userId = decoded?.userId ?? decoded?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Invalid token" });
+
+    UserModel.findById(userId)
+      .then((user: any) => {
+        if (!user) return res.status(401).json({ success: false, message: "Invalid token" });
+        if (String(user.role || "").toLowerCase() !== "admin") return res.status(403).json({ success: false, message: "Admin access required" });
+        next();
+      })
+      .catch(() => res.status(401).json({ success: false, message: "Invalid token" }));
+  } catch (_e) {
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 
@@ -367,100 +412,71 @@ function normalizeCategoryName(raw: unknown): string {
   return value;
 }
 
-router.get("/overview", authenticateAdmin, async (req: Request, res: Response) => {
+router.get("/overview", authenticateAdminOverview, async (req: Request, res: Response) => {
   try {
-    const now = new Date();
-    const fromRaw = req.query.from ? new Date(String(req.query.from)) : startOfDay(addDays(now, -6));
-    const toRaw = req.query.to ? new Date(String(req.query.to)) : addDays(startOfDay(now), 1);
+    const fromStr = String(req.query.from ?? "").trim();
+    const toStr = String(req.query.to ?? "").trim();
 
-    const from = Number.isNaN(fromRaw.getTime()) ? startOfDay(addDays(now, -6)) : fromRaw;
-    const to = Number.isNaN(toRaw.getTime()) ? addDays(startOfDay(now), 1) : toRaw;
+    if (!fromStr || !toStr) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required query params: from, to",
+      });
+    }
 
-    const daysCount = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000)));
-    const series = Array.from({ length: daysCount }).map((_, idx) => {
-      const day = startOfDay(addDays(from, idx));
-      return formatDayLabel(day);
-    });
+    const from = new Date(fromStr);
+    const to = new Date(toStr);
 
-    const [revenueAgg, ordersAgg, topProductsAgg] = await Promise.all([
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date range",
+      });
+    }
+
+    if (to.getTime() < from.getTime()) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date range: to must be >= from",
+      });
+    }
+
+    const maxRangeMs = 366 * 24 * 60 * 60 * 1000;
+    if (to.getTime() - from.getTime() > maxRangeMs) {
+      return res.status(400).json({
+        success: false,
+        message: "Date range too large",
+      });
+    }
+
+    const createdAtRange = { createdAt: { $gte: from, $lte: to } };
+
+    const [totalOrders, pendingOrders, deliveredOrders, totalUsers, revenueAgg] = await Promise.all([
+      OrderModel.countDocuments(createdAtRange),
+      OrderModel.countDocuments({ ...createdAtRange, status: "pending" }),
+      OrderModel.countDocuments({ ...createdAtRange, status: "delivered" }),
+      UserModel.countDocuments({}),
       OrderModel.aggregate([
         {
           $match: {
-            createdAt: { $gte: from, $lt: to },
+            ...createdAtRange,
             status: { $in: [...REVENUE_STATUSES] },
           },
         },
-        { $addFields: { day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } } } },
-        { $group: { _id: "$day", total: { $sum: "$total" } } },
-        { $sort: { _id: 1 } },
-      ]),
-      OrderModel.aggregate([
-        { $match: { createdAt: { $gte: from, $lt: to } } },
-        { $addFields: { day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } } } },
-        { $group: { _id: "$day", count: { $sum: 1 } } },
-        { $sort: { _id: 1 } },
-      ]),
-      OrderModel.aggregate([
-        { $match: { createdAt: { $gte: from, $lt: to } } },
-        { $unwind: "$items" },
-        {
-          $group: {
-            _id: "$items.name",
-            sales: { $sum: "$items.quantity" },
-            revenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } },
-          },
-        },
-        { $sort: { sales: -1 } },
-        { $limit: 5 },
+        { $group: { _id: null, total: { $sum: "$total" } } },
       ]),
     ]);
 
-    const revenueByDay = new Map<string, number>(
-      revenueAgg.map((r: { _id: string; total: number }) => [r._id, Number(r.total ?? 0)]),
-    );
+    const totalRevenue = Number(revenueAgg?.[0]?.total ?? 0);
 
-    const ordersByDay = new Map<string, number>(
-      ordersAgg.map((r: { _id: string; count: number }) => [r._id, Number(r.count ?? 0)]),
-    );
-
-    const revenueByDayChart = series.map((date) => ({
-      date,
-      revenue: revenueByDay.get(date) ?? 0,
-    }));
-
-    const productPerformance = topProductsAgg.map((p: any) => ({
-      name: String(p._id ?? ""),
-      sales: Number(p.sales ?? 0),
-      revenue: Number(p.revenue ?? 0),
-    }));
-
-    const totalRevenue = revenueByDayChart.reduce((sum, d) => sum + (d.revenue ?? 0), 0);
-    const totalOrders = series.reduce((sum, date) => sum + (ordersByDay.get(date) ?? 0), 0);
-
-    // Visit/session/page-view tracking does not exist in this project; return safe defaults.
-    const metrics = {
-      pageViews: 0,
-      uniqueVisitors: 0,
-      conversionRate: 0,
-      bounceRate: 0,
-    };
-
-    const charts = {
-      trafficTrend: [] as Array<{ date: string; visitors: number }>,
-      revenueByDay: revenueByDayChart,
-      productPerformance,
-    };
-
-    res.json({
+    return res.json({
       success: true,
       data: {
-        range: { from: from.toISOString(), to: to.toISOString() },
-        metrics,
-        charts,
-        totals: {
-          orders: totalOrders,
-          revenue: Number(totalRevenue.toFixed(2)),
-        },
+        totalOrders: Number(totalOrders ?? 0) || 0,
+        totalRevenue: Number(totalRevenue ?? 0) || 0,
+        totalUsers: Number(totalUsers ?? 0) || 0,
+        pendingOrders: Number(pendingOrders ?? 0) || 0,
+        deliveredOrders: Number(deliveredOrders ?? 0) || 0,
       },
     });
   } catch (error) {

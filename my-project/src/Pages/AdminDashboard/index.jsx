@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaStar, FaChartBar, FaUsers, FaShoppingCart, FaBox, FaComments, FaQuestionCircle, FaTrendingUp, FaEye, FaEdit, FaTrash, FaDownload, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaArrowUp, FaArrowDown, FaMinus } from 'react-icons/fa';
+import { FaStar, FaChartBar, FaChartLine, FaUsers, FaShoppingCart, FaBox, FaComments, FaQuestionCircle, FaEye, FaEdit, FaTrash, FaDownload, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaArrowUp, FaArrowDown, FaMinus } from 'react-icons/fa';
 import { getReviewStats, fetchAllReviews } from '../../api/adminReviews';
 import { fetchCompleteDashboard } from '../../api/adminDashboard';
 import { fetchProducts } from '../../api/catalog';
@@ -304,7 +304,7 @@ const AdminDashboard = () => {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <FaTrendingUp className="text-purple-600" />
+                                    <FaChartLine className="text-purple-600" />
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900">Revenue</h3>

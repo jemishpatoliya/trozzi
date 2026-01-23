@@ -9,6 +9,7 @@ import ProductCard from "./ProductCard";
 import "./Productslider.css";
 
 const ProductSlider = ({ products }) => {
+  const list = Array.isArray(products) ? products : [];
   return (
     <div className="product-slider">
       <Swiper
@@ -27,7 +28,7 @@ const ProductSlider = ({ products }) => {
           1024: { slidesPerView: 6, spaceBetween: 20, freeMode: false },
         }}
       >
-        {products.slice(0, 50).map((product, index) => (
+        {list.slice(0, 50).map((product, index) => (
           <SwiperSlide key={product?.id || product?._id || index}>
             <ProductCard product={product} />
           </SwiperSlide>

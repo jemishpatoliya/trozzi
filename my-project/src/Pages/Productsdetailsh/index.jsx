@@ -259,7 +259,7 @@ const Productsdetailsh = () => {
 
     return (
         <>
-            <div className="py-5 pb-0">
+            <div className="py-3 sm:py-5 pb-0">
                 <div className="container">
                     <Breadcrumbs aria-label="breadcrumb">
                         <Link underline="hover" color="inherit" href="/" className="link transition">
@@ -275,7 +275,7 @@ const Productsdetailsh = () => {
                 </div>
             </div>
 
-            <section className='bg-white py-5'>
+            <section className='bg-white py-3 sm:py-5'>
                 {loading && (
                     <div className='container py-6 text-center text-gray-600'>Loading...</div>
                 )}
@@ -283,7 +283,7 @@ const Productsdetailsh = () => {
                     <div className='container py-6 text-center text-red-600'>{error}</div>
                 )}
 
-                <div className='container flex flex-col md:flex-row gap-6 md:gap-8 items-start min-w-0'>
+                <div className='container flex flex-col md:flex-row gap-4 sm:gap-6 md:gap-8 items-start min-w-0'>
                     <div className='productzoomcontainer w-full md:w-[40%] min-w-0'>
                         <ProductZoom product={product} selectedColorVariant={selectedColorVariant} useVariantImages={hasUserSelectedColor} />
                     </div>
@@ -298,24 +298,24 @@ const Productsdetailsh = () => {
                     />
                 </div>
 
-                <div className="container pt-10">
-                    <div className="shadow-md w-full py-5 px-8 rounded-md bg-white">
+                <div className="container pt-4 sm:pt-10">
+                    <div className="shadow-md w-full py-4 sm:py-5 px-3 sm:px-8 rounded-md bg-white">
                         {/* Tabs */}
-                        <div className="flex items-center gap-6 mb-6 border-b pb-2">
+                        <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6 mb-5 sm:mb-6 border-b pb-2">
                             <span
-                                className={`${activeTab === 0 ? 'text-blue-600' : ''} link text-lg cursor-pointer font-medium hover:text-blue-600 transition`}
+                                className={`${activeTab === 0 ? 'text-blue-600 border-blue-600' : 'text-gray-700 hover:text-blue-600'} link block truncate text-[11px] sm:text-lg cursor-pointer font-semibold transition pb-2 -mb-2 border-b-2 border-transparent text-center leading-tight px-1 py-1`}
                                 onClick={() => setActiveTab(0)}
                             >
                                 Description
                             </span>
                             <span
-                                className={`${activeTab === 1 ? 'text-blue-600' : ''} link text-lg cursor-pointer font-medium hover:text-blue-600 transition`}
+                                className={`${activeTab === 1 ? 'text-blue-600 border-blue-600' : 'text-gray-700 hover:text-blue-600'} link block truncate text-[11px] sm:text-lg cursor-pointer font-semibold transition pb-2 -mb-2 border-b-2 border-transparent text-center leading-tight px-1 py-1`}
                                 onClick={() => setActiveTab(1)}
                             >
                                 Product Details
                             </span>
                             <span
-                                className={`${activeTab === 2 ? 'text-blue-600' : ''} link text-lg cursor-pointer font-medium hover:text-blue-600 transition`}
+                                className={`${activeTab === 2 ? 'text-blue-600 border-blue-600' : 'text-gray-700 hover:text-blue-600'} link block truncate text-[11px] sm:text-lg cursor-pointer font-semibold transition pb-2 -mb-2 border-b-2 border-transparent text-center leading-tight px-1 py-1`}
                                 onClick={() => setActiveTab(2)}
                             >
                                 Reviews ({reviews.length})
@@ -324,17 +324,17 @@ const Productsdetailsh = () => {
 
                         {/* Description */}
                         {activeTab === 0 && (
-                            <div>
+                            <div className="text-[13px] sm:text-base text-gray-700 leading-5 sm:leading-7">
                                 <p>
                                     {product?.description || 'Lorem Ipsum is simply dummy text...'}
                                 </p>
-                                <h4 className="text-lg mt-4 mb-2">Lightweight Design</h4>
+                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Lightweight Design</h4>
                                 <p>This product is designed to be lightweight...</p>
-                                <h4 className="text-lg mt-4 mb-2">Free Shipping & Return</h4>
+                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Free Shipping & Return</h4>
                                 <p>We offer a 30-day money-back guarantee...</p>
-                                <h4 className="text-lg mt-4 mb-2">Online Support</h4>
+                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Online Support</h4>
                                 <p>Our online support team is available...</p>
-                                <h4 className='text-lg mt-4 mb-2'>Money Back Guarantee</h4>
+                                <h4 className='text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2'>Money Back Guarantee</h4>
                                 <p>We offer a 30-day money-back guarantee...</p>
                             </div>
                         )}
@@ -354,13 +354,13 @@ const Productsdetailsh = () => {
 
                         {/* Reviews */}
                         {activeTab === 2 && (
-                            <div className='w-[80%] ProductReviewsContainer'>
-                                <h2 className='text-[22px] mb-4'>Customer questions & answers</h2>
+                            <div className='w-full ProductReviewsContainer'>
+                                <h2 className='text-[16px] sm:text-[22px] mb-4'>Customer questions & answers</h2>
 
                                 {/* Questions Section */}
                                 <div className='mb-8'>
                                     <div className='flex justify-between items-center mb-4'>
-                                        <h3 className='text-[18px]'>Questions ({questions.length})</h3>
+                                        <h3 className='text-[14px] sm:text-[18px]'>Questions ({questions.length})</h3>
                                         <Button
                                             onClick={() => setShowQuestionForm(!showQuestionForm)}
                                             className='btn-org'
@@ -455,7 +455,7 @@ const Productsdetailsh = () => {
 
                                 {/* Reviews Section */}
                                 <div>
-                                    <h3 className='text-[18px] mb-4'>Customer Reviews ({reviews.length})</h3>
+                                    <h3 className='text-[14px] sm:text-[18px] mb-4'>Customer Reviews ({reviews.length})</h3>
 
                                     {/* Reviews List */}
                                     <div className='scroll w-full max-h-[300px] overflow-y-scroll overflow-x-hidden pr-5 mb-6'>

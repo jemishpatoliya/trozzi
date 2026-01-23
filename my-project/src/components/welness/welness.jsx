@@ -1,13 +1,9 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ProductCard from "../product/ProductCard";
-import { MyContext } from "../../App";
 
 import { fetchProducts } from "../../api/catalog";
 
 const WellnessSection = () => {
-  const { handleClickOpenProductDetailsModal } = useContext(MyContext);
-  const [hoverId, setHoverId] = useState(null); // hover track માટે
-
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -33,25 +29,8 @@ const WellnessSection = () => {
 
     void load();
 
-    const onFocus = () => {
-      void load();
-    };
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    const intervalId = window.setInterval(() => {
-      void load();
-    }, 5000);
-
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(intervalId);
     };
   }, []);
 

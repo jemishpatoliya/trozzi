@@ -5,6 +5,25 @@ const mongoose = require('mongoose');
 const { authenticateAdmin, requireAdmin } = require('../middleware/adminAuth');
 const { CategoryModel } = require('../models/category');
 
+function parseIntQuery(value) {
+    if (value === undefined || value === null) return undefined;
+    const n = Number.parseInt(String(value), 10);
+    if (!Number.isFinite(n)) return undefined;
+    return n;
+}
+
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parseCsvQuery(value) {
+    if (value === undefined || value === null) return [];
+    return String(value)
+        .split(',')
+        .map((v) => String(v).trim())
+        .filter((v) => v.length > 0);
+}
+
 async function validateSubCategoryOrThrow(base) {
     const categoryIds = Array.isArray(base?.categoryIds) ? base.categoryIds : [];
     const categoryId = String(categoryIds[0] ?? '').trim();
@@ -146,7 +165,89 @@ router.get('/', async (req, res) => {
             filter.category = category;
         }
 
-        const docs = await db.collection('products').find(filter).sort({ createdAt: -1 }).toArray();
+        const q = String(req.query?.q ?? '').trim();
+        if (q) {
+            const rx = new RegExp(escapeRegExp(q), 'i');
+            filter.$or = [{ name: rx }, { sku: rx }, { brand: rx }, { category: rx }, { tags: rx }];
+        }
+
+        const minPrice = parseIntQuery(req.query?.minPrice);
+        const maxPrice = parseIntQuery(req.query?.maxPrice);
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            filter.price = {};
+            if (minPrice !== undefined) filter.price.$gte = minPrice;
+            if (maxPrice !== undefined) filter.price.$lte = maxPrice;
+        }
+
+        if (String(req.query?.inStock ?? '').toLowerCase() === 'true') {
+            filter.stock = { $gt: 0 };
+        }
+
+        if (String(req.query?.freeShipping ?? '').toLowerCase() === 'true') {
+            filter.freeShipping = true;
+        }
+
+        if (String(req.query?.onSale ?? '').toLowerCase() === 'true') {
+            filter.saleEnabled = true;
+            filter.saleDiscount = { $gt: 0 };
+        }
+
+        const sizes = parseCsvQuery(req.query?.sizes);
+        if (sizes.length > 0) {
+            filter.sizes = { $in: sizes };
+        }
+
+        const colors = parseCsvQuery(req.query?.colors);
+        if (colors.length > 0) {
+            filter.colors = { $in: colors };
+        }
+
+        const brands = parseCsvQuery(req.query?.brands);
+        if (brands.length > 0) {
+            filter.brand = { $in: brands };
+        }
+
+        const sort = String(req.query?.sort ?? '').trim();
+        const order = String(req.query?.order ?? '').trim().toLowerCase();
+        const sortDir = order === 'asc' ? 1 : -1;
+        const sortSpec = (() => {
+            if (sort === 'price_asc') return { price: 1, createdAt: -1 };
+            if (sort === 'price_desc') return { price: -1, createdAt: -1 };
+            if (sort === 'name_asc') return { name: 1, createdAt: -1 };
+            if (sort === 'name_desc') return { name: -1, createdAt: -1 };
+            if (sort === 'rating_desc') return { rating: -1, createdAt: -1 };
+            if (sort === 'newest') return { createdAt: -1 };
+            if (sort) return { [sort]: sortDir, createdAt: -1 };
+            return { createdAt: -1 };
+        })();
+
+        const page = parseIntQuery(req.query?.page);
+        const limit = parseIntQuery(req.query?.limit);
+        const shouldPaginate = page !== undefined || limit !== undefined;
+
+        if (shouldPaginate) {
+            const safePage = Math.max(1, page ?? 1);
+            const safeLimit = Math.min(100, Math.max(1, limit ?? 24));
+            const skip = (safePage - 1) * safeLimit;
+
+            const [totalItems, docs] = await Promise.all([
+                db.collection('products').countDocuments(filter),
+                db.collection('products').find(filter).sort(sortSpec).skip(skip).limit(safeLimit).toArray(),
+            ]);
+
+            const totalPages = Math.max(1, Math.ceil(Number(totalItems || 0) / safeLimit));
+
+            return res.json({
+                items: docs.map(mapProduct),
+                page: safePage,
+                limit: safeLimit,
+                total: totalItems,
+                totalPages,
+                totalItems,
+            });
+        }
+
+        const docs = await db.collection('products').find(filter).sort(sortSpec).toArray();
         res.json(docs.map(mapProduct));
     } catch (error) {
         console.error('Error fetching products:', error);
@@ -281,6 +382,7 @@ router.post('/publish', authenticateAdmin, requireAdmin, async (req, res) => {
 
         const media = values?.media ?? {};
         const shipping = values?.shipping ?? {};
+        const dimensions = shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
 
         const images = Array.isArray(media?.images) ? media.images : [];
         const thumbId = media?.thumbnailId ?? null;

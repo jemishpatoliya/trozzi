@@ -120,19 +120,18 @@ const GlobalSearch = () => {
             {/* Search Input */}
             <div className="relative">
                 <form onSubmit={handleSearch}>
-                    <div className={`flex items-center bg-surface-50 dark:bg-surface-800 rounded-xl border transition-all duration-200 ${isSearchOpen ? 'border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800 shadow-lg' : 'border-border-200 dark:border-border-700 hover:border-border-300 dark:hover:border-border-600 shadow-sm'
-                        }`}>
+                    <div className={`flex items-center bg-gray-100 rounded-full border border-transparent transition-all duration-200 ${isSearchOpen ? 'ring-2 ring-orange-200 shadow-sm' : 'hover:bg-gray-200/70'}`}>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchOpen(true)}
-                            placeholder="Search products, brands, categories..."
-                            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-transparent outline-none text-sm text-text-900 dark:text-text-100 placeholder-text-500 dark:placeholder-text-400"
+                            placeholder="Search for items"
+                            className="flex-1 px-3 sm:px-4 py-2.5 bg-transparent outline-none text-[13px] text-gray-900 placeholder-gray-500"
                         />
                         <button
                             type="submit"
-                            className="p-2.5 sm:p-3 text-text-500 dark:text-text-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                            className="p-2.5 text-gray-500 hover:text-orange-700 transition-colors"
                         >
                             <IoSearchSharp className="text-xl" />
                         </button>
@@ -140,7 +139,7 @@ const GlobalSearch = () => {
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="p-2.5 sm:p-3 text-text-400 dark:text-text-500 hover:text-text-600 dark:hover:text-text-300 transition-colors"
+                                className="p-2.5 text-gray-400 hover:text-gray-700 transition-colors"
                             >
                                 <IoClose className="text-lg" />
                             </button>
@@ -150,7 +149,7 @@ const GlobalSearch = () => {
 
                 {/* Search Results Dropdown */}
                 {isSearchOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-surface-900 rounded-xl shadow-xl border border-border-200 dark:border-border-700 max-h-96 overflow-hidden z-50 animate-in slide-in-from-top-1 duration-200">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-200 max-h-96 overflow-hidden z-50 animate-in slide-in-from-top-1 duration-200">
                         {/* Loading State */}
                         {isLoading && (
                             <div className="p-4 text-center text-text-500 dark:text-text-400">

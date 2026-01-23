@@ -219,6 +219,11 @@ const OrderTracking = () => {
         };
     };
 
+    const formatCurrency = (value) => {
+        const n = Number(value ?? 0) || 0;
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
+    };
+
     const openOrder = async (orderSummary) => {
         setLoading(true);
         setError('');
@@ -468,7 +473,7 @@ const OrderTracking = () => {
                                                     </p>
                                                 </div>
                                                 <p className="font-semibold text-text-900 dark:text-text-100">
-                                                    ${(product.price * product.quantity).toFixed(2)}
+                                                    {formatCurrency(product.price * product.quantity)}
                                                 </p>
                                             </div>
                                         ))}

@@ -62,7 +62,7 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
                             </SwiperSlide>
                         )) : (
                             <SwiperSlide key="no-images">
-                                <div className="h-[500px] flex items-center justify-center text-gray-500 text-sm">
+                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                                     No images available for selected color
                                 </div>
                             </SwiperSlide>
@@ -88,7 +88,7 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
                             </SwiperSlide>
                         )) : (
                             <SwiperSlide key="no-images-main">
-                                <div className="h-[500px] flex items-center justify-center text-gray-500 text-sm">
+                                <div className="h-full flex items-center justify-center text-gray-500 text-sm">
                                     No images available for selected color
                                 </div>
                             </SwiperSlide>

@@ -562,7 +562,6 @@ import Sidebar from "../../components/Sidebar";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
 import Link from "@mui/material/Link";
 import ProductCard from "../../components/product/ProductCard";
-import ProductSlider from "../../components/product/productslider";
 import Button from "@mui/material/Button";
 import { IoGrid } from "react-icons/io5";
 import { TfiMenuAlt } from "react-icons/tfi";
@@ -901,7 +900,7 @@ useEffect(() => {
 return (
     <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
         <div className="container mx-auto px-3 sm:px-4">
-            <Breadcrumbs aria-label="breadcrumb" className="mb-3 sm:mb-4">
+            <Breadcrumbs aria-label="breadcrumb" className="mb-4">
                 <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
                     Home
                 </Link>
@@ -1015,9 +1014,9 @@ return (
                 {/* Main Content */}
                 <div className="flex-1">
                     {/* Toolbar */}
-                    <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm mb-4 sm:mb-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                    <div className="bg-white p-2.5 sm:p-4 rounded-lg shadow-sm mb-4 sm:mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
+                            <div className="flex items-center justify-between sm:justify-start gap-2.5 sm:gap-4 w-full sm:w-auto">
                                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                                     <Button
                                         className={`!w-9 !h-9 sm:!w-10 sm:!h-10 !min-w-0 !rounded-md transition-all ${itemView === "grid" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
@@ -1035,7 +1034,7 @@ return (
                                     </Button>
                                 </div>
 
-                                <div className="text-[13px] sm:text-sm text-gray-600 font-medium">
+                                <div className="text-[12px] sm:text-sm text-gray-600 font-medium truncate text-right sm:text-left">
                                     {loading ? (
                                         <span>Loading products...</span>
                                     ) : (
@@ -1051,13 +1050,13 @@ return (
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+                            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                                 <Button
                                     aria-controls={filterOpen ? "filter-menu" : undefined}
                                     aria-haspopup="true"
                                     aria-expanded={filterOpen ? "true" : undefined}
                                     onClick={handleFilterClick}
-                                    className="!text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center gap-2 transition-all"
+                                    className="flex-1 sm:flex-none !min-h-[40px] !text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center justify-center gap-2 transition-all"
                                 >
                                     <FaFilter className="text-sm" />
                                     <span className="hidden sm:inline">Filters</span>
@@ -1073,7 +1072,7 @@ return (
                                     aria-haspopup="true"
                                     aria-expanded={open ? "true" : undefined}
                                     onClick={handleClick}
-                                    className="!text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center gap-2 transition-all"
+                                    className="flex-1 sm:flex-none !min-h-[40px] !text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center justify-center gap-2 transition-all"
                                 >
                                     <FaSortAmountDown className="text-sm" />
                                     <span className="hidden sm:inline">{getCurrentSortLabel()}</span>
@@ -1411,21 +1410,15 @@ return (
                                 <p className="text-gray-500 text-[13px] sm:text-sm mt-2">Try adjusting your filters</p>
                             </div>
                         ) : itemView === "grid" ? (
-                            <>
-                                <div className="md:hidden">
-                                    <ProductSlider products={items} />
-                                </div>
-
-                                <div className="hidden md:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                                    {items.map((product) => (
-                                        <ProductCard
-                                            key={product.id || product._id}
-                                            product={product}
-                                            view={itemView}
-                                        />
-                                    ))}
-                                </div>
-                            </>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4 lg:gap-6">
+                                {items.map((product) => (
+                                    <ProductCard
+                                        key={product.id || product._id}
+                                        product={product}
+                                        view={itemView}
+                                    />
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex flex-col gap-4">
                                 {items.map((product) => (
@@ -1440,30 +1433,18 @@ return (
 
                         {/* Pagination */}
                         {!loading && !error && totalPages > 1 && (
-                            <div className="flex justify-center mt-6 sm:mt-8">
+                            <div className="flex justify-center mt-8">
                                 <Pagination
                                     count={totalPages}
                                     page={page}
                                     onChange={(_e, value) => setPage(value)}
                                     showFirstButton
                                     showLastButton
-                                    size="small"
+                                    size="large"
                                     siblingCount={1}
                                     boundaryCount={1}
                                     className="pagination"
                                     sx={{
-                                        '& .MuiPaginationItem-root': {
-                                            fontSize: '0.85rem',
-                                            minWidth: 30,
-                                            height: 30,
-                                        },
-                                        '@media (min-width: 768px)': {
-                                            '& .MuiPaginationItem-root': {
-                                                fontSize: '1rem',
-                                                minWidth: 36,
-                                                height: 36,
-                                            },
-                                        },
                                         '& .MuiPaginationItem-root': {
                                             '&.Mui-selected': {
                                                 backgroundColor: '#2563eb',

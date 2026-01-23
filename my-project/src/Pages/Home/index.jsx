@@ -13,9 +13,9 @@ import BlogSection from '../../components/Blog/Blog'
 // Main Home component
 const Home = () => {
   return (
-    <div className="home-page">
+    <div className="home-page bg-[#f7f7f7]">
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="hero-section pt-3">
         <Homeslider />
         {/* <Homecatslider /> */}
       </section>
@@ -24,14 +24,16 @@ const Home = () => {
       <section className="products-section">
         <PopularProducts />
         {/* 👇 AdBanner added below PopularProducts */}
-        <AdBannerSection />
+        <div className="mt-2">
+          <AdBannerSection />
+        </div>
         <Imageslider />
         <LatestProducts title="Latest Products" />
         <FeaturedSlider />
       </section>
 
       {/* Promotions Section */}
-      <section className="promotions-section py-6 sm:py-12 bg-white">
+      <section className="promotions-section py-4 sm:py-10">
         <div className="container mx-auto px-3 sm:px-4">
           {/* <FreeShippingBanner /> */}
           <Adsbennerslider items={4} />

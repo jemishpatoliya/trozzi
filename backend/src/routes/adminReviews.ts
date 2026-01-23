@@ -16,7 +16,7 @@ const adminAuth = async (req: Request, res: Response, next: Function) => {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production') as any;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
     
     const userId = decoded.userId || decoded.id;
     if (!userId) {

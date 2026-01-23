@@ -359,53 +359,53 @@ const CheckoutPage = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="flex items-center mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 mb-5 sm:mb-8">
                     <Link
                         to="/cart"
-                        className="inline-flex items-center text-gray-600 hover:text-gray-900"
+                        className="inline-flex items-center text-[13px] sm:text-base text-gray-600 hover:text-gray-900"
                     >
                         <FaArrowLeft className="mr-2" />
                         Back to Cart
                     </Link>
-                    <h1 className="ml-4 text-3xl font-bold text-gray-900">Checkout</h1>
+                    <h1 className="ml-0 sm:ml-4 text-xl sm:text-3xl font-bold text-gray-900">Checkout</h1>
                 </div>
 
                 {/* Progress Steps */}
-                <div className="mb-8">
+                <div className="mb-5 sm:mb-8">
                     <div className="flex items-center justify-between">
                         <div className={`flex items-center ${step >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
+                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
                                 1
                             </div>
-                            <span className="ml-2">Address</span>
+                            <span className="hidden sm:inline ml-2">Address</span>
                         </div>
-                        <div className={`flex-1 h-1 mx-4 ${step >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
+                        <div className={`hidden sm:block flex-1 h-1 mx-4 ${step >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
                         <div className={`flex items-center ${step >= 2 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
+                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
                                 2
                             </div>
-                            <span className="ml-2">Payment</span>
+                            <span className="hidden sm:inline ml-2">Payment</span>
                         </div>
-                        <div className={`flex-1 h-1 mx-4 ${step >= 3 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
+                        <div className={`hidden sm:block flex-1 h-1 mx-4 ${step >= 3 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
                         <div className={`flex items-center ${step >= 3 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
+                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
                                 3
                             </div>
-                            <span className="ml-2">Success</span>
+                            <span className="hidden sm:inline ml-2">Success</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                     {/* Main Content */}
                     <div className="lg:col-span-2">
                         {step === 1 && (
-                            <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-xl font-semibold mb-4">Shipping Address</h2>
+                            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                                <h2 className="text-lg sm:text-xl font-semibold mb-4">Shipping Address</h2>
                                 <form onSubmit={handleAddressSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">First Name</label>
                                             <input
@@ -478,7 +478,7 @@ const CheckoutPage = () => {
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">City</label>
                                             <input
@@ -503,7 +503,7 @@ const CheckoutPage = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">Postal Code</label>
                                             <input
@@ -546,7 +546,7 @@ const CheckoutPage = () => {
 
                         {step === 2 && (
                             <>
-                            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Method</h2>
                                 <div className="space-y-3">
                                     <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
@@ -598,7 +598,7 @@ const CheckoutPage = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-lg shadow-md p-6">
+                            <div className="lg:hidden bg-white rounded-lg shadow-md p-4 sm:p-6">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
@@ -651,7 +651,7 @@ const CheckoutPage = () => {
                     </div>
 
                     {/* Order Summary Sidebar */}
-                    <div className="lg:col-span-1">
+                    <div className="hidden lg:block lg:col-span-1">
                         <div className="bg-white rounded-lg shadow-md p-6 sticky top-4">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
 

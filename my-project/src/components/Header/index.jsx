@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { forwardRef, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
 import Badge from "@mui/material/Badge";
@@ -12,6 +13,8 @@ import Navigation from "./Navigation";
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useContentSettings } from '../../context/ContentSettingsContext';
+import { fetchCategories } from '../../api/catalog';
+
 import CartDrawer from '../CartPanel/CartDrawer';
 import NotificationBell from './NotificationBell';
 
@@ -35,14 +38,58 @@ const StyledBadge = styled(Badge)(({ theme }) => ({
   },
 }));
 
-const Header = () => {
+const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const { itemCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   const { settings } = useContentSettings();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileCategories, setMobileCategories] = useState([]);
+
+  const headerClassName = useMemo(() => {
+    const base = "bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
+    const visibility = hidden ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100";
+    const shadow = !hidden && elevated ? "shadow-md" : "shadow-none";
+    return `${base} ${visibility} ${shadow}`;
+  }, [hidden, elevated]);
 
   const wishlistBadgeCount = settings?.showWishlistCount ? wishlistCount : 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const data = await fetchCategories();
+
+        if (cancelled) return;
+        const list = Array.isArray(data) ? data : [];
+        setMobileCategories(list.filter((c) => c && c.name));
+      } catch (_e) {
+        if (!cancelled) setMobileCategories([]);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isMobileMenuOpen]);
+
+  const topMobileCategories = useMemo(() => {
+    return (Array.isArray(mobileCategories) ? mobileCategories : []).filter((c) => !c.parentId);
+  }, [mobileCategories]);
+
+  const routeForCategory = (value) => `/ProductListing?category=${encodeURIComponent(String(value))}`;
 
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
@@ -52,160 +99,25 @@ const Header = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  return (
-    <header className="bg-white dark:bg-surface-900 border-b border-border-200 dark:border-border-700 sticky top-0 z-40 shadow-sm dark:shadow-none">
-      {/* TOP STRIP - Hidden on mobile */}
-      <div className="top-strip py-2 bg-gradient-to-r from-primary-50 to-accent-50 dark:from-surface-800 dark:to-surface-800 hidden md:block">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="col1">
-              <p className="text-xs font-semibold text-text-800 dark:text-text-200">
-                🎉 Get up to 50% off on selected items | Shop Now!
-              </p>
-            </div>
-
-            <div className="col2 flex items-center justify-end">
-              <ul className="flex items-center gap-4">
-                <li className="list-none">
-                  <Link
-                    to="/help"
-                    className="text-xs font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                  >
-                    Help Center
-                  </Link>
-                </li>
-                <li className="list-none">
-                  <Link
-                    to="/tracking"
-                    className="text-xs font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                  >
-                    Order Tracking
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* MAIN HEADER */}
-      <div className="header py-2 md:py-4 bg-white dark:bg-surface-900">
-        <div className="container mx-auto px-3 sm:px-4">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Mobile Menu Button */}
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden w-10 h-10 flex items-center justify-center text-[22px] text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl"
-            >
-              {isMobileMenuOpen ? <FiX /> : <FiMenu />}
-            </button>
-
-            {/* Logo */}
-            <div className="col1 flex-shrink-0">
-              <Link to="/">
-                <span
-                  className="block font-serif font-semibold tracking-[0.18em] text-lg sm:text-2xl md:text-5xl leading-none"
-                  style={{ color: "#5A0B5A" }}
-                >
-                  TROZZI
-                </span>
-              </Link>
-            </div>
-
-            {/* Search - Hidden on mobile, shown on desktop */}
-            <div className="col2 hidden md:block flex-1 max-w-2xl mx-4">
-              <GlobalSearch />
-            </div>
-
-            {/* Icons - Right Side */}
-            <div className="col3 flex items-center gap-0.5 sm:gap-1 md:gap-2">
-              {/* Desktop User Menu */}
-              <div className="hidden md:block">
-                <UserMenu />
-              </div>
-
-              <NotificationBell />
-
-              {/* Cart Icon */}
-              <Tooltip title="Cart" arrow>
-                <IconButton
-                  aria-label="cart"
-                  onClick={toggleCart}
-                  className="!w-10 !h-10 sm:!w-11 sm:!h-11 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
-                >
-                  <StyledBadge badgeContent={itemCount} color="secondary">
-                    <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-text-700 dark:text-text-300" />
-                  </StyledBadge>
-                </IconButton>
-              </Tooltip>
-
-              {/* Wishlist Icon */}
-              <Tooltip title="Wishlist" arrow>
-                <Link to="/wishlist">
-                  <IconButton
-                    aria-label="wishlist"
-                    className="!w-10 !h-10 sm:!w-11 sm:!h-11 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
-                  >
-                    <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
-                      <FiHeart className="text-lg sm:text-xl md:text-2xl text-text-700 dark:text-text-300" />
-                    </StyledBadge>
-                  </IconButton>
-                </Link>
-              </Tooltip>
-
-              {/* Compare Icon - Hidden on mobile */}
-              <Tooltip title="Compare" arrow>
-                <IconButton
-                  aria-label="compare"
-                  className="hidden md:inline-flex hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors rounded-xl"
-                >
-                  <StyledBadge badgeContent={0} color="secondary">
-                    <GoGitCompare className="text-xl md:text-2xl text-text-700 dark:text-text-300" />
-                  </StyledBadge>
-                </IconButton>
-              </Tooltip>
-            </div>
-          </div>
-
-          <div className="md:hidden mt-2.5">
-            <button
-              type="button"
-              className="w-full min-h-[44px] rounded-2xl bg-surface-50 dark:bg-surface-800 border border-border-200 dark:border-border-700 px-3.5 py-2 text-left shadow-sm"
-            >
-              <div className="text-[11px] text-text-500 dark:text-text-400 leading-tight">Deliver to</div>
-              <div className="text-[13px] font-semibold text-text-900 dark:text-text-100 truncate">Select your location</div>
-            </button>
-          </div>
-
-          {/* Mobile Search - Below header */}
-          <div className="md:hidden mt-2.5">
-            <GlobalSearch />
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation - Desktop */}
-      <div className="hidden md:block bg-white dark:bg-surface-900 border-t border-border-100 dark:border-border-800">
-        <Navigation />
-      </div>
-
-      {/* Mobile Menu Sidebar */}
-      {isMobileMenuOpen && (
+  const mobileMenuNode =
+    isMobileMenuOpen && typeof document !== 'undefined' && document?.body
+      ? createPortal(
         <div
-          className="md:hidden fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 z-[3000] bg-black/60 backdrop-blur-sm"
           onClick={toggleMobileMenu}
         >
           <div
-            className="fixed left-0 top-0 bottom-0 w-80 bg-white dark:bg-surface-900 shadow-2xl dark:shadow-none border-r border-border-200 dark:border-border-700 overflow-y-auto"
+            className="fixed inset-0 w-full bg-white shadow-2xl overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
+            <div className="p-6 pb-10">
               {/* Mobile Menu Header */}
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-200 dark:border-border-700">
                 <div>
                   <h2 className="text-xl font-bold text-text-900 dark:text-text-100">Menu</h2>
                   <p className="text-sm text-text-500 dark:text-text-400">Browse our store</p>
                 </div>
+
                 <button
                   onClick={toggleMobileMenu}
                   className="text-2xl text-text-600 dark:text-text-400 hover:text-text-900 dark:hover:text-text-100 p-2 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors"
@@ -234,6 +146,20 @@ const Header = () => {
                   className="flex items-center text-base font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-surface-800 px-4 py-3 rounded-xl transition-colors"
                 >
                   🛍️ Shop
+                </Link>
+                <Link
+                  to="/wishlist"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center text-base font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-surface-800 px-4 py-3 rounded-xl transition-colors"
+                >
+                  ❤️ Wishlist
+                </Link>
+                <Link
+                  to="/orders"
+                  onClick={toggleMobileMenu}
+                  className="flex items-center text-base font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-surface-800 px-4 py-3 rounded-xl transition-colors"
+                >
+                  🔔 Notifications
                 </Link>
                 <Link
                   to="/about"
@@ -270,13 +196,143 @@ const Header = () => {
               </div>
             </div>
           </div>
+        </div>,
+        document.body
+      )
+      : null;
+
+  return (
+    <header ref={ref} className={headerClassName}>
+      {/* MAIN HEADER */}
+      <div className="header bg-white">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="py-2 md:py-0">
+            <div className="h-10 md:h-16 flex items-center gap-2 md:gap-4 relative">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden w-9 h-9 flex items-center justify-center text-[22px] text-gray-800 active:scale-[0.98] transition-transform"
+                type="button"
+                aria-label="Menu"
+              >
+                {isMobileMenuOpen ? <FiX /> : <FiMenu />}
+              </button>
+
+              {/* Brand */}
+              <Link
+                to="/"
+                className="flex items-center flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
+                aria-label="Home"
+              >
+                <span className="font-extrabold tracking-[0.18em] text-[18px] md:text-[22px] text-gray-900">
+                  TROZZI
+                </span>
+              </Link>
+
+              {/* Desktop Search */}
+              <div className="hidden md:block flex-1 max-w-2xl mx-4">
+                <GlobalSearch />
+              </div>
+
+              {/* Actions */}
+              <div className="ml-auto flex items-center gap-1 md:gap-2">
+                <div className="hidden md:block">
+                  <UserMenu />
+                </div>
+
+                <div className="hidden md:block">
+                  <NotificationBell />
+                </div>
+
+                <Tooltip title="Cart" arrow>
+                  <IconButton
+                    aria-label="cart"
+                    onClick={toggleCart}
+                    className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
+                  >
+                    <StyledBadge badgeContent={itemCount} color="secondary">
+                      <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                    </StyledBadge>
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Wishlist" arrow>
+                  <Link to="/wishlist" className="hidden md:inline-flex">
+                    <IconButton
+                      aria-label="wishlist"
+                      className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
+                    >
+                      <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
+                        <FiHeart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                      </StyledBadge>
+                    </IconButton>
+                  </Link>
+                </Tooltip>
+
+                <Tooltip title="Compare" arrow>
+                  <IconButton
+                    aria-label="compare"
+                    className="hidden lg:inline-flex hover:bg-orange-50 transition-colors rounded-xl"
+                  >
+                    <StyledBadge badgeContent={0} color="secondary">
+                      <GoGitCompare className="text-xl md:text-2xl text-gray-700" />
+                    </StyledBadge>
+                  </IconButton>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Mobile Search */}
+            <div className="md:hidden mt-2">
+              <GlobalSearch />
+            </div>
+
+            {/* Mobile Categories */}
+            {topMobileCategories.length > 0 && (
+              <div className="md:hidden mt-2 -mx-3 px-3">
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+                  <Link
+                    to="/"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="shrink-0 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-[13px] font-semibold"
+                  >
+                    Home
+                  </Link>
+                  {topMobileCategories.slice(0, 12).map((cat) => (
+                    <Link
+                      key={String(cat?.id || cat?._id || cat?.name)}
+                      to={routeForCategory(cat?.id || cat?.name)}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="shrink-0 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-[13px] font-semibold"
+                    >
+                      {cat?.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Offer Strip */}
+            <div className="md:hidden mt-2">
+              <div className="w-full rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 overflow-x-auto scrollbar-hide whitespace-nowrap text-[12px] text-gray-800">
+                <span className="font-semibold">Offer:</span> Free Delivery | Extra discounts on selected items
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Navigation - Desktop */}
+      <div className="hidden md:block bg-white dark:bg-surface-900 border-t border-border-100 dark:border-border-800">
+        <Navigation />
+      </div>
+
+      {mobileMenuNode}
 
       {/* Cart Drawer */}
       <CartDrawer open={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </header>
   );
-};
+});
 
 export default Header

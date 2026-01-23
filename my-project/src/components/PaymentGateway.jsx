@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     FiCreditCard,
     FiSmartphone,
@@ -17,6 +18,25 @@ const PaymentGateway = ({
     onPaymentFailure,
     onCancel
 }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const resolved = useMemo(() => {
+        const state = (location && location.state) ? location.state : {};
+        const resolvedAmount = Number(amount ?? state.amount ?? state.totalAmount ?? state.total ?? 0) || 0;
+        const resolvedOrderId = String(orderId ?? state.orderId ?? state.order?.id ?? state.order?._id ?? '') || '';
+        const resolvedCustomerInfo = customerInfo ?? state.customerInfo ?? state.customer ?? null;
+        return {
+            amount: resolvedAmount,
+            orderId: resolvedOrderId,
+            customerInfo: resolvedCustomerInfo,
+        };
+    }, [amount, orderId, customerInfo, location]);
+
+    const safeOnPaymentSuccess = typeof onPaymentSuccess === 'function' ? onPaymentSuccess : () => {};
+    const safeOnPaymentFailure = typeof onPaymentFailure === 'function' ? onPaymentFailure : () => {};
+    const safeOnCancel = typeof onCancel === 'function' ? onCancel : () => navigate(-1);
+
     const [selectedMethod, setSelectedMethod] = useState('');
     const [upiId, setUpiId] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -32,28 +52,28 @@ const PaymentGateway = ({
             id: 'phonepe',
             name: 'PhonePe',
             icon: <FiSmartphone className="w-6 h-6" />,
-            color: 'bg-purple-500',
+            badgeClass: 'bg-purple-100 text-purple-700',
             description: 'Pay using PhonePe UPI'
         },
         {
             id: 'paytm',
             name: 'Paytm',
             icon: <FiDollarSign className="w-6 h-6" />,
-            color: 'bg-blue-500',
+            badgeClass: 'bg-sky-100 text-sky-700',
             description: 'Pay using Paytm Wallet or UPI'
         },
         {
             id: 'googlepay',
             name: 'Google Pay',
             icon: <FiCreditCard className="w-6 h-6" />,
-            color: 'bg-green-500',
+            badgeClass: 'bg-emerald-100 text-emerald-700',
             description: 'Pay using Google Pay UPI'
         },
         {
             id: 'upi',
             name: 'UPI',
             icon: <FiSmartphone className="w-6 h-6" />,
-            color: 'bg-orange-500',
+            badgeClass: 'bg-orange-100 text-orange-700',
             description: 'Pay using any UPI app'
         }
     ];
@@ -147,6 +167,12 @@ const PaymentGateway = ({
             return;
         }
 
+        if (!resolved.amount) {
+            setPaymentStatus('failed');
+            setPaymentError('Missing amount. Please go back and try again.');
+            return;
+        }
+
         setIsProcessing(true);
         setPaymentStatus('processing');
         setPaymentError('');
@@ -156,31 +182,31 @@ const PaymentGateway = ({
             switch (selectedMethod) {
                 case 'phonepe':
                     response = await processPhonePePayment({
-                        amount,
-                        orderId,
-                        customerInfo,
+                        amount: resolved.amount,
+                        orderId: resolved.orderId,
+                        customerInfo: resolved.customerInfo,
                         upiId
                     });
                     break;
                 case 'paytm':
                     response = await processPaytmPayment({
-                        amount,
-                        orderId,
-                        customerInfo
+                        amount: resolved.amount,
+                        orderId: resolved.orderId,
+                        customerInfo: resolved.customerInfo
                     });
                     break;
                 case 'googlepay':
                     response = await processGooglePayPayment({
-                        amount,
-                        orderId,
-                        customerInfo
+                        amount: resolved.amount,
+                        orderId: resolved.orderId,
+                        customerInfo: resolved.customerInfo
                     });
                     break;
                 case 'upi':
                     response = await processUPIPayment({
-                        amount,
-                        orderId,
-                        customerInfo,
+                        amount: resolved.amount,
+                        orderId: resolved.orderId,
+                        customerInfo: resolved.customerInfo,
                         upiId
                     });
                     break;
@@ -255,14 +281,14 @@ const PaymentGateway = ({
                         setPaymentStatus('success');
                         setTimeout(() => {
                             setShowPaymentModal(false);
-                            onPaymentSuccess(response.data);
+                            safeOnPaymentSuccess(response.data);
                         }, 2000);
                     } else if (newStatus === 'failed') {
                         clearInterval(pollInterval);
                         setPaymentStatus('failed');
                         setTimeout(() => {
                             setShowPaymentModal(false);
-                            onPaymentFailure('Payment failed');
+                            safeOnPaymentFailure('Payment failed');
                         }, 2000);
                     }
                 }
@@ -273,7 +299,7 @@ const PaymentGateway = ({
                     clearInterval(pollInterval);
                     setPaymentStatus('timeout');
                     setShowPaymentModal(false);
-                    onPaymentFailure('Payment timeout. Please try again.');
+                    safeOnPaymentFailure('Payment timeout. Please try again.');
                 }
             }
         }, 3000);
@@ -284,15 +310,15 @@ const PaymentGateway = ({
             if (paymentStatus === 'awaiting') {
                 setPaymentStatus('timeout');
                 setShowPaymentModal(false);
-                onPaymentFailure('Payment timeout. Please check your payment app.');
+                safeOnPaymentFailure('Payment timeout. Please check your payment app.');
             }
         }, 300000);
     };
 
     const getStatusIcon = () => {
         switch (paymentStatus) {
-            case 'processing': return <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>;
-            case 'awaiting': return <div className="animate-pulse"><FiCheck className="w-8 h-8 text-blue-500" /></div>;
+            case 'processing': return <div className="animate-spin rounded-full h-8 w-8 border-2 border-orange-500 border-t-transparent"></div>;
+            case 'awaiting': return <div className="animate-pulse"><FiCheck className="w-8 h-8 text-orange-500" /></div>;
             case 'success': return <FiCheck className="w-8 h-8 text-green-500" />;
             case 'failed': return <FiAlertCircle className="w-8 h-8 text-red-500" />;
             case 'timeout': return <FiAlertCircle className="w-8 h-8 text-orange-500" />;
@@ -319,27 +345,51 @@ const PaymentGateway = ({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 space-y-4">
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-semibold text-gray-900">Payment</div>
+                        <div className="text-xs text-gray-500 mt-0.5">Order {resolved.orderId ? `#${resolved.orderId}` : ''}</div>
+                    </div>
+                    <div className="text-right">
+                        <div className="text-xs text-gray-500">Amount</div>
+                        <div className="text-lg font-extrabold text-gray-900">₹{Number(resolved.amount || 0).toLocaleString()}</div>
+                    </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={safeOnCancel}
+                        className="text-sm font-semibold text-gray-700 hover:text-gray-900"
+                    >
+                        Cancel
+                    </button>
+                    <div className="text-xs text-gray-500">Secure payment</div>
+                </div>
+            </div>
+
             {/* Payment Method Selection */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold mb-4">Select Payment Method</h3>
+            <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-base font-extrabold text-gray-900">Select payment method</h3>
+                <p className="text-xs text-gray-500 mt-1">Choose an option to complete your payment.</p>
                 <div className="grid gap-4 md:grid-cols-2">
                     {paymentMethods.map((method) => (
                         <button
                             key={method.id}
                             onClick={() => setSelectedMethod(method.id)}
                             className={`p-4 border rounded-lg transition-all ${selectedMethod === method.id
-                                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                ? 'border-orange-500 bg-orange-50'
+                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                 }`}
                         >
                             <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-lg ${method.color} flex items-center justify-center text-white`}>
+                                <div className={`w-12 h-12 rounded-2xl ${method.badgeClass} flex items-center justify-center`}>
                                     {method.icon}
                                 </div>
                                 <div className="text-left">
-                                    <p className="font-medium">{method.name}</p>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">{method.description}</p>
+                                    <p className="font-semibold text-gray-900">{method.name}</p>
+                                    <p className="text-xs text-gray-500">{method.description}</p>
                                 </div>
                             </div>
                         </button>
@@ -349,7 +399,7 @@ const PaymentGateway = ({
                 {/* UPI ID Input for UPI method */}
                 {selectedMethod === 'upi' && (
                     <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
                             UPI ID
                         </label>
                         <input
@@ -357,17 +407,17 @@ const PaymentGateway = ({
                             value={upiId}
                             onChange={(e) => setUpiId(e.target.value)}
                             placeholder="Enter your UPI ID (e.g., username@ybl)"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                            className="w-full px-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
                         />
                     </div>
                 )}
 
                 {/* Error Display */}
                 {paymentError && (
-                    <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
                         <div className="flex items-center gap-2">
-                            <FiAlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                            <p className="text-sm text-red-600 dark:text-red-400">{paymentError}</p>
+                            <FiAlertCircle className="w-5 h-5 text-red-600" />
+                            <p className="text-sm text-red-700">{paymentError}</p>
                         </div>
                     </div>
                 )}
@@ -376,7 +426,7 @@ const PaymentGateway = ({
                 <button
                     onClick={handlePayment}
                     disabled={!selectedMethod || (selectedMethod === 'upi' && !upiId.trim()) || isProcessing}
-                    className="w-full mt-4 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+                    className="w-full mt-4 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:cursor-not-allowed"
                 >
                     {isProcessing ? (
                         <div className="flex items-center justify-center gap-2">
@@ -384,24 +434,24 @@ const PaymentGateway = ({
                             Processing...
                         </div>
                     ) : (
-                        `Pay ₹${amount}`
+                        `Pay ₹${Number(resolved.amount || 0).toLocaleString()}`
                     )}
                 </button>
             </div>
 
             {/* Payment Status Modal */}
             {showPaymentModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[3000]">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold">Complete Payment</h3>
+                            <h3 className="text-base font-extrabold text-gray-900">Complete payment</h3>
                             <button
                                 onClick={() => {
                                     setShowPaymentModal(false);
                                     setPaymentStatus('idle');
                                     setPaymentError('');
                                 }}
-                                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                                className="text-gray-500 hover:text-gray-900"
                             >
                                 <FiX className="w-5 h-5" />
                             </button>
@@ -409,7 +459,7 @@ const PaymentGateway = ({
 
                         <div className="text-center space-y-4">
                             {getStatusIcon()}
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-gray-600">
                                 {getStatusMessage()}
                             </p>
 
@@ -419,7 +469,7 @@ const PaymentGateway = ({
                                     <img
                                         src={qrCode}
                                         alt="Payment QR Code"
-                                        className="w-48 h-48 mx-auto border border-gray-200 dark:border-gray-700 rounded-lg"
+                                        className="w-48 h-48 mx-auto border border-gray-200 rounded-2xl"
                                     />
                                 </div>
                             )}
@@ -431,7 +481,7 @@ const PaymentGateway = ({
                                         href={paymentUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-block bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                                        className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors"
                                     >
                                         Open Payment App
                                     </a>
@@ -457,7 +507,7 @@ const PaymentGateway = ({
                                     <div className="mt-4 space-y-2">
                                         <button
                                             onClick={handleRetry}
-                                            className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors"
                                         >
                                             <FiRefreshCw className="w-4 h-4 mr-2 inline" />
                                             Try Again
@@ -467,9 +517,9 @@ const PaymentGateway = ({
                                                 setShowPaymentModal(false);
                                                 setPaymentStatus('idle');
                                                 setPaymentError('');
-                                                onCancel();
+                                                safeOnCancel();
                                             }}
-                                            className="w-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium py-2 px-4 rounded-lg transition-colors"
+                                            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold py-2.5 px-4 rounded-xl transition-colors"
                                         >
                                             Cancel
                                         </button>

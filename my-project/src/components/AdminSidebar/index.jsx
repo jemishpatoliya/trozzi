@@ -19,7 +19,7 @@ import {
 } from 'react-icons/fa';
 import { getReviewStats } from '../../api/adminReviews';
 
-const AdminSidebar = () => {
+const AdminSidebar = ({ children }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [reviewStats, setReviewStats] = useState({
         totalReviews: 0,
@@ -236,28 +236,7 @@ const AdminSidebar = () => {
                 {/* Page content */}
                 <main className="flex-1 overflow-auto">
                     <div className="p-4 sm:p-6 lg:p-8">
-                        {/* Page Header */}
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold text-gray-900">
-                                {menuItems.find(item => isActive(item.path))?.title || 'Dashboard'}
-                            </h2>
-                            <p className="text-gray-600 mt-1">
-                                {menuItems.find(item => isActive(item.path))?.description}
-                            </p>
-                        </div>
-
-                        {/* Page Content */}
-                        <div className="bg-white rounded-lg shadow-sm p-6">
-                            {/* Content will be rendered here based on the route */}
-                            <div className="text-center py-12">
-                                <div className="text-gray-500">
-                                    {menuItems.find(item => isActive(item.path))?.icon}
-                                </div>
-                                <p className="text-gray-500 mt-2">
-                                    Select a menu item from the sidebar to get started
-                                </p>
-                            </div>
-                        </div>
+                        {children}
                     </div>
                 </main>
             </div>

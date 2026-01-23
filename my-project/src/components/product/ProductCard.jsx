@@ -52,79 +52,83 @@ const ProductCard = ({ product, view = "grid" }) => {
   const [selectedColorVariant, setSelectedColorVariant] = useState(null);
 
   const normalized = useMemo(() => {
-    if (!product) return null;
-    const baseProduct = normalizeProductForColorVariants(product);
-    const id = baseProduct.id || baseProduct._id;
-    const name = baseProduct.name ?? baseProduct.title ?? "";
+    try {
+      if (!product) return null;
+      const baseProduct = normalizeProductForColorVariants(product);
+      const id = baseProduct.id || baseProduct._id;
+      const name = baseProduct.name ?? baseProduct.title ?? "";
 
-    // Handle color variants
-    const hasColorVariants = baseProduct.colorVariants && baseProduct.colorVariants.length > 0;
-    const defaultVariant = hasColorVariants ? baseProduct.colorVariants[0] : null;
-    const currentVariant = selectedColorVariant || defaultVariant;
+      // Handle color variants
+      const hasColorVariants = baseProduct.colorVariants && baseProduct.colorVariants.length > 0;
+      const defaultVariant = hasColorVariants ? baseProduct.colorVariants[0] : null;
+      const currentVariant = selectedColorVariant || defaultVariant;
 
-    // Get image from variant or fallback to product image
-    const image = currentVariant?.images?.[0] || baseProduct.image || baseProduct.img || baseProduct.galleryImages?.[0] || "";
+      // Get image from variant or fallback to product image
+      const image = currentVariant?.images?.[0] || baseProduct.image || baseProduct.img || baseProduct.galleryImages?.[0] || "";
 
-    // Get price from variant or fallback to product price
-    const price = Number(currentVariant?.price ?? baseProduct.price ?? 0);
+      // Get price from variant or fallback to product price
+      const price = Number(currentVariant?.price ?? baseProduct.price ?? 0);
 
-    const originalPrice = Number(baseProduct?.originalPrice ?? baseProduct?.management?.pricing?.originalPrice ?? 0);
+      const originalPrice = Number(baseProduct?.originalPrice ?? baseProduct?.management?.pricing?.originalPrice ?? 0);
 
-    // Get stock from variant or fallback to product stock
-    const stock = Number(currentVariant?.stock ?? baseProduct.stock ?? 0);
+      // Get stock from variant or fallback to product stock
+      const stock = Number(currentVariant?.stock ?? baseProduct.stock ?? 0);
 
-    // Get SKU from variant or fallback to product SKU
-    const sku = currentVariant?.sku || baseProduct.sku || "";
+      // Get SKU from variant or fallback to product SKU
+      const sku = currentVariant?.sku || baseProduct.sku || "";
 
-    const brand = baseProduct.brand || baseProduct.category || "";
+      const brand = baseProduct.brand || baseProduct.category || "";
 
-    const saleEnabled = !!baseProduct.saleEnabled;
-    const saleDiscount = Number(baseProduct.saleDiscount ?? baseProduct.discount ?? 0);
-    const saleStart = baseProduct.saleStartDate ? new Date(baseProduct.saleStartDate) : null;
-    const saleEnd = baseProduct.saleEndDate ? new Date(baseProduct.saleEndDate) : null;
+      const saleEnabled = !!baseProduct.saleEnabled;
+      const saleDiscount = Number(baseProduct.saleDiscount ?? baseProduct.discount ?? 0);
+      const saleStart = baseProduct.saleStartDate ? new Date(baseProduct.saleStartDate) : null;
+      const saleEnd = baseProduct.saleEndDate ? new Date(baseProduct.saleEndDate) : null;
 
-    const now = new Date();
-    const isSaleActive =
-      saleEnabled &&
-      saleDiscount > 0 &&
-      (!saleStart || Number.isNaN(saleStart.getTime()) || saleStart <= now) &&
-      (!saleEnd || Number.isNaN(saleEnd.getTime()) || saleEnd >= now);
+      const now = new Date();
+      const isSaleActive =
+        saleEnabled &&
+        saleDiscount > 0 &&
+        (!saleStart || Number.isNaN(saleStart.getTime()) || saleStart <= now) &&
+        (!saleEnd || Number.isNaN(saleEnd.getTime()) || saleEnd >= now);
 
-    const displayPrice = isSaleActive ? price - (price * saleDiscount) / 100 : price;
+      const displayPrice = isSaleActive ? price - (price * saleDiscount) / 100 : price;
 
-    const displayMrp = originalPrice > 0 ? originalPrice : price;
+      const displayMrp = originalPrice > 0 ? originalPrice : price;
 
-    const reviewsArray = Array.isArray(baseProduct.reviews) ? baseProduct.reviews : [];
-    const reviewsCount = Number.isFinite(Number(baseProduct.reviews))
-      ? Number(baseProduct.reviews)
-      : reviewsArray.length;
+      const reviewsArray = Array.isArray(baseProduct.reviews) ? baseProduct.reviews : [];
+      const reviewsCount = Number.isFinite(Number(baseProduct.reviews))
+        ? Number(baseProduct.reviews)
+        : reviewsArray.length;
 
-    const ratingNumber = Number(baseProduct.rating);
-    const avgFromReviews = reviewsArray.length
-      ? reviewsArray.reduce((sum, r) => sum + Number(r?.rating ?? 0), 0) / reviewsArray.length
-      : 0;
-    const rating = Number.isFinite(ratingNumber) && ratingNumber > 0 ? ratingNumber : avgFromReviews;
-    const reviews = Number.isFinite(reviewsCount) ? reviewsCount : 0;
+      const ratingNumber = Number(baseProduct.rating);
+      const avgFromReviews = reviewsArray.length
+        ? reviewsArray.reduce((sum, r) => sum + Number(r?.rating ?? 0), 0) / reviewsArray.length
+        : 0;
+      const rating = Number.isFinite(ratingNumber) && ratingNumber > 0 ? ratingNumber : avgFromReviews;
+      const reviews = Number.isFinite(reviewsCount) ? reviewsCount : 0;
 
-    return {
-      id,
-      name,
-      brand,
-      price,
-      originalPrice: displayMrp,
-      image,
-      galleryImages: currentVariant?.images ?? (Array.isArray(baseProduct.galleryImages) ? baseProduct.galleryImages : []),
-      isSaleActive,
-      saleDiscount,
-      displayPrice,
-      rating,
-      reviews,
-      stock,
-      sku,
-      hasColorVariants,
-      colorVariants: baseProduct.colorVariants || [],
-      currentVariant,
-    };
+      return {
+        id,
+        name,
+        brand,
+        price,
+        originalPrice: displayMrp,
+        image,
+        galleryImages: currentVariant?.images ?? (Array.isArray(baseProduct.galleryImages) ? baseProduct.galleryImages : []),
+        isSaleActive,
+        saleDiscount,
+        displayPrice,
+        rating,
+        reviews,
+        stock,
+        sku,
+        hasColorVariants,
+        colorVariants: baseProduct.colorVariants || [],
+        currentVariant,
+      };
+    } catch (_e) {
+      return null;
+    }
   }, [product, selectedColorVariant]);
 
   if (!normalized) return null;
@@ -173,6 +177,7 @@ const ProductCard = ({ product, view = "grid" }) => {
   };
 
   const isList = view === "list";
+  const safeRating = Number.isFinite(Number(normalized.rating)) ? Number(normalized.rating) : 0;
 
   return (
     <div className="animate-fade-in">
@@ -186,7 +191,7 @@ const ProductCard = ({ product, view = "grid" }) => {
         className={
           isList
             ? "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 flex h-[280px]"
-            : "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 h-full"
+            : "group cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_24px_rgba(0,0,0,0.10)] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-full"
         }
       >
         <div className="transition-transform duration-300 flex flex-col h-full">
@@ -195,17 +200,23 @@ const ProductCard = ({ product, view = "grid" }) => {
             className={
               isList
                 ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
-                : "aspect-[4/3] sm:aspect-square bg-gray-50 overflow-hidden relative"
+                : "aspect-[4/3] bg-gray-50 overflow-hidden relative"
             }
           >
-            <div className="relative overflow-hidden w-full h-full">
+            <div className={isList ? "relative overflow-hidden w-full h-full" : "relative overflow-hidden w-full h-full"}>
               <img
                 src={displayImage}
                 alt={normalized.name}
-                className="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                className={
+                  isList
+                    ? "w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+                    : "w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
+                }
                 loading="lazy"
               />
             </div>
+
+            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/35 to-transparent" />
 
             {/* Discount Badge */}
             {normalized.isSaleActive && normalized.saleDiscount > 0 && (
@@ -218,7 +229,7 @@ const ProductCard = ({ product, view = "grid" }) => {
             <button
               type="button"
               onClick={handleWishlistToggle}
-              className="absolute top-2 right-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white transition-all"
+              className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white transition-all"
               aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
             >
               {wishlisted ? (
@@ -227,6 +238,19 @@ const ProductCard = ({ product, view = "grid" }) => {
                 <FaRegHeart className="text-gray-700" />
               )}
             </button>
+
+            <div className="absolute left-2 bottom-2 flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-green-600/95 px-2 py-1 rounded-lg text-white text-[11px] font-semibold">
+                <span className="font-bold">{safeRating.toFixed(1)}</span>
+                <FaStar className="h-3 w-3 fill-current" />
+              </div>
+
+              {normalized.isSaleActive && normalized.saleDiscount > 0 && (
+                <div className="bg-white/95 backdrop-blur px-2 py-1 rounded-lg text-[11px] font-semibold text-orange-700">
+                  {normalized.saleDiscount}% OFF
+                </div>
+              )}
+            </div>
 
             {/* Gallery Thumbnails */}
             {normalized.galleryImages?.length > 1 && !isList && (
@@ -260,7 +284,7 @@ const ProductCard = ({ product, view = "grid" }) => {
           {/* Content Section */}
           <div className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 flex flex-col flex-1">
             {/* Product Title */}
-            <h3 className="font-medium text-[13px] sm:text-sm text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="font-semibold text-[14px] sm:text-[15px] text-gray-900 line-clamp-2 leading-snug">
               {normalized.name}
             </h3>
 
@@ -268,7 +292,7 @@ const ProductCard = ({ product, view = "grid" }) => {
 
             {/* Price Section */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-base sm:text-lg font-bold text-gray-900">
+              <span className="text-[15px] sm:text-lg font-extrabold text-gray-900">
                 {formatPrice(normalized.displayPrice)}
               </span>
 
@@ -285,29 +309,16 @@ const ProductCard = ({ product, view = "grid" }) => {
               )}
             </div>
 
-            {/* Rating and Stock */}
-            <div className="flex items-center justify-between">
-              {/* Rating */}
-              <div className="flex items-center gap-1 bg-green-600 px-2 py-1 rounded-md text-white text-[11px] sm:text-xs font-medium">
-                <span className="font-bold">{normalized.rating.toFixed(1)}</span>
-                <FaStar className="h-3 w-3 fill-current" />
-                <span>({normalized.reviews})</span>
-              </div>
-
-              {/* Stock Status */}
-              {normalized.stock > 0 ? (
-                <span className="text-xs text-green-600 font-medium">In Stock</span>
-              ) : (
-                <span className="text-xs text-red-600 font-semibold">Out of Stock</span>
-              )}
-            </div>
+            {normalized.stock <= 0 ? (
+              <div className="text-xs font-semibold text-red-600">Out of stock</div>
+            ) : null}
 
             {/* Add to Cart Button */}
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={isAddingToCart || normalized.stock <= 0}
-              className="w-full mt-auto inline-flex items-center justify-center gap-2 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm font-semibold hover:bg-green-600 border border-green-600 hover:text-white text-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+              className="w-full mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-[12px] sm:text-sm font-semibold bg-white border border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
             >
               {justAdded ? (
                 <>

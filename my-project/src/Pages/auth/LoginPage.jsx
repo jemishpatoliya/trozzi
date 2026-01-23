@@ -38,32 +38,34 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Sign in to your account
-                    </h2>
-                    <p className="mt-2 text-center text-sm text-gray-600">
-                        Or{' '}
-                        <Link
-                            to="/register"
-                            className="font-medium text-indigo-600 hover:text-indigo-500"
-                        >
-                            create a new account
-                        </Link>
-                    </p>
-                </div>
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-                            {error}
+        <div className="min-h-screen bg-[#f7f7f7] px-4 py-10 flex items-center justify-center">
+            <div className="w-full max-w-md">
+                <div className="rounded-2xl bg-white border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.08)] p-6 sm:p-8">
+                    <div className="text-center">
+                        <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-orange-50 text-orange-600 font-extrabold text-lg">
+                            T
                         </div>
-                    )}
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        <div>
-                            <label htmlFor="email" className="sr-only">
-                                Email address
+                        <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                            Sign in
+                        </h2>
+                        <p className="mt-2 text-sm text-gray-600">
+                            New here?{' '}
+                            <Link to="/register" className="font-semibold text-orange-600 hover:text-orange-700">
+                                Create account
+                            </Link>
+                        </p>
+                    </div>
+
+                    <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="space-y-1.5">
+                            <label htmlFor="email" className="text-sm font-semibold text-gray-700">
+                                Email
                             </label>
                             <input
                                 id="email"
@@ -71,14 +73,15 @@ const LoginPage = () => {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="Email address"
+                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                                placeholder="you@example.com"
                                 value={formData.email}
                                 onChange={handleChange}
                             />
                         </div>
-                        <div>
-                            <label htmlFor="password" className="sr-only">
+
+                        <div className="space-y-1.5">
+                            <label htmlFor="password" className="text-sm font-semibold text-gray-700">
                                 Password
                             </label>
                             <input
@@ -87,47 +90,38 @@ const LoginPage = () => {
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                placeholder="Password"
+                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                                placeholder="Enter your password"
                                 value={formData.password}
                                 onChange={handleChange}
                             />
                         </div>
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                            <input
-                                id="remember-me"
-                                name="remember-me"
-                                type="checkbox"
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                        <div className="flex items-center justify-between pt-1">
+                            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                                <input
+                                    id="remember-me"
+                                    name="remember-me"
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                />
                                 Remember me
                             </label>
-                        </div>
 
-                        <div className="text-sm">
-                            <Link
-                                to="/forgot-password"
-                                className="font-medium text-indigo-600 hover:text-indigo-500"
-                            >
-                                Forgot your password?
+                            <Link to="/forgot-password" className="text-sm font-semibold text-orange-600 hover:text-orange-700">
+                                Forgot password?
                             </Link>
                         </div>
-                    </div>
 
-                    <div>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                            className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 text-white py-3 text-sm font-semibold shadow-sm disabled:opacity-50"
                         >
                             {loading ? 'Signing in...' : 'Sign in'}
                         </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     );

@@ -142,7 +142,7 @@
 // }
 
 // App.js - Fixed Layout with Homecatslider on all pages
-import React, { createContext, lazy, Suspense } from 'react';
+import React, { createContext, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, NavLink } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -180,6 +180,8 @@ const OrderTracking = lazy(() => import('./Pages/OrderTracking'));
 const PaymentGateway = lazy(() => import('./components/PaymentGateway'));
 const Profile = lazy(() => import('./Pages/Profile'));
 const Orders = lazy(() => import('./Pages/Orders'));
+const AdminDashboard = lazy(() => import('./Pages/AdminDashboard'));
+const AdminReviews = lazy(() => import('./Pages/AdminReviews'));
 
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
@@ -193,6 +195,21 @@ const ProtectedRoute = ({ children }) => {
     return isAuthenticated
         ? children
         : <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;
+};
+
+const AdminRoute = ({ children }) => {
+    const { isAuthenticated, loading, user } = useAuth();
+    const location = useLocation();
+    if (loading) return null;
+    const redirectTo = `${location.pathname}${location.search || ''}`;
+
+    if (!isAuthenticated) {
+        return <Navigate to={`/login?redirect=${encodeURIComponent(redirectTo)}`} replace />;
+    }
+
+    return String(user?.role || '').toLowerCase() === 'admin'
+        ? children
+        : <Navigate to="/" replace />;
 };
 
 const PublicRoute = ({ children }) => {
@@ -293,6 +310,62 @@ function App() {
     // Basic MyContext functionality for backward compatibility
     const [isCartPanelOpen, setIsCartPanelOpen] = React.useState(false);
 
+    const headerRef = useRef(null);
+    const mainScrollRef = useRef(null);
+    const [isHeaderHidden, setIsHeaderHidden] = useState(false);
+    const [isHeaderElevated, setIsHeaderElevated] = useState(false);
+    const [headerHeight, setHeaderHeight] = useState(0);
+
+    useLayoutEffect(() => {
+        const measure = () => {
+            const h = headerRef.current?.offsetHeight || 0;
+            setHeaderHeight(h);
+        };
+
+        measure();
+        window.addEventListener('resize', measure);
+        return () => {
+            window.removeEventListener('resize', measure);
+        };
+    }, []);
+
+    useEffect(() => {
+        const el = mainScrollRef.current;
+        if (!el) return;
+
+        let lastScrollTop = el.scrollTop || 0;
+        let ticking = false;
+        const threshold = 8;
+        const topRevealOffset = 12;
+
+        const onScroll = () => {
+            const currentScrollTop = el.scrollTop || 0;
+            if (ticking) return;
+            ticking = true;
+
+            window.requestAnimationFrame(() => {
+                const delta = currentScrollTop - lastScrollTop;
+
+                setIsHeaderElevated(currentScrollTop > 4);
+
+                if (currentScrollTop <= topRevealOffset) {
+                    setIsHeaderHidden(false);
+                } else if (Math.abs(delta) >= threshold) {
+                    if (delta > 0) setIsHeaderHidden(true);
+                    else if (delta < 0) setIsHeaderHidden(false);
+                }
+
+                lastScrollTop = currentScrollTop;
+                ticking = false;
+            });
+        };
+
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => {
+            el.removeEventListener('scroll', onScroll);
+        };
+    }, []);
+
     const toggleCartPanel = (open) => {
         setIsCartPanelOpen(open);
     };
@@ -326,10 +399,14 @@ function App() {
                                         {/* Right Content Area */}
                                         <div className="flex-1 flex flex-col overflow-hidden">
                                             {/* Header - Sticky */}
-                                            <Header />
+                                            <Header ref={headerRef} hidden={isHeaderHidden} elevated={isHeaderElevated} />
 
                                             {/* Main Content - Scrollable */}
-                                            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 pb-16 md:pb-0">
+                                            <main
+                                                ref={mainScrollRef}
+                                                className="flex-1 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0"
+                                                style={{ paddingTop: isHeaderHidden ? 0 : headerHeight, transition: 'padding-top 280ms ease-out' }}
+                                            >
                                                 <Suspense fallback={
                                                     <div className="flex items-center justify-center h-64">
                                                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -437,6 +514,62 @@ function App() {
                                                         <ProtectedRoute>
                                                             <OrderTracking />
                                                         </ProtectedRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <AdminDashboard />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/reviews"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <AdminReviews />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/products"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <Navigate to="/admin" replace />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/orders"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <Navigate to="/admin" replace />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/users"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <Navigate to="/admin" replace />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/analytics"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <Navigate to="/admin" replace />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
+                                                    path="/admin/settings"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <Navigate to="/admin" replace />
+                                                        </AdminRoute>
                                                     }
                                                 />
 

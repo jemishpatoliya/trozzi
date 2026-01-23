@@ -245,9 +245,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   };
 
   return (
-    <div className="productContanet w-full md:w-[60%] px-4 md:px-10 pb-24 md:pb-0">
+    <div className="productContanet w-full md:w-[60%] px-3 sm:px-4 md:px-10 pb-24 md:pb-0">
       {/* Title */}
-      <h1 className="text-[18px] md:text-[28px] font-[600] mb-2 md:mb-3 leading-snug">
+      <h1 className="text-[18px] md:text-[28px] font-[600] mb-2 md:mb-3 leading-snug line-clamp-2">
         {product?.name ?? (
           <>
             Siril Poly White & Beign Color Saree With Blouse Piece <br />
@@ -306,9 +306,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       </p>
 
       {/* Sizes */}
-      <div className="flex items-center gap-3 mb-4 md:mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-4 md:mb-6">
         <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Size:</span>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {sizesList.map((size) => (
             <Button
               key={size}
@@ -378,7 +378,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       {/* Color Selection */}
       {(hasColorVariants || colorOptions.length > 0) && (
         <div className="mb-6">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex flex-wrap items-center gap-3 mb-3">
             <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Color:</span>
             <span className="text-gray-500 text-[12px] md:text-[14px]">
               {hasColorVariants ? (currentVariant?.colorName || 'Select a color') : (selectedSimpleColor || 'Select a color')}
@@ -444,7 +444,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       </div>
 
 
-      <div className="flex items-center gap-6 mt-6">
+      <div className="flex flex-wrap items-center gap-4 mt-5 md:mt-6">
         <button
           type="button"
           disabled={isAdding || !productId}
@@ -463,7 +463,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         </button>
       </div>
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-4 py-3">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 px-3 sm:px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
         <div className="flex gap-3">
           <button
             type="button"
