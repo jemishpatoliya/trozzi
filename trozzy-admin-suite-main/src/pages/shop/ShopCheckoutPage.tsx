@@ -45,7 +45,7 @@ export default function ShopCheckoutPage() {
 
     try {
       const res = await createOrderMutation.mutateAsync({
-        currency: "USD",
+        currency: "INR",
         items: cart.lines.map((l) => ({
           productId: l.productId,
           name: l.name,

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Package,
   ShoppingCart,
-  DollarSign,
+  IndianRupee,
   AlertTriangle,
   TrendingUp,
   TrendingDown,
@@ -312,7 +312,7 @@ const Dashboard = () => {
           value={typeof currentStats?.revenue === 'number' ? formatCurrency(currentStats.revenue) : isLoading ? '...' : formatCurrency(0)}
           change={currentStats?.growth?.revenue}
           changeType={getChangeType(currentStats?.growth?.revenue)}
-          icon={DollarSign}
+          icon={IndianRupee}
           iconColor="bg-success/10 text-success"
         />
         <StatCard
