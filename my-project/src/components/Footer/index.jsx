@@ -56,7 +56,6 @@ const Footer = () => {
                             <li><Link to="/" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Home</Link></li>
                             <li><Link to="/ProductListing" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Products</Link></li>
                             <li><Link to="/cart" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Cart</Link></li>
-                            <li><Link to="/checkout" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Checkout</Link></li>
                         </ul>
                     </div>
 
