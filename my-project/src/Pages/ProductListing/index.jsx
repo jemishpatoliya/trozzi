@@ -794,367 +794,215 @@ const ProductListing = () => {
         window.addEventListener("focus", onFocus);
         document.addEventListener("visibilitychange", onVisibility);
 
-        const intervalId = window.setInterval(() => {
-            void load({ silent: true });
-        }, 10000);
-
         return () => {
             cancelled = true;
             window.removeEventListener("focus", onFocus);
             document.removeEventListener("visibilitychange", onVisibility);
-            window.clearInterval(intervalId);
         };
     }, [searchQuery, sortBy, priceRange, selectedFilters]);
 
-useEffect(() => {
-    const normalize = (value) => String(value ?? "").trim().toLowerCase();
-    const byId = new Map(categories.map((c) => [String(c?.id ?? ""), normalize(c?.name)]));
-    const byName = new Map(categories.map((c) => [normalize(c?.name), normalize(c?.name)]));
-    const byNameToId = new Map(categories.map((c) => [normalize(c?.name), String(c?.id ?? "")]));
+    useEffect(() => {
+        const normalize = (value) => String(value ?? "").trim().toLowerCase();
+        const byId = new Map(categories.map((c) => [String(c?.id ?? ""), normalize(c?.name)]));
+        const byName = new Map(categories.map((c) => [normalize(c?.name), normalize(c?.name)]));
+        const byNameToId = new Map(categories.map((c) => [normalize(c?.name), String(c?.id ?? "")]));
 
-    const childrenByParent = new Map();
-    for (const c of categories) {
-        const parentId = c?.parentId ? String(c.parentId) : "";
-        if (!parentId) continue;
-        const next = childrenByParent.get(parentId) || [];
-        next.push(String(c?.id ?? ""));
-        childrenByParent.set(parentId, next);
-    }
-
-    const resolveCategoryKey = (value) => {
-        const raw = String(value ?? "").trim();
-        if (!raw) return "";
-        if (byId.has(raw)) return byId.get(raw) || "";
-        const n = normalize(raw);
-        if (byName.has(n)) return byName.get(n) || "";
-        return n;
-    };
-
-    const resolveCategoryId = (value) => {
-        const raw = String(value ?? "").trim();
-        if (!raw) return "";
-        if (byId.has(raw)) return raw;
-        const n = normalize(raw);
-        return byNameToId.get(n) || "";
-    };
-
-    const selectedId = resolveCategoryId(category);
-    const allowedKeys = new Set();
-    const allowedIds = new Set();
-
-    if (selectedId) {
-        const stack = [selectedId];
-        const visited = new Set();
-        while (stack.length > 0) {
-            const id = stack.pop();
-            if (!id || visited.has(id)) continue;
-            visited.add(id);
-            allowedIds.add(id);
-            const nameKey = byId.get(id);
-            if (nameKey) allowedKeys.add(nameKey);
-            const children = childrenByParent.get(id) || [];
-            for (const childId of children) stack.push(childId);
+        const childrenByParent = new Map();
+        for (const c of categories) {
+            const parentId = c?.parentId ? String(c.parentId) : "";
+            if (!parentId) continue;
+            const next = childrenByParent.get(parentId) || [];
+            next.push(String(c?.id ?? ""));
+            childrenByParent.set(parentId, next);
         }
-    } else {
-        const selectedKey = resolveCategoryKey(category);
-        if (selectedKey) allowedKeys.add(selectedKey);
-    }
 
-    const filtered = (allowedKeys.size === 0 && allowedIds.size === 0)
-        ? allItems
-        : allItems.filter((p) => {
-            if (allowedIds.size > 0) {
-                const ids = p?.management?.basic?.categoryIds;
-                if (Array.isArray(ids) && ids.some((id) => allowedIds.has(String(id)))) return true;
+        const resolveCategoryKey = (value) => {
+            const raw = String(value ?? "").trim();
+            if (!raw) return "";
+            if (byId.has(raw)) return byId.get(raw) || "";
+            const n = normalize(raw);
+            if (byName.has(n)) return byName.get(n) || "";
+            return n;
+        };
 
-                const subId = p?.management?.basic?.subCategoryId;
-                if (subId && allowedIds.has(String(subId))) return true;
+        const resolveCategoryId = (value) => {
+            const raw = String(value ?? "").trim();
+            if (!raw) return "";
+            if (byId.has(raw)) return raw;
+            const n = normalize(raw);
+            return byNameToId.get(n) || "";
+        };
 
-                const directSubId = p?.subCategoryId;
-                if (directSubId && allowedIds.has(String(directSubId))) return true;
+        const selectedId = resolveCategoryId(category);
+        const allowedKeys = new Set();
+        const allowedIds = new Set();
 
-                const catId = resolveCategoryId(p?.category);
-                if (catId && allowedIds.has(catId)) return true;
+        if (selectedId) {
+            const stack = [selectedId];
+            const visited = new Set();
+            while (stack.length > 0) {
+                const id = stack.pop();
+                if (!id || visited.has(id)) continue;
+                visited.add(id);
+                allowedIds.add(id);
+                const nameKey = byId.get(id);
+                if (nameKey) allowedKeys.add(nameKey);
+                const children = childrenByParent.get(id) || [];
+                for (const childId of children) stack.push(childId);
             }
+        } else {
+            const selectedKey = resolveCategoryKey(category);
+            if (selectedKey) allowedKeys.add(selectedKey);
+        }
 
-            return allowedKeys.has(resolveCategoryKey(p?.category));
-        });
+        const filtered = (allowedKeys.size === 0 && allowedIds.size === 0)
+            ? allItems
+            : allItems.filter((p) => {
+                if (allowedIds.size > 0) {
+                    const ids = p?.management?.basic?.categoryIds;
+                    if (Array.isArray(ids) && ids.some((id) => allowedIds.has(String(id)))) return true;
 
-    const nextTotalItems = filtered.length;
-    const nextTotalPages = Math.max(1, Math.ceil(nextTotalItems / limit));
-    const safePage = Math.min(page, nextTotalPages);
+                    const subId = p?.management?.basic?.subCategoryId;
+                    if (subId && allowedIds.has(String(subId))) return true;
 
-    if (safePage !== page) {
-        setPage(safePage);
-        return;
-    }
+                    const directSubId = p?.subCategoryId;
+                    if (directSubId && allowedIds.has(String(directSubId))) return true;
 
-    const start = (safePage - 1) * limit;
-    const pageItems = filtered.slice(start, start + limit);
+                    const catId = resolveCategoryId(p?.category);
+                    if (catId && allowedIds.has(catId)) return true;
+                }
 
-    setTotalItems(nextTotalItems);
-    setTotalPages(nextTotalPages);
-    setItems(pageItems);
-}, [allItems, category, page, limit, categories]);
+                return allowedKeys.has(resolveCategoryKey(p?.category));
+            });
 
-return (
-    <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
-        <div className="container mx-auto px-3 sm:px-4">
-            <Breadcrumbs aria-label="breadcrumb" className="mb-4">
-                <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
-                    Home
-                </Link>
-                <Link underline="hover" color="inherit" href="/ProductListing" className="link transition hover:text-blue-600">
-                    {searchQuery ? `Search: "${searchQuery}"` : (category || "Products")}
-                </Link>
-            </Breadcrumbs>
-        </div>
+        const nextTotalItems = filtered.length;
+        const nextTotalPages = Math.max(1, Math.ceil(nextTotalItems / limit));
+        const safePage = Math.min(page, nextTotalPages);
 
-        {categories.length > 0 && (
-            <div className="container mx-auto px-3 sm:px-4 lg:hidden">
-                <div className="-mx-3 sm:-mx-4 px-3 sm:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
-                    <div className="flex items-center gap-2 w-max">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setCategory("");
-                                setPage(1);
-                                const nextParams = new URLSearchParams(searchParams);
-                                nextParams.delete("category");
-                                setSearchParams(nextParams, { replace: true });
-                            }}
-                            className={
-                                String(category || "").trim()
-                                    ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
-                                    : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
-                            }
-                        >
-                            All
-                        </button>
+        if (safePage !== page) {
+            setPage(safePage);
+            return;
+        }
+        const start = (safePage - 1) * limit;
+        const pageItems = filtered.slice(start, start + limit);
 
-                        {categories
-                            .filter((c) => c && c.active)
-                            .filter((c) => !c.parentId)
-                            .map((c) => {
-                                const name = String(c.name || "");
-                                const isActive = String(category || "").trim().toLowerCase() === name.trim().toLowerCase();
-                                return (
-                                    <button
-                                        key={c.id || c._id || name}
-                                        type="button"
-                                        onClick={() => {
-                                            setCategory(name);
-                                            setPage(1);
-                                            const nextParams = new URLSearchParams(searchParams);
-                                            nextParams.set("category", name);
-                                            setSearchParams(nextParams, { replace: true });
-                                        }}
-                                        className={
-                                            isActive
-                                                ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
-                                                : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
-                                        }
-                                    >
-                                        {name}
-                                    </button>
-                                );
-                            })}
-                    </div>
-                </div>
+        setTotalItems(nextTotalItems);
+        setTotalPages(nextTotalPages);
+        setItems(pageItems);
+    }, [allItems, category, page, limit, categories]);
+
+    return (
+        <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
+            <div className="container mx-auto px-3 sm:px-4">
+                <Breadcrumbs aria-label="breadcrumb" className="mb-4">
+                    <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
+                        Home
+                    </Link>
+                    <Link underline="hover" color="inherit" href="/ProductListing" className="link transition hover:text-blue-600">
+                        {searchQuery ? `Search: \"${searchQuery}\"` : (category || "Products")}
+                    </Link>
+                </Breadcrumbs>
             </div>
-        )}
 
-        <div className="container mx-auto px-3 sm:px-4">
-            <div className="flex gap-6">
-                {/* Sidebar */}
-                <div className="hidden lg:block w-64 flex-shrink-0">
-                    <div className="bg-white rounded-lg shadow-sm p-4 sticky top-4">
-                        <Sidebar
-                            selectedCategory={category}
-                            categories={categories}
-                            onChangeCategory={(next) => {
-                                setCategory(next);
-                                setPage(1);
-                                const nextParams = new URLSearchParams(searchParams);
-                                if (next) {
-                                    nextParams.set("category", next);
-                                } else {
+            {categories.length > 0 && (
+                <div className="container mx-auto px-3 sm:px-4 lg:hidden">
+                    <div className="-mx-3 sm:-mx-4 px-3 sm:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
+                        <div className="flex items-center gap-2 w-max">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCategory("");
+                                    setPage(1);
+                                    const nextParams = new URLSearchParams(searchParams);
                                     nextParams.delete("category");
+                                    setSearchParams(nextParams, { replace: true });
+                                }}
+                                className={
+                                    String(category || "").trim()
+                                        ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                        : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
                                 }
-                                setSearchParams(nextParams, { replace: true });
-                            }}
-                            onFiltersChange={(sidebarFilters) => {
-                                // Update selectedFilters with sidebar filters
-                                setSelectedFilters(prev => ({
-                                    ...prev,
-                                    sizes: sidebarFilters.sizes || [],
-                                    rating: sidebarFilters.rating || 0,
-                                    inStock: sidebarFilters.availability === 'in_stock',
-                                    // Add other sidebar filter mappings as needed
-                                }));
+                            >
+                                All
+                            </button>
 
-                                // Update price range
-                                if (sidebarFilters.priceRange) {
-                                    setPriceRange(sidebarFilters.priceRange);
-                                    setTempPriceRange(sidebarFilters.priceRange);
-                                }
-
-                                setPage(1);
-                            }}
-                            initialFilters={{
-                                availability: selectedFilters.inStock ? 'in_stock' : 'all',
-                                sizes: selectedFilters.sizes,
-                                priceRange: priceRange,
-                                rating: selectedFilters.rating
-                            }}
-                        />
+                            {categories
+                                .filter((c) => c && c.active)
+                                .filter((c) => !c.parentId)
+                                .map((c) => {
+                                    const name = String(c.name || "");
+                                    const isActive = String(category || "").trim().toLowerCase() === name.trim().toLowerCase();
+                                    return (
+                                        <button
+                                            key={c.id || c._id || name}
+                                            type="button"
+                                            onClick={() => {
+                                                setCategory(name);
+                                                setPage(1);
+                                                const nextParams = new URLSearchParams(searchParams);
+                                                nextParams.set("category", name);
+                                                setSearchParams(nextParams, { replace: true });
+                                            }}
+                                            className={
+                                                isActive
+                                                    ? "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-green-200 bg-green-50 text-green-800 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                                    : "h-9 sm:h-10 px-3 sm:px-4 rounded-full border border-gray-200 bg-white text-gray-700 text-[13px] sm:text-sm font-semibold shadow-sm"
+                                            }
+                                        >
+                                            {name}
+                                        </button>
+                                    );
+                                })
+                            }
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* Main Content */}
-                <div className="flex-1">
-                    {/* Toolbar */}
-                    <div className="bg-white p-2.5 sm:p-4 rounded-lg shadow-sm mb-4 sm:mb-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-4">
-                            <div className="flex items-center justify-between sm:justify-start gap-2.5 sm:gap-4 w-full sm:w-auto">
-                                <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                                    <Button
-                                        className={`!w-9 !h-9 sm:!w-10 sm:!h-10 !min-w-0 !rounded-md transition-all ${itemView === "grid" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
-                                        onClick={() => setItemView("grid")}
-                                        title="Grid View"
-                                    >
-                                        <IoGrid className="text-base sm:text-lg" />
-                                    </Button>
-                                    <Button
-                                        className={`!w-9 !h-9 sm:!w-10 sm:!h-10 !min-w-0 !rounded-md transition-all ${itemView === "list" ? "!bg-blue-600 !text-white shadow-sm" : "!text-gray-600 hover:!bg-gray-200"}`}
-                                        onClick={() => setItemView("list")}
-                                        title="List View"
-                                    >
-                                        <TfiMenuAlt className="text-base sm:text-lg" />
-                                    </Button>
-                                </div>
+            <div className="container mx-auto px-3 sm:px-4">
+                <div className="flex gap-6">
+                    <div className="hidden lg:block w-64 flex-shrink-0">
+                        <div className="bg-white rounded-lg shadow-sm p-4 sticky top-4">
+                            <Sidebar
+                                selectedCategory={category}
+                                categories={categories}
+                                onChangeCategory={(next) => {
+                                    setCategory(next);
+                                    setPage(1);
+                                    const nextParams = new URLSearchParams(searchParams);
+                                    if (next) {
+                                        nextParams.set("category", next);
+                                    } else {
+                                        nextParams.delete("category");
+                                    }
+                                    setSearchParams(nextParams, { replace: true });
+                                }}
+                                onFiltersChange={(sidebarFilters) => {
+                                    setSelectedFilters(prev => ({
+                                        ...prev,
+                                        sizes: sidebarFilters.sizes || [],
+                                        rating: sidebarFilters.rating || 0,
+                                        inStock: sidebarFilters.availability === 'in_stock',
+                                    }));
 
-                                <div className="text-[12px] sm:text-sm text-gray-600 font-medium truncate text-right sm:text-left">
-                                    {loading ? (
-                                        <span>Loading products...</span>
-                                    ) : (
-                                        <span>
-                                            {searchQuery
-                                                ? `${totalItems} results for "${searchQuery}"`
-                                                : category
-                                                    ? `${totalItems} products in ${category}`
-                                                    : `${totalItems} products`
-                                            }
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+                                    if (sidebarFilters.priceRange) {
+                                        setPriceRange(sidebarFilters.priceRange);
+                                        setTempPriceRange(sidebarFilters.priceRange);
+                                    }
 
-                            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                                <Button
-                                    aria-controls={filterOpen ? "filter-menu" : undefined}
-                                    aria-haspopup="true"
-                                    aria-expanded={filterOpen ? "true" : undefined}
-                                    onClick={handleFilterClick}
-                                    className="flex-1 sm:flex-none !min-h-[40px] !text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center justify-center gap-2 transition-all"
-                                >
-                                    <FaFilter className="text-sm" />
-                                    <span className="hidden sm:inline">Filters</span>
-                                    {getActiveFiltersCount() > 0 && (
-                                        <span className="bg-blue-600 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 font-semibold">
-                                            {getActiveFiltersCount()}
-                                        </span>
-                                    )}
-                                </Button>
-
-                                <Button
-                                    aria-controls={open ? "sort-menu" : undefined}
-                                    aria-haspopup="true"
-                                    aria-expanded={open ? "true" : undefined}
-                                    onClick={handleClick}
-                                    className="flex-1 sm:flex-none !min-h-[40px] !text-[13px] sm:!text-sm !text-gray-700 !bg-white !border-2 !border-gray-300 hover:!border-blue-500 !rounded-lg !px-3 sm:!px-4 !py-2 sm:!py-2.5 flex items-center justify-center gap-2 transition-all"
-                                >
-                                    <FaSortAmountDown className="text-sm" />
-                                    <span className="hidden sm:inline">{getCurrentSortLabel()}</span>
-                                    <span className="sm:hidden">Sort</span>
-                                </Button>
-                            </div>
+                                    setPage(1);
+                                }}
+                                initialFilters={{
+                                    availability: selectedFilters.inStock ? 'in_stock' : 'all',
+                                    sizes: selectedFilters.sizes,
+                                    priceRange: priceRange,
+                                    rating: selectedFilters.rating
+                                }}
+                            />
                         </div>
+                    </div>
 
-                        {/* Active Filters Display */}
-                        {getActiveFiltersCount() > 0 && (
-                            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-[13px] sm:text-sm text-gray-600 font-medium">Active Filters:</span>
-
-                                    {selectedFilters.inStock && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
-                                            In Stock
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('inStock', false)} />
-                                        </span>
-                                    )}
-
-                                    {selectedFilters.freeShipping && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
-                                            Free Shipping
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('freeShipping', false)} />
-                                        </span>
-                                    )}
-
-                                    {selectedFilters.onSale && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full border border-blue-200 font-medium">
-                                            On Sale
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('onSale', false)} />
-                                        </span>
-                                    )}
-
-                                    {selectedFilters.sizes.map((size) => (
-                                        <span key={size} className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
-                                            Size: {size}
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => toggleArrayFilter('sizes', size)} />
-                                        </span>
-                                    ))}
-
-                                    {selectedFilters.colors.map((color) => (
-                                        <span key={color} className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
-                                            Color: {color}
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => toggleArrayFilter('colors', color)} />
-                                        </span>
-                                    ))}
-
-                                    {selectedFilters.brands.map((brand) => (
-                                        <span key={brand} className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
-                                            Brand: {brand}
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => toggleArrayFilter('brands', brand)} />
-                                        </span>
-                                    ))}
-
-                                    {selectedFilters.rating > 0 && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
-                                            {selectedFilters.rating}+ Stars
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => handleFilterChange('rating', 0)} />
-                                        </span>
-                                    )}
-
-                                    {(priceRange[0] > 0 || priceRange[1] < 10000) && (
-                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs px-3 py-1.5 rounded-full border border-blue-200 font-medium">
-                                            ₹{priceRange[0]} - ₹{priceRange[1]}
-                                            <FaTimes className="cursor-pointer hover:text-blue-900" onClick={() => {
-                                                setPriceRange([0, 10000]);
-                                                setTempPriceRange([0, 10000]);
-                                            }} />
-                                        </span>
-                                    )}
-
-                                    <Button
-                                        onClick={clearAllFilters}
-                                        className="!text-xs !text-red-600 hover:!text-red-700 !bg-transparent !border-none !p-0 !h-auto !min-w-0 !font-semibold !underline"
-                                    >
-                                        Clear All Filters
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+                    <div className="flex-1">
                         {/* Sort Menu */}
                         <Menu
                             id="sort-menu"
@@ -1461,7 +1309,6 @@ return (
                     </div>
                 </div>
             </div>
-        </div>
     </section>
 );
 };

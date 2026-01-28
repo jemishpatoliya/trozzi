@@ -137,15 +137,10 @@ const Productsdetailsh = () => {
         window.addEventListener('focus', onFocus);
         document.addEventListener('visibilitychange', onVisibility);
 
-        const intervalId = window.setInterval(() => {
-            void load({ silent: true });
-        }, 5000);
-
         return () => {
             cancelled = true;
             window.removeEventListener('focus', onFocus);
             document.removeEventListener('visibilitychange', onVisibility);
-            window.clearInterval(intervalId);
         };
     }, [id, searchParams]);
 

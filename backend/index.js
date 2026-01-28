@@ -43,7 +43,7 @@ const { UserModel } = require('./src/models/user');
 const app = express();
 const BASE_PORT = Number(process.env.PORT || 5050);
 
-if (process.env.NODE_ENV === 'production') {
+if (String(process.env.TRUST_PROXY ?? '').toLowerCase() !== 'false') {
   app.set('trust proxy', 1);
 }
 
@@ -62,13 +62,46 @@ mongoose.connection.on('error', () => {
 });
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+const getRateLimitKey = (req) => {
+  const xff = req.headers['x-forwarded-for'];
+  const first = Array.isArray(xff) ? xff[0] : String(xff || '');
+  const ip = first.split(',')[0].trim();
+  return ip || req.ip;
+};
+
+const publicLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS_PUBLIC || 60_000),
   max: process.env.NODE_ENV === 'production'
-    ? Number(process.env.RATE_LIMIT_MAX || 100)
+    ? Number(process.env.RATE_LIMIT_MAX_PUBLIC || 600)
     : Number(process.env.RATE_LIMIT_MAX_DEV || 2000),
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  skip: (req) => req.method === 'OPTIONS'
+    || String(req.path || '').startsWith('/socket.io')
+    || String(req.path || '').startsWith('/shipping/webhook/shiprocket'),
+});
+
+const authLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS_AUTH || 15 * 60_000),
+  max: process.env.NODE_ENV === 'production'
+    ? Number(process.env.RATE_LIMIT_MAX_AUTH || 30)
+    : Number(process.env.RATE_LIMIT_MAX_DEV || 2000),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  skip: (req) => req.method === 'OPTIONS' || String(req.path || '').startsWith('/ping'),
+});
+
+const adminLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS_ADMIN || 60_000),
+  max: process.env.NODE_ENV === 'production'
+    ? Number(process.env.RATE_LIMIT_MAX_ADMIN || 120)
+    : Number(process.env.RATE_LIMIT_MAX_DEV || 2000),
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getRateLimitKey,
+  skip: (req) => req.method === 'OPTIONS',
 });
 
 // Middleware
@@ -84,7 +117,9 @@ const corsOptions = {
 
 app.use(cors());
 // app.options('*', cors(corsOptions));
-app.use(limiter);
+app.use('/api/auth', authLimiter);
+app.use('/api/admin', adminLimiter);
+app.use('/api', publicLimiter);
 
 // Shiprocket webhooks need raw body for signature verification.
 app.use('/api/shipping/webhook/shiprocket', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);

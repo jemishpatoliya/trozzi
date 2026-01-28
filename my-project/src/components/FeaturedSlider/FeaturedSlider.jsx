@@ -31,15 +31,10 @@ const FeaturedSlider = () => {
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
 
-    const intervalId = window.setInterval(() => {
-      void load();
-    }, 5000);
-
     return () => {
       cancelled = true;
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.clearInterval(intervalId);
     };
   }, []);
 

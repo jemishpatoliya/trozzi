@@ -180,15 +180,10 @@ const ProductDetail = () => {
         window.addEventListener('focus', onFocus);
         document.addEventListener('visibilitychange', onVisibility);
 
-        const intervalId = window.setInterval(() => {
-            void refresh();
-        }, 5000);
-
         return () => {
             cancelled = true;
             window.removeEventListener('focus', onFocus);
             document.removeEventListener('visibilitychange', onVisibility);
-            window.clearInterval(intervalId);
         };
     }, [productId]);
 
