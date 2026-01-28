@@ -2,12 +2,10 @@ import React from 'react'
 import Homeslider from '../../components/Homeslider'
 import Adsbennerslider from '../../components/Adsbannerslider'
 import PopularProducts from '../../components/product/popularproduct'
-import Imageslider from '../../components/Imageslider/Imageslider'
 import LatestProducts from '../../components/Latestproduct/latestproduct'
 import FeaturedSlider from '../../components/FeaturedSlider/FeaturedSlider'
 import AdBannerSection from '../../components/aBanner/Banner'
 import WellnessSection from '../../components/welness/welness'
-import BlogSection from '../../components/Blog/Blog'
 
 
 // Main Home component
@@ -27,7 +25,6 @@ const Home = () => {
         <div className="mt-2">
           <AdBannerSection />
         </div>
-        <Imageslider />
         <LatestProducts title="Latest Products" />
         <FeaturedSlider />
       </section>
@@ -43,7 +40,6 @@ const Home = () => {
       {/* Content Sections */}
       <section className="content-sections">
         <WellnessSection />
-        <BlogSection />
       </section>
     </div>
   )

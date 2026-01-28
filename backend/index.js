@@ -43,6 +43,10 @@ const { UserModel } = require('./src/models/user');
 const app = express();
 const BASE_PORT = Number(process.env.PORT || 5050);
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 let isDbConnected = false;
 
 mongoose.connection.on('connected', () => {
@@ -60,7 +64,9 @@ mongoose.connection.on('error', () => {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 2000, // higher limit in dev to avoid 429 during admin actions
+  max: process.env.NODE_ENV === 'production'
+    ? Number(process.env.RATE_LIMIT_MAX || 100)
+    : Number(process.env.RATE_LIMIT_MAX_DEV || 2000),
   standardHeaders: true,
   legacyHeaders: false,
 });

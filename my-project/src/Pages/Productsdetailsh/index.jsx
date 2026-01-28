@@ -10,7 +10,7 @@ import LatestProducts from '../../components/Latestproduct/latestproduct';
 import ProductDetalisComponent from '../../components/ProductDetalis';
 
 import { fetchProductById } from '../../api/catalog';
-import { fetchProductQuestions, askQuestion, fetchProductReviews, submitProductReview } from '../../api/productDetails';
+import { fetchProductReviews, submitProductReview } from '../../api/productDetails';
 import { normalizeColorKey, normalizeProductForColorVariants, normalizeToken } from '../../utils/colorVariants';
 
 const Productsdetailsh = () => {
@@ -43,13 +43,6 @@ const Productsdetailsh = () => {
 
         requestAnimationFrame(() => requestAnimationFrame(scrollToTop));
     }, [id]);
-
-    // Q&A State
-    const [questions, setQuestions] = useState([]);
-    const [questionsLoading, setQuestionsLoading] = useState(false);
-    const [questionForm, setQuestionForm] = useState({ question: '', customerName: '', customerEmail: '' });
-    const [showQuestionForm, setShowQuestionForm] = useState(false);
-    const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
 
     // Reviews State
     const [reviews, setReviews] = useState([]);
@@ -171,18 +164,6 @@ const Productsdetailsh = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedColorVariant]);
 
-    const loadQuestions = useCallback(async () => {
-        try {
-            setQuestionsLoading(true);
-            const data = await fetchProductQuestions(id);
-            setQuestions(data.questions || []);
-        } catch (error) {
-            console.error('Failed to load questions:', error);
-        } finally {
-            setQuestionsLoading(false);
-        }
-    }, [id]);
-
     const loadReviews = useCallback(async () => {
         try {
             setReviewsLoading(true);
@@ -195,34 +176,11 @@ const Productsdetailsh = () => {
         }
     }, [id]);
 
-    // Load Q&A and Reviews when product is loaded
+    // Load Reviews when product is loaded
     useEffect(() => {
         if (!id) return;
-        void loadQuestions();
         void loadReviews();
-    }, [id, loadQuestions, loadReviews]);
-
-    const handleAskQuestion = async (e) => {
-        e.preventDefault();
-        if (!questionForm.question.trim() || !questionForm.customerName.trim() || !questionForm.customerEmail.trim()) {
-            alert('Please fill in all fields');
-            return;
-        }
-
-        setIsSubmittingQuestion(true);
-        try {
-            const newQuestion = await askQuestion(id, questionForm);
-            setQuestions(prev => [newQuestion, ...prev]);
-            setQuestionForm({ question: '', customerName: '', customerEmail: '' });
-            setShowQuestionForm(false);
-            alert('Question submitted successfully!');
-        } catch (error) {
-            console.error('Failed to ask question:', error);
-            alert('Failed to submit question. Please try again.');
-        } finally {
-            setIsSubmittingQuestion(false);
-        }
-    };
+    }, [id, loadReviews]);
 
     const handleSubmitReview = async (e) => {
         e.preventDefault();
@@ -328,14 +286,6 @@ const Productsdetailsh = () => {
                                 <p>
                                     {product?.description || 'Lorem Ipsum is simply dummy text...'}
                                 </p>
-                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Lightweight Design</h4>
-                                <p>This product is designed to be lightweight...</p>
-                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Free Shipping & Return</h4>
-                                <p>We offer a 30-day money-back guarantee...</p>
-                                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2">Online Support</h4>
-                                <p>Our online support team is available...</p>
-                                <h4 className='text-base sm:text-lg font-semibold text-gray-900 mt-3 sm:mt-4 mb-1.5 sm:mb-2'>Money Back Guarantee</h4>
-                                <p>We offer a 30-day money-back guarantee...</p>
                             </div>
                         )}
 
@@ -355,208 +305,103 @@ const Productsdetailsh = () => {
                         {/* Reviews */}
                         {activeTab === 2 && (
                             <div className='w-full ProductReviewsContainer'>
-                                <h2 className='text-[16px] sm:text-[22px] mb-4'>Customer questions & answers</h2>
+                                <h3 className='text-[14px] sm:text-[18px] mb-4'>Customer Reviews ({reviews.length})</h3>
 
-                                {/* Questions Section */}
-                                <div className='mb-8'>
-                                    <div className='flex justify-between items-center mb-4'>
-                                        <h3 className='text-[14px] sm:text-[18px]'>Questions ({questions.length})</h3>
-                                        <Button
-                                            onClick={() => setShowQuestionForm(!showQuestionForm)}
-                                            className='btn-org'
-                                        >
-                                            {showQuestionForm ? 'Cancel' : 'Ask Question'}
-                                        </Button>
-                                    </div>
-
-                                    {/* Question Form */}
-                                    {showQuestionForm && (
-                                        <div className='bg-[#f1f1f1] p-4 rounded-md mb-4'>
-                                            <h4 className='text-[16px] mb-4'>Ask a Question</h4>
-                                            <form onSubmit={handleAskQuestion}>
-                                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
-                                                    <TextField
-                                                        label="Your Name"
-                                                        value={questionForm.customerName}
-                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, customerName: e.target.value }))}
-                                                        required
-                                                        disabled={isSubmittingQuestion}
-                                                    />
-                                                    <TextField
-                                                        label="Your Email"
-                                                        type="email"
-                                                        value={questionForm.customerEmail}
-                                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, customerEmail: e.target.value }))}
-                                                        required
-                                                        disabled={isSubmittingQuestion}
-                                                    />
+                                <div className='scroll w-full max-h-[300px] overflow-y-scroll overflow-x-hidden pr-5 mb-6'>
+                                    {reviewsLoading ? (
+                                        <div className="text-center py-8">Loading reviews...</div>
+                                    ) : reviews.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">No reviews yet. Be the first to review!</div>
+                                    ) : (
+                                        reviews.map((review) => (
+                                            <div key={review.id} className='pb-5 pt-5 border-b border-[#e0e0e0] w-full'>
+                                                <div className='flex items-start gap-3'>
+                                                    <div className='img w-[50px] h-[50px] overflow-hidden rounded-full flex-shrink-0'>
+                                                        <img
+                                                            src='https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg'
+                                                            alt="user avatar"
+                                                            className='w-full'
+                                                        />
+                                                    </div>
+                                                    <div className='flex-1'>
+                                                        <h4 className='text-[16px] font-medium'>{review.customerName}</h4>
+                                                        <div className='flex items-center gap-2 mb-2'>
+                                                            <Rating name={`rating-${review.id}`} value={review.rating} readOnly size="small" />
+                                                            <span className='text-[13px] text-gray-500'>
+                                                                {new Date(review.date).toLocaleDateString()}
+                                                            </span>
+                                                        </div>
+                                                        <p className='text-gray-700'>{review.comment}</p>
+                                                    </div>
                                                 </div>
-                                                <TextField
-                                                    label="Your Question"
-                                                    multiline
-                                                    rows={3}
-                                                    value={questionForm.question}
-                                                    onChange={(e) => setQuestionForm(prev => ({ ...prev, question: e.target.value }))}
-                                                    required
-                                                    disabled={isSubmittingQuestion}
-                                                    className='w-full mb-4'
-                                                />
-                                                <Button
-                                                    type="submit"
-                                                    className='btn-org'
-                                                    disabled={isSubmittingQuestion}
-                                                >
-                                                    {isSubmittingQuestion ? 'Submitting...' : 'Submit Question'}
-                                                </Button>
-                                            </form>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className='reviewfrom bg-[#f1f1f1] p-4 rounded-md'>
+                                    <h2 className='text-[18px] mb-4'>Add a Review</h2>
+
+                                    {reviewSuccess && (
+                                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                                            <strong>Success!</strong> Your review has been submitted successfully.
                                         </div>
                                     )}
 
-                                    {/* Questions List */}
-                                    <div className='scroll w-full max-h-[300px] overflow-y-scroll overflow-x-hidden pr-5'>
-                                        {questionsLoading ? (
-                                            <div className="text-center py-8">Loading questions...</div>
-                                        ) : questions.length === 0 ? (
-                                            <div className="text-center py-8 text-gray-500">No questions yet. Be the first to ask!</div>
-                                        ) : (
-                                            questions.map((question) => (
-                                                <div key={question.id} className='pb-5 pt-5 border-b border-[#e0e0e0] w-full'>
-                                                    <div className='flex items-start gap-3'>
-                                                        <div className='img w-[50px] h-[50px] overflow-hidden rounded-full flex-shrink-0'>
-                                                            <img
-                                                                src='https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg'
-                                                                alt="user avatar"
-                                                                className='w-full'
-                                                            />
-                                                        </div>
-                                                        <div className='flex-1'>
-                                                            <h4 className='text-[16px] font-medium'>{question.customerName}</h4>
-                                                            <h5 className='text-[13px] text-gray-500 mb-2'>
-                                                                {new Date(question.date).toLocaleDateString()}
-                                                            </h5>
-                                                            <p className='text-gray-700 mb-2'>{question.question}</p>
-                                                            {question.answers && question.answers.length > 0 && (
-                                                                <div className='ml-4 mt-3 space-y-2'>
-                                                                    {question.answers.map((answer) => (
-                                                                        <div key={answer.id} className='bg-gray-50 p-3 rounded'>
-                                                                            <h5 className='text-[14px] font-medium text-blue-600'>{answer.sellerName}</h5>
-                                                                            <p className='text-gray-700 text-sm'>{answer.answer}</p>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
+                                    {reviewError && (
+                                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                            <strong>Error:</strong> {reviewError}
+                                        </div>
+                                    )}
 
-                                {/* Reviews Section */}
-                                <div>
-                                    <h3 className='text-[14px] sm:text-[18px] mb-4'>Customer Reviews ({reviews.length})</h3>
-
-                                    {/* Reviews List */}
-                                    <div className='scroll w-full max-h-[300px] overflow-y-scroll overflow-x-hidden pr-5 mb-6'>
-                                        {reviewsLoading ? (
-                                            <div className="text-center py-8">Loading reviews...</div>
-                                        ) : reviews.length === 0 ? (
-                                            <div className="text-center py-8 text-gray-500">No reviews yet. Be the first to review!</div>
-                                        ) : (
-                                            reviews.map((review) => (
-                                                <div key={review.id} className='pb-5 pt-5 border-b border-[#e0e0e0] w-full'>
-                                                    <div className='flex items-start gap-3'>
-                                                        <div className='img w-[50px] h-[50px] overflow-hidden rounded-full flex-shrink-0'>
-                                                            <img
-                                                                src='https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg'
-                                                                alt="user avatar"
-                                                                className='w-full'
-                                                            />
-                                                        </div>
-                                                        <div className='flex-1'>
-                                                            <h4 className='text-[16px] font-medium'>{review.customerName}</h4>
-                                                            <div className='flex items-center gap-2 mb-2'>
-                                                                <Rating name={`rating-${review.id}`} value={review.rating} readOnly size="small" />
-                                                                <span className='text-[13px] text-gray-500'>
-                                                                    {new Date(review.date).toLocaleDateString()}
-                                                                </span>
-                                                            </div>
-                                                            <p className='text-gray-700'>{review.comment}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-
-                                    {/* Review Form */}
-                                    <div className='reviewfrom bg-[#f1f1f1] p-4 rounded-md'>
-                                        <h2 className='text-[18px] mb-4'>Add a Review</h2>
-
-                                        {/* Success Message */}
-                                        {reviewSuccess && (
-                                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                                                <strong>Success!</strong> Your review has been submitted successfully.
-                                            </div>
-                                        )}
-
-                                        {/* Error Message */}
-                                        {reviewError && (
-                                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                                                <strong>Error:</strong> {reviewError}
-                                            </div>
-                                        )}
-
-                                        <form onSubmit={handleSubmitReview}>
-                                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
-                                                <TextField
-                                                    label="Your Name"
-                                                    value={reviewForm.customerName}
-                                                    onChange={(e) => setReviewForm(prev => ({ ...prev, customerName: e.target.value }))}
-                                                    required
-                                                    disabled={isSubmittingReview}
-                                                />
-                                                <TextField
-                                                    label="Your Email"
-                                                    type="email"
-                                                    value={reviewForm.customerEmail}
-                                                    onChange={(e) => setReviewForm(prev => ({ ...prev, customerEmail: e.target.value }))}
-                                                    required
-                                                    disabled={isSubmittingReview}
-                                                />
-                                            </div>
-                                            <div className='mb-4'>
-                                                <label className='block text-sm font-medium text-gray-700 mb-2'>Rating</label>
-                                                <Rating
-                                                    name="review-rating"
-                                                    value={reviewForm.rating}
-                                                    onChange={(event, newValue) => setReviewForm(prev => ({ ...prev, rating: newValue || 5 }))}
-                                                    disabled={isSubmittingReview}
-                                                />
-                                            </div>
+                                    <form onSubmit={handleSubmitReview}>
+                                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
                                             <TextField
-                                                id="review-comment"
-                                                label="Write your review..."
-                                                className='w-full mb-4'
-                                                multiline
-                                                rows={4}
-                                                value={reviewForm.comment}
-                                                onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                                                label="Your Name"
+                                                value={reviewForm.customerName}
+                                                onChange={(e) => setReviewForm(prev => ({ ...prev, customerName: e.target.value }))}
                                                 required
                                                 disabled={isSubmittingReview}
                                             />
-                                            <div className='flex items-center mt-5'>
-                                                <Button
-                                                    type="submit"
-                                                    className='btn-org'
-                                                    disabled={isSubmittingReview}
-                                                >
-                                                    {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
-                                                </Button>
-                                            </div>
-                                        </form>
-                                    </div>
+                                            <TextField
+                                                label="Your Email"
+                                                type="email"
+                                                value={reviewForm.customerEmail}
+                                                onChange={(e) => setReviewForm(prev => ({ ...prev, customerEmail: e.target.value }))}
+                                                required
+                                                disabled={isSubmittingReview}
+                                            />
+                                        </div>
+                                        <div className='mb-4'>
+                                            <label className='block text-sm font-medium text-gray-700 mb-2'>Rating</label>
+                                            <Rating
+                                                name="review-rating"
+                                                value={reviewForm.rating}
+                                                onChange={(event, newValue) => setReviewForm(prev => ({ ...prev, rating: newValue || 5 }))}
+                                                disabled={isSubmittingReview}
+                                            />
+                                        </div>
+                                        <TextField
+                                            id="review-comment"
+                                            label="Write your review..."
+                                            className='w-full mb-4'
+                                            multiline
+                                            rows={4}
+                                            value={reviewForm.comment}
+                                            onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
+                                            required
+                                            disabled={isSubmittingReview}
+                                        />
+                                        <div className='flex items-center mt-5'>
+                                            <Button
+                                                type="submit"
+                                                className='btn-org'
+                                                disabled={isSubmittingReview}
+                                            >
+                                                {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                                            </Button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         )}

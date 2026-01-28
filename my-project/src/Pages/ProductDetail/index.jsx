@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { FaStar, FaShoppingCart, FaHeart, FaRegHeart, FaTruck, FaShieldAlt, FaUndo, FaQuestionCircle, FaUser, FaThumbsUp, FaCheck } from 'react-icons/fa';
-import { fetchProductDetails, fetchProductQuestions, askQuestion, answerQuestion, upvoteQuestion, fetchProductReviews, submitProductReview } from '../../api/productDetails';
+import { FaStar, FaShoppingCart, FaHeart, FaRegHeart, FaTruck, FaShieldAlt, FaUndo, FaCheck } from 'react-icons/fa';
+import { fetchProductDetails, fetchProductReviews, submitProductReview } from '../../api/productDetails';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -24,15 +24,6 @@ const ProductDetail = () => {
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [hasUserSelectedColor, setHasUserSelectedColor] = useState(false);
-
-    // Q&A State
-    const [questions, setQuestions] = useState([]);
-    const [questionsLoading, setQuestionsLoading] = useState(false);
-    const [questionForm, setQuestionForm] = useState({ question: '', customerName: '', customerEmail: '' });
-    const [answerForm, setAnswerForm] = useState({ answer: '', sellerName: '' });
-    const [showQuestionForm, setShowQuestionForm] = useState(false);
-    const [showAnswerForm, setShowAnswerForm] = useState(false);
-    const [selectedQuestionId, setSelectedQuestionId] = useState(null);
 
     // Reviews State
     const [reviews, setReviews] = useState([]);
@@ -84,7 +75,6 @@ const ProductDetail = () => {
     useEffect(() => {
         if (productId) {
             loadProductDetails();
-            loadQuestions();
             loadReviews();
         }
     }, [productId]);
@@ -202,18 +192,6 @@ const ProductDetail = () => {
         };
     }, [productId]);
 
-    const loadQuestions = async () => {
-        try {
-            setQuestionsLoading(true);
-            const data = await fetchProductQuestions(productId);
-            setQuestions(data.questions || []);
-        } catch (err) {
-            console.error('Failed to load questions:', err);
-        } finally {
-            setQuestionsLoading(false);
-        }
-    };
-
     const loadReviews = async () => {
         try {
             setReviewsLoading(true);
@@ -260,46 +238,6 @@ const ProductDetail = () => {
             console.error('Failed to add to cart:', error);
         } finally {
             setIsAddingToCart(false);
-        }
-    };
-
-    const handleAskQuestion = async (e) => {
-        e.preventDefault();
-        try {
-            const newQuestion = await askQuestion(productId, questionForm);
-            setQuestions(prev => [newQuestion, ...prev]);
-            setQuestionForm({ question: '', customerName: '', customerEmail: '' });
-            setShowQuestionForm(false);
-        } catch (error) {
-            console.error('Failed to ask question:', error);
-        }
-    };
-
-    const handleAnswerQuestion = async (e) => {
-        e.preventDefault();
-        try {
-            const newAnswer = await answerQuestion(selectedQuestionId, answerForm);
-            setQuestions(prev => prev.map(q =>
-                q.id === selectedQuestionId
-                    ? { ...q, answers: [...q.answers, newAnswer], isAnswered: true }
-                    : q
-            ));
-            setAnswerForm({ answer: '', sellerName: '' });
-            setShowAnswerForm(false);
-            setSelectedQuestionId(null);
-        } catch (error) {
-            console.error('Failed to answer question:', error);
-        }
-    };
-
-    const handleUpvoteQuestion = async (questionId) => {
-        try {
-            await upvoteQuestion(questionId);
-            setQuestions(prev => prev.map(q =>
-                q.id === questionId ? { ...q, upvotes: q.upvotes + 1 } : q
-            ));
-        } catch (error) {
-            console.error('Failed to upvote question:', error);
         }
     };
 
@@ -596,175 +534,6 @@ const ProductDetail = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* Questions & Answers Section */}
-                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            <FaQuestionCircle />
-                            Questions & Answers
-                        </h2>
-                        <button
-                            onClick={() => setShowQuestionForm(true)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                        >
-                            Ask a Question
-                        </button>
-                    </div>
-
-                    {/* Question Form */}
-                    {showQuestionForm && (
-                        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                            <h3 className="font-semibold mb-4">Ask a Question</h3>
-                            <form onSubmit={handleAskQuestion}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="Your Name"
-                                        value={questionForm.customerName}
-                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, customerName: e.target.value }))}
-                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                    <input
-                                        type="email"
-                                        placeholder="Your Email"
-                                        value={questionForm.customerEmail}
-                                        onChange={(e) => setQuestionForm(prev => ({ ...prev, customerEmail: e.target.value }))}
-                                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                    />
-                                </div>
-                                <textarea
-                                    placeholder="Your Question"
-                                    value={questionForm.question}
-                                    onChange={(e) => setQuestionForm(prev => ({ ...prev, question: e.target.value }))}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-                                    rows={3}
-                                    required
-                                />
-                                <div className="flex gap-2">
-                                    <button
-                                        type="submit"
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                                    >
-                                        Submit Question
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowQuestionForm(false)}
-                                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Questions List */}
-                    <div className="space-y-4">
-                        {questions.length === 0 ? (
-                            <p className="text-gray-600 text-center py-8">No questions yet. Be the first to ask!</p>
-                        ) : (
-                            questions.map((question) => (
-                                <div key={question.id} className="border-b border-gray-200 pb-4">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <FaUser className="h-4 w-4 text-gray-400" />
-                                                <span className="font-medium">{question.customerName}</span>
-                                                <span className="text-sm text-gray-500">{new Date(question.date).toLocaleDateString()}</span>
-                                            </div>
-                                            <p className="text-gray-900 mb-2">{question.question}</p>
-                                            <div className="flex items-center gap-4">
-                                                <button
-                                                    onClick={() => handleUpvoteQuestion(question.id)}
-                                                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-blue-600"
-                                                >
-                                                    <FaThumbsUp />
-                                                    {question.upvotes}
-                                                </button>
-                                                {!question.isAnswered && (
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedQuestionId(question.id);
-                                                            setShowAnswerForm(true);
-                                                        }}
-                                                        className="text-sm text-blue-600 hover:text-blue-700"
-                                                    >
-                                                        Answer
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Answers */}
-                                    {question.answers?.length > 0 && (
-                                        <div className="ml-8 mt-4 space-y-2">
-                                            {question.answers.map((answer) => (
-                                                <div key={answer.id} className="bg-gray-50 p-3 rounded-lg">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="font-medium text-sm">{answer.sellerName}</span>
-                                                        {answer.isVerified && (
-                                                            <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">Verified</span>
-                                                        )}
-                                                        <span className="text-xs text-gray-500">{new Date(answer.date).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <p className="text-gray-700 text-sm">{answer.answer}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* Answer Form */}
-                                    {showAnswerForm && selectedQuestionId === question.id && (
-                                        <div className="ml-8 mt-4 bg-blue-50 p-4 rounded-lg">
-                                            <h4 className="font-semibold mb-2">Answer Question</h4>
-                                            <form onSubmit={handleAnswerQuestion}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Your Name"
-                                                    value={answerForm.sellerName}
-                                                    onChange={(e) => setAnswerForm(prev => ({ ...prev, sellerName: e.target.value }))}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
-                                                    required
-                                                />
-                                                <textarea
-                                                    placeholder="Your Answer"
-                                                    value={answerForm.answer}
-                                                    onChange={(e) => setAnswerForm(prev => ({ ...prev, answer: e.target.value }))}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-2"
-                                                    rows={2}
-                                                    required
-                                                />
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        type="submit"
-                                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
-                                                    >
-                                                        Submit Answer
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setShowAnswerForm(false);
-                                                            setSelectedQuestionId(null);
-                                                        }}
-                                                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 text-sm"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        )}
                     </div>
                 </div>
 

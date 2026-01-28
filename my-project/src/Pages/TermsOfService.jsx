@@ -119,9 +119,11 @@ const TermsOfService = () => {
                             Questions about the Terms of Service should be sent to us at:
                         </p>
                         <ul className="list-disc list-inside text-gray-600 mb-4">
-                            <li>Email: support@trozzy.com</li>
-                            <li>Phone: +91-XXXXXXXXXX</li>
-                            <li>Address: Your Business Address</li>
+                            <li>Email: care.trozzi@gmail.com</li>
+                            <li>Phone: +91 90231 14886</li>
+                            <li>
+                                Address: First floor, plot no 61, Bajarang industrial area, behind Lilavati party plot, Rajkot - 360002
+                            </li>
                         </ul>
 
                         <div className="mt-8 p-4 bg-gray-50 rounded-md">

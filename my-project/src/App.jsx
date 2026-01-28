@@ -174,6 +174,7 @@ const PrivacyPolicy = lazy(() => import('./Pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./Pages/TermsOfService'));
 const RefundPolicy = lazy(() => import('./Pages/RefundPolicy'));
 const Policies = lazy(() => import('./Pages/Policies'));
+const ShippingPolicy = lazy(() => import('./Pages/ShippingPolicy'));
 const ContactUs = lazy(() => import('./Pages/ContactUs'));
 const AboutUs = lazy(() => import('./Pages/AboutUs'));
 const HelpCenter = lazy(() => import('./Pages/HelpCenter'));
@@ -423,6 +424,7 @@ function App() {
                                                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                                 <Route path="/terms-of-service" element={<TermsOfService />} />
                                                 <Route path="/refund-policy" element={<RefundPolicy />} />
+                                                <Route path="/shipping-policy" element={<ShippingPolicy />} />
                                                 <Route path="/contact" element={<ContactUs />} />
                                                 <Route path="/about" element={<AboutUs />} />
                                                 <Route path="/help-center" element={<HelpCenter />} />

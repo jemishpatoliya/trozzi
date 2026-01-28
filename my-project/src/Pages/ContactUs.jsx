@@ -69,7 +69,7 @@ const ContactUs = () => {
                                     <FaPhone className="h-5 w-5 text-indigo-600 mt-1" />
                                     <div>
                                         <h3 className="font-medium text-gray-900">Phone</h3>
-                                        <p className="text-gray-600">+91-XXXXXXXXXX</p>
+                                        <p className="text-gray-600">+91 90231 14886</p>
                                         <p className="text-sm text-gray-500">Mon-Sat, 9 AM - 6 PM IST</p>
                                     </div>
                                 </div>
@@ -78,7 +78,7 @@ const ContactUs = () => {
                                     <FaEnvelope className="h-5 w-5 text-indigo-600 mt-1" />
                                     <div>
                                         <h3 className="font-medium text-gray-900">Email</h3>
-                                        <p className="text-gray-600">support@trozzy.com</p>
+                                        <p className="text-gray-600">care.trozzi@gmail.com</p>
                                         <p className="text-sm text-gray-500">We respond within 24 hours</p>
                                     </div>
                                 </div>
@@ -88,9 +88,10 @@ const ContactUs = () => {
                                     <div>
                                         <h3 className="font-medium text-gray-900">Address</h3>
                                         <p className="text-gray-600">
-                                            123 Business Street<br />
-                                            Mumbai, Maharashtra 400001<br />
-                                            India
+                                            First floor, plot no 61,<br />
+                                            Bajarang industrial area,<br />
+                                            behind Lilavati party plot,<br />
+                                            Rajkot - 360002
                                         </p>
                                     </div>
                                 </div>
@@ -194,7 +195,7 @@ const ContactUs = () => {
                                             value={formData.phone}
                                             onChange={handleChange}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            placeholder="+91-XXXXXXXXXX"
+                                            placeholder="+91 90231 14886"
                                         />
                                     </div>
 

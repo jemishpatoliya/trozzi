@@ -96,69 +96,6 @@ const AboutUs = () => {
                     </div>
                 </div>
 
-                {/* Stats */}
-                <div className="bg-indigo-600 rounded-lg p-8 mb-12 text-white">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold mb-2">Our Impact</h2>
-                        <p className="text-indigo-200">Numbers that speak for themselves</p>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-                        <div>
-                            <div className="text-4xl font-bold mb-2">50K+</div>
-                            <div className="text-indigo-200">Happy Customers</div>
-                        </div>
-                        <div>
-                            <div className="text-4xl font-bold mb-2">1000+</div>
-                            <div className="text-indigo-200">Products</div>
-                        </div>
-                        <div>
-                            <div className="text-4xl font-bold mb-2">50+</div>
-                            <div className="text-indigo-200">Cities Delivered</div>
-                        </div>
-                        <div>
-                            <div className="text-4xl font-bold mb-2">4.8★</div>
-                            <div className="text-indigo-200">Average Rating</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Team */}
-                <div className="bg-white rounded-lg shadow p-8 mb-12">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-6">Meet Our Team</h2>
-                    <p className="text-gray-600 mb-8">
-                        Behind every successful order is a dedicated team working to make your shopping experience exceptional.
-                    </p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div className="text-center">
-                            <div className="w-32 h-32 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                            <h3 className="font-semibold text-gray-900">John Doe</h3>
-                            <p className="text-gray-600">Founder & CEO</p>
-                            <p className="text-sm text-gray-500 mt-2">
-                                Leading the vision and strategy of Trozzy
-                            </p>
-                        </div>
-
-                        <div className="text-center">
-                            <div className="w-32 h-32 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                            <h3 className="font-semibold text-gray-900">Jane Smith</h3>
-                            <p className="text-gray-600">Head of Operations</p>
-                            <p className="text-sm text-gray-500 mt-2">
-                                Ensuring smooth operations and customer satisfaction
-                            </p>
-                        </div>
-
-                        <div className="text-center">
-                            <div className="w-32 h-32 bg-gray-200 rounded-full mx-auto mb-4"></div>
-                            <h3 className="font-semibold text-gray-900">Mike Johnson</h3>
-                            <p className="text-gray-600">Tech Lead</p>
-                            <p className="text-sm text-gray-500 mt-2">
-                                Building and maintaining our technology platform
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Mission */}
                 <div className="bg-white rounded-lg shadow p-8 mb-12">
                     <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
