@@ -44,11 +44,7 @@ const RefundPolicy = () => {
                             The following items cannot be returned or exchanged:
                         </p>
                         <ul className="list-disc list-inside text-gray-600 mb-4">
-                            <li>Perishable goods (food, flowers, etc.)</li>
-                            <li>Intimate apparel (underwear, lingerie)</li>
-                            <li>Custom-made or personalized products</li>
                             <li>Items damaged due to misuse</li>
-                            <li>Digital products and gift cards</li>
                         </ul>
 
                         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">4. Refund Process</h2>
@@ -81,6 +77,9 @@ const RefundPolicy = () => {
                             <li>Defective or damaged products</li>
                             <li>Size issues (within 7 days of delivery)</li>
                         </ul>
+                        <p className="text-gray-600 mb-4">
+                            If approved, a replacement will be delivered within 7-10 business days.
+                        </p>
 
                         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">7. Damaged or Defective Items</h2>
                         <p className="text-gray-600 mb-4">

@@ -18,6 +18,9 @@ const TermsOfService = () => {
                         <p className="text-gray-600 mb-4">
                             Last updated: {new Date().toLocaleDateString()}
                         </p>
+                        <p className="text-gray-600 mb-4">
+                            This website is operated by GURUDEV INDUSTRIES
+                        </p>
 
                         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">1. Acceptance of Terms</h2>
                         <p className="text-gray-600 mb-4">

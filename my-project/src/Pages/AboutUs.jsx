@@ -2,8 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaArrowLeft, FaTruck, FaShieldAlt, FaHeadset, FaAward } from 'react-icons/fa';
 
-const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
-
 const AboutUs = () => {
     return (
         <div className="min-h-screen bg-gray-50 py-12">
@@ -24,7 +22,7 @@ const AboutUs = () => {
                 {/* Our Story */}
                 <div className="bg-white rounded-lg shadow p-8 mb-12">
                     <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                    <div className="max-w-3xl">
                         <div>
                             <p className="text-gray-600 mb-4">
                                 Founded in 2024, Trozzy started with a simple mission: to make online shopping accessible, affordable, and enjoyable for everyone across India.
@@ -35,17 +33,6 @@ const AboutUs = () => {
                             <p className="text-gray-600">
                                 Today, Trozzy offers a curated selection of products across fashion, electronics, home goods, and more - all carefully selected to meet our high standards for quality and value.
                             </p>
-                        </div>
-                        <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
-                            <img
-                                src={FALLBACK_IMAGE}
-                                alt="Our Story"
-                                className="rounded-lg"
-                                onError={(e) => {
-                                    e.currentTarget.onerror = null;
-                                    e.currentTarget.src = FALLBACK_IMAGE;
-                                }}
-                            />
                         </div>
                     </div>
                 </div>
