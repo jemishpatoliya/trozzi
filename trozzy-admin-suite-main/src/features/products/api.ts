@@ -1,9 +1,19 @@
 import type { Product } from "@/lib/mockData";
 import type { ProductManagementFormValues } from "./types";
 
+function resolveApiOrigin() {
+  const envAny = (import.meta as any)?.env || {};
+  const raw = String(envAny.VITE_API_URL || envAny.VITE_API_BASE_URL || "").trim();
+  if (!raw) return "";
+  return raw.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+}
+
 async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
-  const res = await fetch(input, {
+  const apiOrigin = resolveApiOrigin();
+  const resolvedInput =
+    typeof input === "string" && apiOrigin && input.startsWith("/") ? `${apiOrigin}${input}` : input;
+  const res = await fetch(resolvedInput, {
     ...init,
     headers: {
       "Content-Type": "application/json",

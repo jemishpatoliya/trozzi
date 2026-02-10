@@ -47,7 +47,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const [mobileCategories, setMobileCategories] = useState([]);
 
   const headerClassName = useMemo(() => {
-    const base = "bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
+    const base = "bg-white border-b border-gray-200 sticky top-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
     const visibility = hidden ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100";
     const shadow = !hidden && elevated ? "shadow-md" : "shadow-none";
     return `${base} ${visibility} ${shadow}`;

@@ -319,15 +319,27 @@ function App() {
     const [headerHeight, setHeaderHeight] = useState(0);
 
     useLayoutEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+
         const measure = () => {
-            const h = headerRef.current?.offsetHeight || 0;
+            const h = el.offsetHeight || 0;
             setHeaderHeight(h);
         };
 
         measure();
-        window.addEventListener('resize', measure);
+
+        let ro;
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => measure());
+            ro.observe(el);
+        } else {
+            window.addEventListener('resize', measure);
+        }
+
         return () => {
-            window.removeEventListener('resize', measure);
+            if (ro) ro.disconnect();
+            else window.removeEventListener('resize', measure);
         };
     }, []);
 
@@ -407,7 +419,7 @@ function App() {
                                             <main
                                                 ref={mainScrollRef}
                                                 className="flex-1 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0"
-                                                style={{ paddingTop: isHeaderHidden ? 0 : headerHeight, transition: 'padding-top 280ms ease-out' }}
+                                                style={{ paddingTop: isHeaderHidden ? 0 : headerHeight, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight}px` }}
                                             >
                                                 <Suspense fallback={
                                                     <div className="flex items-center justify-center h-64">

@@ -42,10 +42,26 @@ const authenticateAdmin = async (req, res, next) => {
     req.admin = admin;
     next();
   } catch (error) {
+    const name = error && error.name ? String(error.name) : '';
+    const isExpired = name === 'TokenExpiredError';
+    const isJwtError = isExpired || name === 'JsonWebTokenError' || name === 'NotBeforeError';
+
+    if (isJwtError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Admin auth middleware:', isExpired ? 'token expired' : 'invalid token');
+      }
+      return res.status(401).json({
+        success: false,
+        code: isExpired ? 'TOKEN_EXPIRED' : 'TOKEN_INVALID',
+        message: isExpired ? 'Admin token expired. Please login again.' : 'Invalid admin token',
+      });
+    }
+
     console.error('Admin auth middleware error:', error);
-    res.status(401).json({ 
+    return res.status(401).json({
       success: false,
-      message: 'Invalid or expired admin token' 
+      code: 'AUTH_FAILED',
+      message: 'Invalid or expired admin token',
     });
   }
 };
