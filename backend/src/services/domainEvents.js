@@ -340,18 +340,21 @@ class DomainEvents extends EventEmitter {
     }
 
     try {
-      const to = String(order.customer?.email || user?.email || '').trim();
-      if (to) {
-        await sendMail({
-          to,
-          subject: `Order Confirmed - ${String(order.orderNumber || '')}`,
-          html: orderConfirmationEmail({
-            customerName: String(order.customer?.name || user?.firstName || 'Customer'),
-            orderNumber: String(order.orderNumber || ''),
-            total: Number(order.total ?? 0),
-            items: order.items || [],
-          }),
-        });
+      const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
+      if (paymentMethod === 'cod') {
+        const to = String(order.customer?.email || user?.email || '').trim();
+        if (to) {
+          await sendMail({
+            to,
+            subject: `Order Confirmed - ${String(order.orderNumber || '')}`,
+            html: orderConfirmationEmail({
+              customerName: String(order.customer?.name || user?.firstName || 'Customer'),
+              orderNumber: String(order.orderNumber || ''),
+              total: Number(order.total ?? 0),
+              items: order.items || [],
+            }),
+          });
+        }
       }
     } catch (e) {
       console.error('Order placed email error:', e);

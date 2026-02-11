@@ -201,6 +201,7 @@ router.post('/cod', async (req, res) => {
       const orderDoc = {
         _id: insert.insertedId,
         orderNumber,
+        paymentMethod: 'cod',
         total,
         items: items.map((it) => ({
           name: String(it?.name || ''),

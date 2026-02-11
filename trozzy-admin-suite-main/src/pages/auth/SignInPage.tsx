@@ -110,11 +110,6 @@ const SignInPage = () => {
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          
-          <div className="mt-6 p-4 rounded-lg bg-muted/50 text-center">
-            <p className="text-sm text-muted-foreground">Demo Credentials:</p>
-            <p className="text-sm font-medium">admin@trozzy.com / admin123</p>
-          </div>
         </CardContent>
       </Card>
     </div>

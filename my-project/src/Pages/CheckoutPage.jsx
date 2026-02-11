@@ -67,6 +67,7 @@ const CheckoutPage = () => {
 
     const TAX_RATE = 0.18;
     const roundMoney = (v) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
+    const roundRupees = (v) => Math.round(Number(v ?? 0) || 0);
 
     const computeSubtotal = (cartItems) => {
         if (!Array.isArray(cartItems) || cartItems.length === 0) return 0;
@@ -116,11 +117,12 @@ const CheckoutPage = () => {
         return sum + charge * qty;
     }, 0)) : 0;
 
-    const payableAmount = roundMoney(
+    const rawPayableAmount = roundMoney(
         subtotalAmount + SHIPPING_AMOUNT + taxAmount + (formData.paymentMethod === 'cod' ? codChargeTotal : 0)
     );
+    const payableAmount = roundRupees(rawPayableAmount);
 
-    const formatCurrency = (value) => `₹${value.toFixed(2)}`;
+    const formatCurrency = (value) => `₹${roundRupees(value)}`;
 
     const handleAddressSubmit = async (e) => {
         e.preventDefault();

@@ -1115,14 +1115,15 @@ function makeProviderOrderId(provider) {
 // POST /api/payments/create-order
 router.post('/create-order', authenticateToken, async (req, res) => {
   try {
-    const amount = Number(req.body?.amount);
+    const amountRaw = Number(req.body?.amount);
+    const amount = Math.round(amountRaw);
     const currency = String(req.body?.currency || 'INR');
     const provider = String(req.body?.provider || 'upi');
     const orderId = String(req.body?.orderId || '');
     const orderData = req.body?.orderData;
     const returnUrl = String(req.body?.returnUrl || '').trim();
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
@@ -1226,7 +1227,7 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         String(process.env.PHONEPE_REDIRECT_URL || '').trim() ||
         `${req.protocol}://${req.get('host')}/`;
 
-      const amountPaise = Math.round(amount * 100);
+      const amountPaise = Math.round(amount) * 100;
 
       const metaInfo = MetaInfo.builder().udf1(String(req.userId)).build();
       const payRequest = StandardCheckoutPayRequest.builder()
