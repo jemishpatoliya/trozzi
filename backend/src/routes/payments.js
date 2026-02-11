@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 const https = require('https');
 
+const { Env, StandardCheckoutClient, StandardCheckoutPayRequest, RefundRequest, MetaInfo } = require('pg-sdk-node');
+
 const { AdminModel } = require('../models/admin');
 const { UserModel } = require('../models/user');
 const { ProductModel } = require('../models/product');
@@ -12,6 +14,52 @@ const domainEvents = require('../services/domainEvents');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+function getPhonePeSdkEnv() {
+  const raw = String(process.env.PHONEPE_ENV || '').trim().toUpperCase();
+  if (raw === 'PROD' || raw === 'PRODUCTION' || raw === 'LIVE') return Env.PRODUCTION;
+  return Env.SANDBOX;
+}
+
+let phonePeClientSingleton = null;
+let phonePeClientInitLogged = false;
+function getPhonePeClient() {
+  if (phonePeClientSingleton) return phonePeClientSingleton;
+
+  const clientId = String(process.env.PHONEPE_CLIENT_ID || '').trim();
+  const clientSecret = String(process.env.PHONEPE_CLIENT_SECRET || '').trim();
+  const clientVersion = String(process.env.PHONEPE_CLIENT_VERSION || '').trim();
+
+  const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+  if (!isProd && !phonePeClientInitLogged) {
+    phonePeClientInitLogged = true;
+    const cid = clientId;
+    const cidMasked = cid ? `${cid.slice(0, 6)}...${cid.slice(-4)}` : '';
+    console.log('[PhonePe SDK] init', {
+      env: String(process.env.PHONEPE_ENV || '').trim() || 'SANDBOX',
+      clientId: cidMasked,
+      clientSecretLen: clientSecret ? clientSecret.length : 0,
+      clientVersion,
+    });
+  }
+
+  if (!clientId || !clientSecret || !clientVersion) {
+    throw new Error('Missing PHONEPE_CLIENT_ID / PHONEPE_CLIENT_SECRET / PHONEPE_CLIENT_VERSION');
+  }
+
+  phonePeClientSingleton = new StandardCheckoutClient(clientId, clientSecret, clientVersion, getPhonePeSdkEnv(), false);
+  return phonePeClientSingleton;
+}
+
+function extractPhonePeRedirectUrl(payResponse) {
+  if (!payResponse) return '';
+  return (
+    String(payResponse.redirectUrl || '') ||
+    String(payResponse?.data?.instrumentResponse?.redirectInfo?.url || '') ||
+    String(payResponse?.data?.instrumentResponse?.redirectInfo?.redirectUrl || '') ||
+    ''
+  );
+}
 
 function normalizeOrderItemSnapshot(item) {
   const it = item && typeof item === 'object' ? item : {};
@@ -225,6 +273,128 @@ router.get('/stats', async (req, res) => {
   } catch (e) {
     console.error('Payments stats error:', e);
     return res.status(500).json({ success: false, message: 'Failed to load payment stats' });
+  }
+});
+
+router.get('/phonepe/status/:merchantOrderId', authenticateToken, async (req, res) => {
+  try {
+    const merchantOrderId = String(req.params.merchantOrderId || '').trim();
+    if (!merchantOrderId) {
+      return res.status(400).json({ success: false, message: 'merchantOrderId is required' });
+    }
+
+    const client = getPhonePeClient();
+    const resp = await client.getOrderStatus(merchantOrderId, true);
+    const json = resp || null;
+    const providerState = String(json?.state || json?.status || json?.data?.state || json?.data?.status || '').toUpperCase();
+    const nextStatus = normalizePaymentStatusFromPhonePe(providerState);
+
+    const payment = await Payment.findOne({ user: new mongoose.Types.ObjectId(req.userId), provider: 'phonepe', providerOrderId: merchantOrderId });
+    if (payment) {
+      const nowIso = new Date().toISOString();
+      const set = {
+        status: nextStatus,
+        providerStatus: providerState,
+        updatedAt: new Date(),
+      };
+      if (nextStatus === 'completed') set.paidAtIso = payment.paidAtIso || nowIso;
+      if (nextStatus === 'failed') set.failedAtIso = payment.failedAtIso || nowIso;
+      if (nextStatus === 'refunded') set.refundedAtIso = payment.refundedAtIso || nowIso;
+
+      await Payment.updateOne(
+        { _id: payment._id },
+        {
+          $set: set,
+          $push: {
+            eventHistory: {
+              provider: 'phonepe',
+              event: 'status',
+              state: providerState,
+              at: nowIso,
+              merchantOrderId,
+              raw: json,
+            },
+          },
+        },
+      );
+
+      if (nextStatus === 'completed' && payment.order) {
+        await Order.updateOne(
+          { _id: payment.order },
+          {
+            $set: { status: 'paid' },
+            $push: { statusHistory: { status: 'paid', at: nowIso, source: 'phonepe' } },
+          },
+        );
+      }
+    }
+
+    return res.json({ success: true, data: json });
+  } catch (e) {
+    console.error('PhonePe status error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to fetch PhonePe status' });
+  }
+});
+
+router.post('/phonepe/refund', authenticateToken, async (req, res) => {
+  try {
+    const paymentId = String(req.body?.paymentId || '').trim();
+    const amount = Number(req.body?.amount);
+
+    if (!paymentId || !mongoose.Types.ObjectId.isValid(paymentId)) {
+      return res.status(400).json({ success: false, message: 'Valid paymentId is required' });
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid refund amount is required' });
+    }
+
+    const payment = await Payment.findOne({ _id: new mongoose.Types.ObjectId(paymentId), user: new mongoose.Types.ObjectId(req.userId), provider: 'phonepe' });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found' });
+    }
+
+    const providerOrderId = String(payment.providerOrderId || '').trim();
+    if (!providerOrderId) {
+      return res.status(400).json({ success: false, message: 'Payment has no providerOrderId' });
+    }
+
+    const refundId = `refund_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+
+    const refundAmountPaise = Math.round(amount * 100);
+    const refundRequest = RefundRequest.builder()
+      .merchantRefundId(refundId)
+      .originalMerchantOrderId(providerOrderId)
+      .amount(refundAmountPaise)
+      .build();
+
+    const client = getPhonePeClient();
+    const json = await client.refund(refundRequest);
+    const nowIso = new Date().toISOString();
+
+    await Payment.updateOne(
+      { _id: payment._id },
+      {
+        $set: {
+          updatedAt: new Date(),
+          metadata: { ...(payment.metadata || {}), phonepeRefund: json, phonepeRefundId: refundId },
+        },
+        $push: {
+          eventHistory: {
+            provider: 'phonepe',
+            event: 'refund',
+            state: String(json?.data?.state || json?.data?.status || 'REFUND_REQUESTED'),
+            at: nowIso,
+            merchantOrderId: providerOrderId,
+            raw: json,
+          },
+        },
+      },
+    );
+
+    return res.json({ success: true, data: json, refundId });
+  } catch (e) {
+    console.error('PhonePe refund error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to initiate refund' });
   }
 });
 
@@ -458,6 +628,41 @@ function httpPostPhonePeJson({ baseUrl, path, headers, body }) {
   });
 }
 
+function httpGetPhonePeJson({ baseUrl, path, headers }) {
+  return new Promise((resolve) => {
+    try {
+      const normalized = String(baseUrl || '').replace(/\/$/, '');
+      const url = new URL(`${normalized}${path}`);
+      const req = https.request(
+        {
+          method: 'GET',
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port || (url.protocol === 'https:' ? 443 : 80),
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            Accept: 'application/json',
+            ...(headers || {}),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, body: data });
+          });
+        },
+      );
+      req.on('error', () => resolve({ ok: false, status: 0, body: '' }));
+      req.end();
+    } catch (_e) {
+      resolve({ ok: false, status: 0, body: '' });
+    }
+  });
+}
+
 // Minimal Payment schema for JS runtime (mirrors src/models/payment.ts)
 const PaymentSchema = new mongoose.Schema(
   {
@@ -573,31 +778,27 @@ function authenticateToken(req, res, next) {
 router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress;
-    const rawBody = req.body || '';
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
+
+    const username = String(process.env.PHONEPE_WEBHOOK_USERNAME || '').trim();
+    const password = String(process.env.PHONEPE_WEBHOOK_PASSWORD || '').trim();
+    if (!username || !password) {
+      return res.status(500).json({ ok: false, message: 'Missing PHONEPE_WEBHOOK_USERNAME or PHONEPE_WEBHOOK_PASSWORD' });
+    }
+
+    const authorization = String(req.headers.authorization || '');
     let body;
     try {
-      body = JSON.parse(rawBody);
+      const client = getPhonePeClient();
+      body = client.validateCallback(username, password, authorization, rawBody);
     } catch (e) {
-      return res.status(400).json({ ok: false, message: 'Invalid JSON body' });
-    }
-
-    // 1. Basic auth verification
-    const basicAuth = require('../middleware/webhookSecurity').verifyPhonePeBasicAuth(req);
-    if (!basicAuth.ok) {
-      require('../middleware/webhookSecurity').logWebhookFailure('PhonePe', basicAuth.reason, ip, body);
-      return res.status(401).json({ ok: false, message: 'Webhook verification failed', reason: basicAuth.reason });
-    }
-
-    // 2. Extract PhonePe X-VERIFY checksum if present (some endpoints send it)
-    const xVerify = req.headers['x-verify'] || '';
-    if (xVerify) {
-      const apiPath = '/pg/v1/status';
-      const base64Payload = Buffer.from(JSON.stringify(body)).toString('base64');
-      const checksum = require('../middleware/webhookSecurity').verifyPhonePeChecksum({ base64Payload, apiPath, xVerify });
-      if (!checksum.ok) {
-        require('../middleware/webhookSecurity').logWebhookFailure('PhonePe', checksum.reason, ip, body);
-        return res.status(401).json({ ok: false, message: 'Checksum verification failed', reason: checksum.reason });
+      const reason = e && e.message ? String(e.message) : 'Invalid Callback';
+      try {
+        require('../middleware/webhookSecurity').logWebhookFailure('PhonePe', reason, ip, rawBody);
+      } catch (_err) {
+        // ignore
       }
+      return res.status(401).json({ ok: false, message: 'Webhook verification failed', reason });
     }
 
     const db = mongoose.connection.db;
@@ -1020,59 +1221,29 @@ router.post('/create-order', authenticateToken, async (req, res) => {
     }
 
     if (provider === 'phonepe') {
-      const merchantId = String(process.env.PHONEPE_MERCHANT_ID || '').trim();
-      const phonepeBaseUrl = String(process.env.PHONEPE_BASE_URL || '').trim();
-      if (!merchantId || !phonepeBaseUrl) {
-        return res.status(500).json({ error: 'Missing PHONEPE_MERCHANT_ID or PHONEPE_BASE_URL' });
-      }
-
-      const apiPath = '/pg/v1/pay';
       const redirectUrl =
         returnUrl ||
         String(process.env.PHONEPE_REDIRECT_URL || '').trim() ||
         `${req.protocol}://${req.get('host')}/`;
-      const callbackUrl =
-        String(process.env.PHONEPE_CALLBACK_URL || '').trim() ||
-        `${req.protocol}://${req.get('host')}/api/payments/webhook/phonepe`;
 
       const amountPaise = Math.round(amount * 100);
-      const phonepePayload = {
-        merchantId,
-        merchantTransactionId: providerOrderId,
-        merchantUserId: String(req.userId),
-        amount: amountPaise,
-        redirectUrl,
-        redirectMode: 'REDIRECT',
-        callbackUrl,
-        paymentInstrument: { type: 'PAY_PAGE' },
-      };
 
-      const base64Payload = Buffer.from(JSON.stringify(phonepePayload), 'utf8').toString('base64');
-      const xVerify = phonePeXVerify({ base64Payload, apiPath });
-      if (!xVerify.ok) {
-        return res.status(500).json({ error: 'Missing PHONEPE_SALT_KEY or PHONEPE_SALT_INDEX' });
-      }
+      const metaInfo = MetaInfo.builder().udf1(String(req.userId)).build();
+      const payRequest = StandardCheckoutPayRequest.builder()
+        .merchantOrderId(providerOrderId)
+        .amount(amountPaise)
+        .metaInfo(metaInfo)
+        .redirectUrl(redirectUrl)
+        .build();
 
-      const initResp = await httpPostPhonePeJson({
-        baseUrl: phonepeBaseUrl,
-        path: apiPath,
-        headers: {
-          'X-VERIFY': xVerify.value,
-        },
-        body: { request: base64Payload },
-      });
-
-      const parsedInit = safeJsonParse(initResp?.body);
-      const initJson = parsedInit.ok ? parsedInit.value : null;
-      const redirect =
-        initJson?.data?.instrumentResponse?.redirectInfo?.url ||
-        initJson?.data?.instrumentResponse?.redirectInfo?.redirectUrl ||
-        '';
+      const client = getPhonePeClient();
+      const initJson = await client.pay(payRequest);
+      const redirect = extractPhonePeRedirectUrl(initJson);
 
       await Payment.updateOne(
         { _id: payment._id },
         {
-          $set: { metadata: { ...(payment.metadata || {}), phonepeInit: initJson || initResp } },
+          $set: { metadata: { ...(payment.metadata || {}), phonepeInit: initJson } },
           $push: {
             eventHistory: {
               provider: 'phonepe',
@@ -1080,14 +1251,14 @@ router.post('/create-order', authenticateToken, async (req, res) => {
               state: 'INITIATED',
               at: new Date().toISOString(),
               merchantOrderId: providerOrderId,
-              raw: initJson || initResp,
+              raw: initJson,
             },
           },
         },
       );
 
-      if (!initResp.ok || !redirect) {
-        return res.status(502).json({ error: 'PhonePe initiation failed', providerResponse: initJson || initResp });
+      if (!redirect) {
+        return res.status(502).json({ error: 'PhonePe initiation failed', providerResponse: initJson });
       }
 
       return res.json({
@@ -1123,7 +1294,16 @@ router.post('/create-order', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Create order error:', error);
-    return res.status(500).json({ error: 'Failed to create payment order' });
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+    return res.status(500).json({
+      error: 'Failed to create payment order',
+      ...(isProd
+        ? {}
+        : {
+          details: error && error.message ? String(error.message) : String(error || ''),
+          stack: error && error.stack ? String(error.stack) : undefined,
+        }),
+    });
   }
 
 });

@@ -10,6 +10,14 @@ const CheckoutPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    const normalizedItems = Array.isArray(items)
+        ? items.filter((it) => {
+            if (!it || typeof it !== 'object') return false;
+            const pid = it?.product?._id || it?.product || it?._id || it?.productId;
+            return Boolean(pid);
+        })
+        : [];
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Success
@@ -33,7 +41,7 @@ const CheckoutPage = () => {
         country: 'India',
 
         // Payment
-        paymentMethod: 'upi',
+        paymentMethod: 'phonepe',
     });
 
     const [paymentInit, setPaymentInit] = useState(null);
@@ -44,11 +52,11 @@ const CheckoutPage = () => {
             return;
         }
 
-        if (items.length === 0) {
+        if (normalizedItems.length === 0) {
             navigate('/cart');
             return;
         }
-    }, [user, items, navigate]);
+    }, [user, normalizedItems.length, navigate]);
 
     const handleChange = (e) => {
         setFormData({
@@ -90,16 +98,16 @@ const CheckoutPage = () => {
         }, 0);
     };
 
-    const SHIPPING_AMOUNT = roundMoney(computeShipping(items));
-    const subtotalAmount = roundMoney(computeSubtotal(items));
+    const SHIPPING_AMOUNT = roundMoney(computeShipping(normalizedItems));
+    const subtotalAmount = roundMoney(computeSubtotal(normalizedItems));
     const taxAmount = roundMoney(subtotalAmount * TAX_RATE);
-    const cartProducts = Array.isArray(items) ? items.map((i) => i?.product).filter(Boolean) : [];
+    const cartProducts = Array.isArray(normalizedItems) ? normalizedItems.map((i) => i?.product).filter(Boolean) : [];
     const isCodAllowedForAll = cartProducts.length > 0 && cartProducts.every((p) => {
         const direct = p?.codAvailable;
         const fromManagement = p?.management?.shipping?.codAvailable;
         return Boolean(direct ?? fromManagement);
     });
-    const codChargeTotal = Array.isArray(items) ? roundMoney(items.reduce((sum, item) => {
+    const codChargeTotal = Array.isArray(normalizedItems) ? roundMoney(normalizedItems.reduce((sum, item) => {
         const p = item?.product;
         const codEnabled = typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(p?.management?.shipping?.codAvailable);
         if (!codEnabled) return sum;
@@ -132,6 +140,30 @@ const CheckoutPage = () => {
             setLoading(true);
             setError('');
 
+            const safeLines = normalizedItems;
+            if (safeLines.length === 0) {
+                setError('Your cart is empty. Please add items before checkout.');
+                setLoading(false);
+                navigate('/cart');
+                return;
+            }
+
+            const toOrderItem = (item) => {
+                const productId = item?.product?._id || item?.productId || item?._id || item?.product;
+                const name = item?.product?.name || item?.name || '';
+                const price = Number(item?.price ?? item?.product?.price ?? 0) || 0;
+                const quantity = Number(item?.quantity ?? 0) || 0;
+                return {
+                    productId: String(productId || ''),
+                    name: String(name || ''),
+                    price,
+                    quantity,
+                    selectedImage: item?.image || '',
+                    selectedColor: item?.color || '',
+                    selectedSize: item?.size || '',
+                };
+            };
+
             if (formData.paymentMethod === 'cod') {
                 if (!isCodAllowedForAll) {
                     setError('Cash on Delivery is not available for one or more items in your cart.');
@@ -147,15 +179,7 @@ const CheckoutPage = () => {
                     codCharge: codChargeTotal,
                     total: payableAmount,
                     paymentMethod: 'cod',
-                    items: items.map(item => ({
-                        productId: item.product._id,
-                        name: item.product.name,
-                        price: item.price ?? item.product.price,
-                        quantity: item.quantity,
-                        selectedImage: item.image || '',
-                        selectedColor: item.color || '',
-                        selectedSize: item.size || '',
-                    })),
+                    items: safeLines.map(toOrderItem),
                     customer: {
                         name: `${formData.firstName} ${formData.lastName}`,
                         email: formData.email,
@@ -187,15 +211,7 @@ const CheckoutPage = () => {
                 shipping: SHIPPING_AMOUNT,
                 tax: taxAmount,
                 total: payableAmount,
-                items: items.map(item => ({
-                    productId: item.product._id,
-                    name: item.product.name,
-                    price: item.price ?? item.product.price,
-                    quantity: item.quantity,
-                    selectedImage: item.image || '',
-                    selectedColor: item.color || '',
-                    selectedSize: item.size || '',
-                })),
+                items: safeLines.map(toOrderItem),
                 customer: {
                     name: `${formData.firstName} ${formData.lastName}`,
                     email: formData.email,
@@ -564,21 +580,6 @@ const CheckoutPage = () => {
                                         </div>
                                     </label>
 
-                                    <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                                        <input
-                                            type="radio"
-                                            name="paymentMethod"
-                                            value="upi"
-                                            checked={formData.paymentMethod === 'upi'}
-                                            onChange={handleChange}
-                                            className="mr-3"
-                                        />
-                                        <div className="flex items-center">
-                                            <FaCreditCard className="text-indigo-600 mr-2" />
-                                            <span className="font-medium">UPI Payment</span>
-                                        </div>
-                                    </label>
-
                                     {isCodAllowedForAll ? (
                                         <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                             <input
@@ -656,15 +657,18 @@ const CheckoutPage = () => {
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
 
                             <div className="space-y-4">
-                                {items.map((item) => (
-                                    <div key={`${item.product._id}-${item.size || ''}-${item.color || ''}`} className="flex items-center space-x-4">
+                                {normalizedItems.map((item) => {
+                                    const pid = item?.product?._id || item?.productId || item?._id || item?.product;
+                                    const name = item?.product?.name || item?.name || '';
+                                    return (
+                                    <div key={`${pid}-${item.size || ''}-${item.color || ''}`} className="flex items-center space-x-4">
                                         <img
                                             src={item.image || item.product?.image || item.product?.galleryImages?.[0] || ''}
-                                            alt={item.product.name}
+                                            alt={name}
                                             className="w-16 h-16 object-cover rounded-md"
                                         />
                                         <div className="flex-1">
-                                            <h3 className="font-medium text-sm">{item.product.name}</h3>
+                                            <h3 className="font-medium text-sm">{name}</h3>
                                             <p className="text-gray-500 text-sm">Qty: {item.quantity}</p>
                                             {(item?.size || item?.color) ? (
                                                 <p className="text-gray-500 text-xs">
@@ -674,7 +678,8 @@ const CheckoutPage = () => {
                                             <p className="font-semibold">₹{((item.price ?? item.product?.price ?? 0) * item.quantity).toFixed(2)}</p>
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
 
                                 <div className="border-t pt-4">
                                     <div className="flex justify-between text-sm">

@@ -123,6 +123,8 @@ app.use('/api', publicLimiter);
 
 // Shiprocket webhooks need raw body for signature verification.
 app.use('/api/shipping/webhook/shiprocket', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
+// PhonePe webhook needs raw body for signature/authorization verification.
+app.use('/api/payments/webhook/phonepe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/api/admin', adminOverridesRouter);

@@ -33,6 +33,7 @@
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
     "pdfkit": "^0.15.0",
+    "pg-sdk-node": "https://phonepe.mycloudrepo.io/public/repositories/phonepe-pg-sdk-node/releases/v2/phonepe-pg-sdk-node-2.0.3.tgz",
     "socket.io": "^4.7.5",
     "zod": "^3.22.4"
   },
