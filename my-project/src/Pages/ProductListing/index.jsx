@@ -17,6 +17,7 @@ const ProductListing = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [sortBy, setSortBy] = useState("relevance");
     const [priceRange, setPriceRange] = useState([0, 10000]);
+
     const [selectedFilters, setSelectedFilters] = useState({
         availability: 'all',
         sizes: [],
@@ -25,7 +26,6 @@ const ProductListing = () => {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [allItems, setAllItems] = useState([]);
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
@@ -55,43 +55,10 @@ const ProductListing = () => {
         };
     }, []);
 
-    useEffect(() => {
-        let cancelled = false;
-        const run = async () => {
-            try {
-                setLoading(true);
-                setError("");
-
-                const queryParams = {
-                    mode: "public",
-                    page: 1,
-                    limit: 200,
-                    q: searchQuery || undefined,
-                    sort: sortBy && sortBy !== "relevance" ? sortBy : undefined,
-                };
-
-                const data = await fetchProducts(queryParams);
-                if (cancelled) return;
-                const list = Array.isArray(data) ? data : (data?.items || []);
-                setAllItems(Array.isArray(list) ? list : []);
-            } catch {
-                if (!cancelled) {
-                    setAllItems([]);
-                    setError("Failed to load products");
-                }
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
-        void run();
-        return () => {
-            cancelled = true;
-        };
-    }, [searchQuery, sortBy]);
-
     const normalizeSizeToken = (value) => {
         const raw = String(value ?? '').trim();
         if (!raw) return '';
+
         const lower = raw.toLowerCase();
         if (lower === 's' || lower === 'small') return 'S';
         if (lower === 'm' || lower === 'medium') return 'M';
@@ -108,71 +75,53 @@ const ProductListing = () => {
     }, [selectedFilters.sizes]);
 
     useEffect(() => {
-        const normalize = (v) => String(v ?? '').trim().toLowerCase();
-        const byId = new Map(categories.map((c) => [String(c?.id ?? ""), normalize(c?.name)]));
-        const byName = new Map(categories.map((c) => [normalize(c?.name), normalize(c?.name)]));
+        let cancelled = false;
+        const run = async () => {
+            try {
+                setLoading(true);
+                setError("");
 
-        const resolveCategoryKey = (value) => {
-            const raw = String(value ?? "").trim();
-            if (!raw) return "";
-            if (byId.has(raw)) return byId.get(raw) || "";
-            const n = normalize(raw);
-            if (byName.has(n)) return byName.get(n) || "";
-            return n;
+                const minPrice = Array.isArray(priceRange) ? Number(priceRange[0]) : undefined;
+                const maxPrice = Array.isArray(priceRange) ? Number(priceRange[1]) : undefined;
+                const inStock = String(selectedFilters.availability || 'all') === 'in_stock' ? true : undefined;
+                const rating = Number(selectedFilters.rating) > 0 ? Number(selectedFilters.rating) : undefined;
+
+                const data = await fetchProducts({
+                    mode: "public",
+                    page,
+                    limit,
+                    category: category || undefined,
+                    q: searchQuery || undefined,
+                    sort: sortBy && sortBy !== "relevance" ? sortBy : undefined,
+                    minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+                    maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+                    inStock,
+                    rating,
+                    sizes: normalizedSelectedSizes.length > 0 ? normalizedSelectedSizes : undefined,
+                });
+
+                if (cancelled) return;
+                const list = Array.isArray(data) ? data : (data?.items || []);
+                setItems(Array.isArray(list) ? list : []);
+                setTotalPages(Number(data?.totalPages) > 0 ? Number(data.totalPages) : 1);
+                setTotalItems(Number(data?.totalItems ?? data?.total ?? 0) || 0);
+            } catch {
+                if (!cancelled) {
+                    setItems([]);
+                    setTotalPages(1);
+                    setTotalItems(0);
+                    setError("Failed to load products");
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
         };
 
-        const selectedKey = resolveCategoryKey(category);
-
-        const base = selectedKey
-            ? allItems.filter((p) => resolveCategoryKey(p?.category) === selectedKey)
-            : allItems;
-
-        const filtered = base.filter((p) => {
-            const stock = Number(p?.stock ?? 0) || 0;
-            const price = Number(p?.price ?? 0) || 0;
-
-            if (String(selectedFilters.availability || 'all') === 'in_stock' && stock <= 0) return false;
-            if (String(selectedFilters.availability || 'all') === 'not_available' && stock > 0) return false;
-
-            if (Array.isArray(priceRange) && priceRange.length === 2) {
-                const min = Number(priceRange[0]) || 0;
-                const max = Number(priceRange[1]) || 0;
-                if (price < min || price > max) return false;
-            }
-
-            if (normalizedSelectedSizes.length > 0) {
-                const sizes = Array.isArray(p?.sizes) ? p.sizes : [];
-                const normalizedProductSizes = sizes.map(normalizeSizeToken).filter(Boolean);
-                if (normalizedProductSizes.length > 0) {
-                    const hasMatch = normalizedSelectedSizes.some((s) => normalizedProductSizes.includes(s));
-                    if (!hasMatch) return false;
-                }
-            }
-
-            const minRating = Number(selectedFilters.rating) || 0;
-            if (minRating > 0) {
-                const rating = Number(p?.rating ?? 0) || 0;
-                if (rating > 0 && rating < minRating) return false;
-            }
-
-            return true;
-        });
-
-        const nextTotalItems = filtered.length;
-        const nextTotalPages = Math.max(1, Math.ceil(nextTotalItems / limit));
-        const safePage = Math.min(page, nextTotalPages);
-
-        if (safePage !== page) {
-            setPage(safePage);
-            return;
-        }
-        const start = (safePage - 1) * limit;
-        const pageItems = filtered.slice(start, start + limit);
-
-        setTotalItems(nextTotalItems);
-        setTotalPages(nextTotalPages);
-        setItems(pageItems);
-    }, [allItems, categories, category, limit, page, priceRange, normalizedSelectedSizes, selectedFilters.availability, selectedFilters.rating]);
+        void run();
+        return () => {
+            cancelled = true;
+        };
+    }, [category, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
 
     return (
         <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
@@ -222,8 +171,8 @@ const ProductListing = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1">
-                        {loading && allItems.length === 0 ? (
+                    <div className="flex-1 min-w-0">
+                        {loading && items.length === 0 ? (
                             <div className="py-16 text-center">
                                 <p className="text-gray-600">Loading products...</p>
                             </div>
@@ -237,7 +186,7 @@ const ProductListing = () => {
                                 <p className="text-gray-500 text-[13px] sm:text-sm mt-2">Try adjusting your filters</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4 lg:gap-6">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                                 {items.map((product) => (
                                     <ProductCard key={product.id || product._id} product={product} view="grid" />
                                 ))}
@@ -249,7 +198,10 @@ const ProductListing = () => {
                                 <Pagination
                                     count={totalPages}
                                     page={page}
-                                    onChange={(_e, value) => setPage(value)}
+                                    onChange={(_e, value) => {
+                                        setPage(value);
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
                                     showFirstButton
                                     showLastButton
                                     size="large"

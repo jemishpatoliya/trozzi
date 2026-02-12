@@ -330,7 +330,7 @@ const CheckoutPage = () => {
                                 <button
                                     type="button"
                                     onClick={goToHome}
-                                    className="block w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700"
+                                    className="block w-full bg-[#2874F0] text-white py-2.5 px-4 rounded-md hover:bg-[#1f5fc6]"
                                 >
                                     Continue Shopping
                                 </button>
@@ -346,7 +346,7 @@ const CheckoutPage = () => {
                     </div>
                 )}
 
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="min-h-screen bg-[#F1F3F6] flex items-center justify-center overflow-x-hidden">
                     <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
                         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
                             <FaLock className="h-6 w-6 text-green-600" />
@@ -358,7 +358,7 @@ const CheckoutPage = () => {
                         <div className="space-y-3">
                             <Link
                                 to="/"
-                                className="block w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700"
+                                className="block w-full bg-[#2874F0] text-white py-2.5 px-4 rounded-md hover:bg-[#1f5fc6]"
                             >
                                 Continue Shopping
                             </Link>
@@ -376,103 +376,109 @@ const CheckoutPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-4xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-[#F1F3F6] overflow-x-hidden">
+            <div className="w-full max-w-5xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8 overflow-x-hidden">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 mb-5 sm:mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 mb-4 sm:mb-6">
                     <Link
                         to="/cart"
-                        className="inline-flex items-center text-[13px] sm:text-base text-gray-600 hover:text-gray-900"
+                        className="inline-flex items-center text-[13px] sm:text-sm text-gray-600 hover:text-[#2874F0]"
                     >
                         <FaArrowLeft className="mr-2" />
                         Back to Cart
                     </Link>
-                    <h1 className="ml-0 sm:ml-4 text-xl sm:text-3xl font-bold text-gray-900">Checkout</h1>
+                    <h1 className="ml-0 sm:ml-4 text-[18px] sm:text-[24px] font-bold text-gray-900">Checkout</h1>
                 </div>
 
                 {/* Progress Steps */}
-                <div className="mb-5 sm:mb-8">
-                    <div className="flex items-center justify-between">
-                        <div className={`flex items-center ${step >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
-                                1
+                <div className="mb-4 sm:mb-6">
+                    <div className="bg-white border border-gray-200 rounded-lg px-3 sm:px-4 py-3">
+                        <div className="flex items-center justify-between text-[12px] sm:text-[13px]">
+                            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-[#2874F0]' : 'text-gray-400'}`}>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold ${step >= 1 ? 'bg-[#2874F0] text-white' : 'bg-gray-200'}`}>
+                                    1
+                                </div>
+                                <span className="font-semibold">Address</span>
                             </div>
-                            <span className="hidden sm:inline ml-2">Address</span>
-                        </div>
-                        <div className={`hidden sm:block flex-1 h-1 mx-4 ${step >= 2 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
-                        <div className={`flex items-center ${step >= 2 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
-                                2
+
+                            <div className={`flex-1 h-[2px] mx-2 sm:mx-4 ${step >= 2 ? 'bg-[#2874F0]' : 'bg-gray-200'}`} />
+
+                            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-[#2874F0]' : 'text-gray-400'}`}>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold ${step >= 2 ? 'bg-[#2874F0] text-white' : 'bg-gray-200'}`}>
+                                    2
+                                </div>
+                                <span className="font-semibold">Payment</span>
                             </div>
-                            <span className="hidden sm:inline ml-2">Payment</span>
-                        </div>
-                        <div className={`hidden sm:block flex-1 h-1 mx-4 ${step >= 3 ? 'bg-indigo-600' : 'bg-gray-200'}`}></div>
-                        <div className={`flex items-center ${step >= 3 ? 'text-indigo-600' : 'text-gray-400'}`}>
-                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>
-                                3
+
+                            <div className={`flex-1 h-[2px] mx-2 sm:mx-4 ${step >= 3 ? 'bg-[#2874F0]' : 'bg-gray-200'}`} />
+
+                            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-[#2874F0]' : 'text-gray-400'}`}>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold ${step >= 3 ? 'bg-[#2874F0] text-white' : 'bg-gray-200'}`}>
+                                    3
+                                </div>
+                                <span className="font-semibold">Success</span>
                             </div>
-                            <span className="hidden sm:inline ml-2">Success</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 min-w-0">
                     {/* Main Content */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 min-w-0">
                         {step === 1 && (
-                            <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-                                <h2 className="text-lg sm:text-xl font-semibold mb-4">Shipping Address</h2>
+                            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 overflow-x-hidden min-w-0">
+                                <h2 className="text-[15px] sm:text-[16px] font-bold text-gray-900 mb-4">Delivery Address</h2>
                                 <form onSubmit={handleAddressSubmit} className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-w-0">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">First Name</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">First Name</label>
                                             <input
                                                 type="text"
                                                 name="firstName"
                                                 value={formData.firstName}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">Last Name</label>
                                             <input
                                                 type="text"
                                                 name="lastName"
                                                 value={formData.lastName}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                                        <label className="block text-[12px] font-semibold text-gray-700">Email</label>
                                         <input
                                             type="email"
                                             name="email"
                                             value={formData.email}
                                             onChange={handleChange}
                                             required
-                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                                        <label className="block text-[12px] font-semibold text-gray-700">Phone</label>
                                         <input
                                             type="tel"
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleChange}
-                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Address Line 1</label>
+                                        <label className="block text-[12px] font-semibold text-gray-700">Address Line 1</label>
                                         <input
                                             type="text"
                                             name="addressLine1"
@@ -480,68 +486,68 @@ const CheckoutPage = () => {
                                             onChange={handleChange}
                                             required
                                             placeholder="Street address"
-                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">Address Line 2</label>
+                                        <label className="block text-[12px] font-semibold text-gray-700">Address Line 2</label>
                                         <input
                                             type="text"
                                             name="addressLine2"
                                             value={formData.addressLine2}
                                             onChange={handleChange}
                                             placeholder="Apartment, suite, etc. (optional)"
-                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-w-0">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">City</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">City</label>
                                             <input
                                                 type="text"
                                                 name="city"
                                                 value={formData.city}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">State</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">State</label>
                                             <input
                                                 type="text"
                                                 name="state"
                                                 value={formData.state}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 min-w-0">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Postal Code</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">Postal Code</label>
                                             <input
                                                 type="text"
                                                 name="postalCode"
                                                 value={formData.postalCode}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700">Country</label>
+                                            <label className="block text-[12px] font-semibold text-gray-700">Country</label>
                                             <input
                                                 type="text"
                                                 name="country"
                                                 value={formData.country}
                                                 onChange={handleChange}
                                                 required
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#2874F0]/20 focus:border-[#2874F0]"
                                             />
                                         </div>
                                     </div>
@@ -554,7 +560,7 @@ const CheckoutPage = () => {
 
                                     <button
                                         type="submit"
-                                        className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700"
+                                        className="w-full bg-[#2874F0] text-white py-3 px-4 rounded-md hover:bg-[#1f5fc6]"
                                     >
                                         Continue to Payment
                                     </button>
@@ -564,10 +570,10 @@ const CheckoutPage = () => {
 
                         {step === 2 && (
                             <>
-                            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-                                <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Method</h2>
+                            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+                                <h2 className="text-[15px] font-bold text-gray-900 mb-4">Payment Method</h2>
                                 <div className="space-y-3">
-                                    <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                    <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                                         <input
                                             type="radio"
                                             name="paymentMethod"
@@ -577,13 +583,13 @@ const CheckoutPage = () => {
                                             className="mr-3"
                                         />
                                         <div className="flex items-center">
-                                            <FaCreditCard className="text-indigo-600 mr-2" />
-                                            <span className="font-medium">PhonePe</span>
+                                            <FaCreditCard className="text-[#2874F0] mr-2" />
+                                            <span className="font-semibold text-[13px]">PhonePe</span>
                                         </div>
                                     </label>
 
                                     {isCodAllowedForAll ? (
-                                        <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                        <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -593,8 +599,8 @@ const CheckoutPage = () => {
                                                 className="mr-3"
                                             />
                                             <div className="flex items-center">
-                                                <FaCreditCard className="text-indigo-600 mr-2" />
-                                                <span className="font-medium">Cash on Delivery</span>
+                                                <FaCreditCard className="text-[#2874F0] mr-2" />
+                                                <span className="font-semibold text-[13px]">Cash on Delivery</span>
                                             </div>
                                         </label>
                                     ) : null}
@@ -638,7 +644,7 @@ const CheckoutPage = () => {
                             <button
                                 onClick={handlePayment}
                                 disabled={loading}
-                                className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                                className="w-full bg-[#FF9F00] text-gray-900 py-3 px-4 rounded-md hover:bg-[#fb8c00] disabled:opacity-50 font-bold"
                             >
                                 {loading ? 'Processing...' : `Pay ${formatCurrency(payableAmount)}`}
                             </button>
@@ -667,7 +673,10 @@ const CheckoutPage = () => {
                                         <img
                                             src={item.image || item.product?.image || item.product?.galleryImages?.[0] || ''}
                                             alt={name}
+                                            width={64}
+                                            height={64}
                                             className="w-16 h-16 object-cover rounded-md"
+                                            loading="lazy"
                                         />
                                         <div className="flex-1">
                                             <h3 className="font-medium text-sm">{name}</h3>

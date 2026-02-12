@@ -41,10 +41,7 @@ const FeaturedSlider = () => {
   return (
     <section className="py-4 sm:py-10 px-3 sm:px-6 bg-gray-50">
       <div className="">
-        <h2 className="text-lg sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1.5 sm:mb-4 text-center">Featured Products</h2>
-        <p className="text-[13px] sm:text-lg text-gray-600 mb-4 sm:mb-12 text-center max-w-3xl mx-auto">
-          Premium selections chosen by our experts. Quality you can trust.
-        </p>
+        <h2 className="text-[16px] sm:text-[22px] md:text-[26px] font-bold text-gray-900 mb-1.5 sm:mb-4 text-center">Featured Products</h2>
 
         <div className="md:hidden">
           <ProductSlider products={items} />

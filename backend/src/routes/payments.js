@@ -17,8 +17,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 function getPhonePeSdkEnv() {
   const raw = String(process.env.PHONEPE_ENV || '').trim().toUpperCase();
-  if (raw === 'PROD' || raw === 'PRODUCTION' || raw === 'LIVE') return Env.PRODUCTION;
-  return Env.SANDBOX;
+  const wantsProd = raw === 'PROD' || raw === 'PRODUCTION' || raw === 'LIVE';
+  const nodeEnv = String(process.env.NODE_ENV || '').trim().toLowerCase();
+  const isNodeProd = nodeEnv === 'production';
+  const allowProdInDev = String(process.env.PHONEPE_ALLOW_PROD_IN_DEV || '').trim().toLowerCase() === 'true';
+
+  // Most common cause of 401 Invalid Client: sandbox credentials used against production env.
+  // To avoid accidental prod calls during local development, require an explicit override.
+  if (wantsProd && !isNodeProd && !allowProdInDev) {
+    return Env.SANDBOX;
+  }
+
+  return wantsProd ? Env.PRODUCTION : Env.SANDBOX;
 }
 
 let phonePeClientSingleton = null;
@@ -35,8 +45,10 @@ function getPhonePeClient() {
     phonePeClientInitLogged = true;
     const cid = clientId;
     const cidMasked = cid ? `${cid.slice(0, 6)}...${cid.slice(-4)}` : '';
+    const resolvedEnv = getPhonePeSdkEnv() === Env.PRODUCTION ? 'PRODUCTION' : 'SANDBOX';
     console.log('[PhonePe SDK] init', {
       env: String(process.env.PHONEPE_ENV || '').trim() || 'SANDBOX',
+      resolvedEnv,
       clientId: cidMasked,
       clientSecretLen: clientSecret ? clientSecret.length : 0,
       clientVersion,

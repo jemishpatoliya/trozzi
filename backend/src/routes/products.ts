@@ -89,6 +89,8 @@ function mapProduct(req: Request, p: any) {
     badge: p.badge,
     brand: p.brand,
     freeShipping: typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(p?.management?.shipping?.freeShipping),
+    salePageEnabled: Boolean(p?.management?.salePage?.enabled),
+    salePageBannerText: typeof p?.management?.salePage?.bannerText === 'string' ? p.management.salePage.bannerText : "",
     codAvailable: typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(p?.management?.shipping?.codAvailable),
     codCharge: Number(p?.codCharge ?? p?.management?.shipping?.codCharge ?? 0) || 0,
   };

@@ -138,21 +138,18 @@
 //                 </WishlistProvider>
 //             </CartProvider>
 //         </AuthProvider>
-//     );
-// }
-
 // App.js - Fixed Layout with Homecatslider on all pages
 import React, { createContext, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, NavLink } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
-import { CompareProvider } from './context/CompareContext';
 import { ContentSettingsProvider } from './context/ContentSettingsContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
 import { useWishlist } from './context/WishlistContext';
+
 import { FiHome, FiGrid, FiHeart, FiShoppingCart, FiUser } from 'react-icons/fi';
 
 // Import components that are needed immediately
@@ -400,33 +397,32 @@ function App() {
             <ContentSettingsProvider>
                 <CartProvider>
                     <WishlistProvider>
-                        <CompareProvider>
-                            <NotificationProvider>
-                                <MyContext.Provider value={myContextValue}>
-                                    <Router
-                                        future={{
-                                            v7_startTransition: true,
-                                            v7_relativeSplatPath: true,
-                                        }}
-                                    >
-                                        <div className="App flex h-screen overflow-hidden">
-                                        {/* Right Content Area */}
-                                        <div className="flex-1 flex flex-col overflow-hidden">
-                                            {/* Header - Sticky */}
-                                            <Header ref={headerRef} hidden={isHeaderHidden} elevated={isHeaderElevated} />
+                        <NotificationProvider>
+                            <MyContext.Provider value={myContextValue}>
+                                <Router
+                                    future={{
+                                        v7_startTransition: true,
+                                        v7_relativeSplatPath: true,
+                                    }}
+                                >
+                                    <div className="App flex h-screen overflow-hidden">
+                                    {/* Right Content Area */}
+                                    <div className="flex-1 flex flex-col overflow-hidden">
+                                        {/* Header - Sticky */}
+                                        <Header ref={headerRef} hidden={isHeaderHidden} elevated={isHeaderElevated} />
 
-                                            {/* Main Content - Scrollable */}
-                                            <main
-                                                ref={mainScrollRef}
-                                                className="flex-1 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0"
-                                                style={{ paddingTop: isHeaderHidden ? 0 : headerHeight, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight}px` }}
-                                            >
-                                                <Suspense fallback={
-                                                    <div className="flex items-center justify-center h-64">
-                                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                                                    </div>
-                                                }>
-                                                    <Routes>
+                                        {/* Main Content - Scrollable */}
+                                        <main
+                                            ref={mainScrollRef}
+                                            className="flex-1 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0"
+                                            style={{ paddingTop: isHeaderHidden ? 0 : headerHeight, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight}px` }}
+                                        >
+                                            <Suspense fallback={
+                                                <div className="flex items-center justify-center h-64">
+                                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                                                </div>
+                                            }>
+                                                <Routes>
                                                 {/* Public Routes */}
                                                 <Route path="/" element={<Home />} />
                                                 <Route path="/ProductListing" element={<ProductListing />} />
@@ -604,11 +600,10 @@ function App() {
                                 </Router>
                             </MyContext.Provider>
                         </NotificationProvider>
-                    </CompareProvider>
-                </WishlistProvider>
-            </CartProvider>
-        </ContentSettingsProvider>
-    </AuthProvider>
+                    </WishlistProvider>
+                </CartProvider>
+            </ContentSettingsProvider>
+        </AuthProvider>
     );
 }
 

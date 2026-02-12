@@ -24,15 +24,9 @@
 //         </button>
 //       </div>
 //     </div>
-//   );
-// };
-
-// export default ProductCard;
-
-
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaBolt, FaCheck, FaHeart, FaRegHeart, FaShoppingCart, FaStar } from "react-icons/fa";
+import { FaCheck, FaCheckCircle, FaHeart, FaRegHeart, FaShareAlt, FaShoppingCart, FaStar, FaTruck } from "react-icons/fa";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { useWishlist } from "../../context/WishlistContext";
@@ -79,6 +73,15 @@ const ProductCard = ({ product, view = "grid" }) => {
 
       const brand = baseProduct.brand || baseProduct.category || "";
 
+      const featured = Boolean(baseProduct.featured ?? baseProduct?.management?.marketing?.featured);
+      const badge = String(baseProduct.badge ?? baseProduct?.management?.marketing?.badge ?? '').trim();
+      const freeShipping = typeof baseProduct?.freeShipping === 'boolean'
+        ? baseProduct.freeShipping
+        : Boolean(baseProduct?.management?.shipping?.freeShipping);
+
+      const salePageEnabled = Boolean(baseProduct?.salePageEnabled ?? baseProduct?.management?.salePage?.enabled);
+      const salePageBannerText = String(baseProduct?.salePageBannerText ?? baseProduct?.management?.salePage?.bannerText ?? '');
+
       const saleEnabled = !!baseProduct.saleEnabled;
       const saleDiscount = Number(baseProduct.saleDiscount ?? baseProduct.discount ?? 0);
       const saleStart = baseProduct.saleStartDate ? new Date(baseProduct.saleStartDate) : null;
@@ -107,6 +110,10 @@ const ProductCard = ({ product, view = "grid" }) => {
       const rating = Number.isFinite(ratingNumber) && ratingNumber > 0 ? ratingNumber : avgFromReviews;
       const reviews = Number.isFinite(reviewsCount) ? reviewsCount : 0;
 
+      const discountPercent = displayMrp > 0 && displayPrice > 0 && displayMrp > displayPrice
+        ? Math.round(((displayMrp - displayPrice) / displayMrp) * 100)
+        : 0;
+
       return {
         id,
         name,
@@ -125,6 +132,13 @@ const ProductCard = ({ product, view = "grid" }) => {
         hasColorVariants,
         colorVariants: baseProduct.colorVariants || [],
         currentVariant,
+        discountPercent,
+        featured,
+        badge,
+        freeShipping,
+        salePageEnabled,
+        salePageBannerText,
+        management: baseProduct?.management,
       };
     } catch (_e) {
       return null;
@@ -144,40 +158,78 @@ const ProductCard = ({ product, view = "grid" }) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleAddToCart = async (e) => {
-    e.stopPropagation();
-    if (!normalized.id) return;
-    if (!user) {
-      navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ''}`)}`);
-      return;
-    }
-
-    setIsAddingToCart(true);
-    try {
-      const result = await addToCart(normalized.id, 1, {
-        name: normalized.name,
-        image: normalized.image,
-        price: normalized.displayPrice,
-        brand: normalized.brand,
-        sku: normalized.sku,
-      });
-      if (result?.success) {
-        setJustAdded(true);
-        setTimeout(() => setJustAdded(false), 2000);
-      }
-    } finally {
-      setIsAddingToCart(false);
-    }
-  };
-
   const handleWishlistToggle = async (e) => {
     e.stopPropagation();
     if (!normalized.id) return;
     await toggleWishlist(normalized.id);
   };
 
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    if (!normalized.id) return;
+
+    const url = `${window.location.origin}/product/${normalized.id}`;
+    const title = String(normalized.name || 'Product');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: title, url });
+        return;
+      }
+    } catch (_e) {
+      // ignore
+    }
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        window.prompt('Copy this link:', url);
+      }
+    } catch (_e) {
+      window.prompt('Copy this link:', url);
+    }
+  };
+
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    if (isAddingToCart || normalized.stock <= 0 || !normalized.id) return;
+
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(`${location.pathname}${location.search || ""}`)}`);
+      return;
+    }
+
+    try {
+      setIsAddingToCart(true);
+
+      await addToCart(normalized.id, 1, {
+        name: normalized.name,
+        image: displayImage,
+        price: displaySelling,
+        brand: normalized.brand,
+        sku: normalized.sku,
+      });
+
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 2000);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
+
   const isList = view === "list";
   const safeRating = Number.isFinite(Number(normalized.rating)) ? Number(normalized.rating) : 0;
+  const displayMrp = Number(normalized.originalPrice ?? 0) || 0;
+  const displaySelling = Number(normalized.displayPrice ?? 0) || 0;
+
+  const shouldShowDiscount = (String(normalized?.badge || '').toLowerCase() === 'sale') || Boolean(normalized?.isSaleActive);
+  const shouldShowOffers = Boolean(normalized?.salePageEnabled) || Boolean(String(normalized?.salePageBannerText || '').trim());
+  const shouldShowFreeDelivery = Boolean(normalized?.freeShipping);
+  const shouldShowRating = safeRating > 0 || Number(normalized?.reviews || 0) > 0;
+  const shouldShowTrusted = Boolean(normalized?.featured) || (String(normalized?.badge || '').toLowerCase() === 'trusted');
 
   return (
     <div className="animate-fade-in">
@@ -190,8 +242,8 @@ const ProductCard = ({ product, view = "grid" }) => {
         }}
         className={
           isList
-            ? "group cursor-pointer overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 flex h-[280px]"
-            : "group cursor-pointer overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_24px_rgba(0,0,0,0.10)] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-full"
+            ? "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex h-[280px]"
+            : "group cursor-pointer overflow-hidden rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-[410px] sm:h-[430px]"
         }
       >
         <div className="transition-transform duration-300 flex flex-col h-full">
@@ -200,13 +252,15 @@ const ProductCard = ({ product, view = "grid" }) => {
             className={
               isList
                 ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
-                : "aspect-square sm:aspect-[4/3] bg-gray-50 overflow-hidden relative"
+                : "bg-gray-50 overflow-hidden relative h-[180px] sm:h-[200px]"
             }
           >
             <div className={isList ? "relative overflow-hidden w-full h-full p-2" : "relative overflow-hidden w-full h-full p-2"}>
               <img
                 src={displayImage}
                 alt={normalized.name}
+                width={480}
+                height={480}
                 className={
                   isList
                     ? "w-full h-full object-contain transition-all duration-500 group-hover:scale-105"
@@ -216,132 +270,154 @@ const ProductCard = ({ product, view = "grid" }) => {
               />
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/35 to-transparent" />
-
-            {/* Discount Badge */}
-            {normalized.isSaleActive && normalized.saleDiscount > 0 && (
-              <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md font-bold shadow-md animate-bounce-in">
-                {normalized.saleDiscount}% OFF
-              </div>
-            )}
-
-            {/* Wishlist Button */}
-            <button
-              type="button"
-              onClick={handleWishlistToggle}
-              className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white transition-all"
-              aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-            >
-              {wishlisted ? (
-                <FaHeart className="text-pink-600" />
-              ) : (
-                <FaRegHeart className="text-gray-700" />
-              )}
-            </button>
-
-            <div className="absolute left-2 bottom-2 flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-green-600/95 px-2 py-1 rounded-lg text-white text-[11px] font-semibold">
-                <span className="font-bold">{safeRating.toFixed(1)}</span>
-                <FaStar className="h-3 w-3 fill-current" />
-              </div>
-
-              {normalized.isSaleActive && normalized.saleDiscount > 0 && (
-                <div className="bg-white/95 backdrop-blur px-2 py-1 rounded-lg text-[11px] font-semibold text-orange-700">
-                  {normalized.saleDiscount}% OFF
-                </div>
-              )}
+          {/* Discount Badge */}
+          {shouldShowDiscount && normalized.discountPercent > 0 && (
+            <div className="absolute top-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md font-bold shadow-md animate-bounce-in">
+              {normalized.discountPercent}% OFF
             </div>
+          )}
 
-            {/* Gallery Thumbnails */}
-            {normalized.galleryImages?.length > 1 && !isList && (
-              <div className="absolute bottom-2 left-2 flex items-center gap-1">
-                {normalized.galleryImages.slice(0, 4).map((url, idx) => (
-                  <button
-                    key={`${normalized.id}-thumb-${idx}`}
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseEnter={(e) => {
-                      e.stopPropagation();
-                      setHoveredImage(url);
-                    }}
-                    onMouseLeave={(e) => {
-                      e.stopPropagation();
-                      setHoveredImage(null);
-                    }}
-                    className={
-                      hoveredImage === url
-                        ? "h-6 w-6 sm:h-7 sm:w-7 rounded-full border-2 border-blue-600 overflow-hidden"
-                        : "h-6 w-6 sm:h-7 sm:w-7 rounded-full border border-white/60 overflow-hidden"
-                    }
-                  >
-                    <img src={url} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
+          {/* Wishlist Button */}
+          <button
+            type="button"
+            onClick={handleWishlistToggle}
+            className="absolute top-2 right-2 h-9 w-9 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white transition-all"
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          >
+            {wishlisted ? (
+              <FaHeart className="text-pink-600" />
+            ) : (
+              <FaRegHeart className="text-gray-700" />
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShare}
+            className="absolute top-2 right-12 h-9 w-9 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-sm hover:bg-white transition-all"
+            aria-label="Share product"
+          >
+            <FaShareAlt className="text-gray-700" />
+          </button>
+
+          {/* Gallery Thumbnails */}
+          {normalized.galleryImages?.length > 1 && !isList && (
+            <div className="absolute bottom-2 left-2 flex items-center gap-1">
+              {normalized.galleryImages.slice(0, 4).map((url, idx) => (
+                <button
+                  key={`${normalized.id}-thumb-${idx}`}
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                    setHoveredImage(url);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.stopPropagation();
+                    setHoveredImage(null);
+                  }}
+                  className={
+                    hoveredImage === url
+                      ? "h-6 w-6 sm:h-7 sm:w-7 rounded-full border-2 border-[#2874F0] overflow-hidden"
+                      : "h-6 w-6 sm:h-7 sm:w-7 rounded-full border border-white/60 overflow-hidden"
+                  }
+                >
+                  <img src={url} alt="" width={64} height={64} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Content Section */}
+        <div className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 flex flex-col flex-1">
+          {/* Product Title */}
+          <h3 className="font-semibold text-[14px] sm:text-[15px] text-[#1A237E] line-clamp-2 leading-snug">
+            {normalized.name}
+          </h3>
+
+          {/* Price Section */}
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-[18px] sm:text-[20px] font-extrabold text-gray-900">
+              {formatPrice(displaySelling)}
+            </span>
+            {displayMrp > displaySelling ? (
+              <span className="text-[13px] sm:text-sm text-gray-400 line-through">
+                {formatPrice(displayMrp)}
+              </span>
+            ) : null}
+            {normalized.discountPercent > 0 ? (
+              <span className="text-[13px] sm:text-sm text-green-600 font-semibold">
+                {normalized.discountPercent}% off
+              </span>
+            ) : null}
           </div>
 
-          {/* Content Section */}
-          <div className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 flex flex-col flex-1">
-            {/* Product Title */}
-            <h3 className="font-semibold text-[14px] sm:text-[15px] text-gray-900 line-clamp-2 leading-snug">
-              {normalized.name}
-            </h3>
+          <div className="mt-1 min-h-[28px]">
+            {shouldShowOffers ? (
+              <div className="inline-flex items-center rounded-md border border-green-300 bg-green-50 text-green-700 px-2 py-1 text-[12px] font-semibold">
+                ₹{Math.max(1, Math.round(displaySelling * 0.055))} with 2 Special Offers
+              </div>
+            ) : null}
+          </div>
 
-            {/* Brand */}
-
-            {/* Price Section */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[15px] sm:text-lg font-extrabold text-gray-900">
-                {formatPrice(normalized.displayPrice)}
-              </span>
-
-              {normalized.originalPrice > normalized.displayPrice && (
-                <span className="text-xs sm:text-sm text-gray-400 line-through">
-                  {formatPrice(normalized.originalPrice)}
+          <div className="mt-1 min-h-[18px]">
+            {shouldShowFreeDelivery ? (
+              <div className="flex items-center gap-2 text-[12px] text-gray-600">
+                <span className="inline-flex items-center gap-1">
+                  <FaTruck className="text-[14px] text-gray-500" />
+                  Free Delivery
                 </span>
-              )}
+              </div>
+            ) : null}
+          </div>
 
-              {normalized.isSaleActive && (
-                <span className="text-xs sm:text-sm text-green-600 font-semibold">
-                  {normalized.saleDiscount}% off
-                </span>
-              )}
+          {normalized.stock <= 0 ? (
+            <div className="text-xs font-semibold text-red-600">Out of stock</div>
+          ) : null}
+
+          <div className="mt-auto">
+            <div className="flex items-center justify-between pt-2">
+              {shouldShowRating ? (
+                <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[12px] font-semibold">
+                  <span>{safeRating.toFixed(1)}</span>
+                  <FaStar className="h-3 w-3 fill-current" />
+                  <span className="text-white/90">({Number(normalized.reviews || 0)})</span>
+                </div>
+              ) : <span />}
+
+              {shouldShowTrusted ? (
+                <div className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
+                  <FaCheckCircle className="text-[14px]" />
+                  Trusted
+                </div>
+              ) : null}
             </div>
 
-            {normalized.stock <= 0 ? (
-              <div className="text-xs font-semibold text-red-600">Out of stock</div>
-            ) : null}
-
-            {/* Add to Cart Button */}
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={isAddingToCart || normalized.stock <= 0}
-              className="w-full mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-[12px] sm:text-sm font-semibold bg-white border border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+              className={
+                "mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold bg-white text-[#2874F0] border border-[#2874F0] hover:bg-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              }
             >
               {justAdded ? (
                 <>
                   <FaCheck />
-                  Added to Cart
+                  Added
                 </>
               ) : (
                 <>
-                  <FaShoppingCart className="hidden sm:inline" />
-                  {isAddingToCart ? (
-                    "Adding..."
-                  ) : (
-                    <>
-                      <span className="sm:hidden">ADD</span>
-                      <span className="hidden sm:inline">Add to Cart</span>
-                    </>
-                  )}
+                  <FaShoppingCart />
+                  {isAddingToCart ? "Adding..." : "Add to Cart"}
                 </>
               )}
             </button>
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

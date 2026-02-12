@@ -20,11 +20,13 @@
 }
 
 body{
-      font-family: "Quicksand", sans-serif;
+  font-family: "Roboto", Arial, sans-serif;
   font-optical-sizing: auto;
-  background-color: #f5f0f0 ;
-  color: #3e3e3e;
+  background-color: #F1F3F6 ;
+  color: #212121;
   overflow-x: hidden;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 html,
@@ -40,8 +42,8 @@ html,
   -ms-overflow-style:none;
 }
 p{
-  font-size: 14px;
-  line-height: 25px;
+  font-size: 13px;
+  line-height: 20px;
 }
 .container{
     width: 90%;
@@ -58,17 +60,17 @@ header.top-strip{
 }
 
 .link:hover{
-    color: #ff5252;
+    color: #2874F0;
 }
 
 .MuiBadge-badge{
-    background-color: #ff5252!important;
+    background-color: #FF9F00!important;
 }
 nav ul button {text-transform: capitalize!important; color: rgba(0,0,0,0.7)!important;}
-nav ul button  :hover{text-transform: capitalize!important; color: #ff5252!important;}
+nav ul button  :hover{text-transform: capitalize!important; color: #2874F0!important;}
 
 nav ul button:hover .MuiTouchRipple-root{background-color: #000000!important;}
-nav ul button .MuiTouchRipple-root{background-color: #ff5252!important; opacity: 0.5; }
+nav ul button .MuiTouchRipple-root{background-color: #2874F0!important; opacity: 0.25; }
 nav ul .submenu{visibility: hidden; z-index: 1000;}
 
 .silderhome{
@@ -115,10 +117,10 @@ nav ul .submenu{visibility: hidden; z-index: 1000;}
     right: 10px;
 }
 .homecatslider .swiper-button-prev:hover{
-    background-color: #ff5252;
+    background-color: #2874F0;
 }
 .homecatslider .swiper-button-prev{
-    background-color: #ff5252;
+    background-color: #2874F0;
 } 
 .homecatslider .item:hover img{
     transform: scale(1.1);

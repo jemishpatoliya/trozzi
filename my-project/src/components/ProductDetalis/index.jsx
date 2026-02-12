@@ -7,13 +7,11 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import { FaCartShopping } from "react-icons/fa6";
-import { FaRegHeart } from "react-icons/fa";
-import { IoIosGitCompare } from "react-icons/io";
+import { FaRegHeart, FaShareAlt } from "react-icons/fa";
 import ColorPicker from '../product/ColorPicker';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { useCompare } from '../../context/CompareContext';
 import { normalizeColorKey, normalizeToken } from '../../utils/colorVariants';
 import { fetchSizeGuide } from '../../api/sizeGuides';
 
@@ -86,7 +84,6 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
 
   const { addToCart } = useCart();
   const { toggleWishlist } = useWishlist();
-  const { toggleCompare } = useCompare();
 
   const sanitizeHtml = (input) => {
     const html = String(input ?? '').trim();
@@ -111,6 +108,32 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
       return doc.body.innerHTML;
     } catch (_e) {
       return '';
+    }
+  };
+
+  const handleShare = async () => {
+    if (!productId) return;
+
+    const url = `${window.location.origin}/product/${productId}${location.search || ''}`;
+    const title = String(product?.name || 'Product');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: title, url });
+        return;
+      }
+    } catch (_e) {
+      // ignore
+    }
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        window.prompt('Copy this link:', url);
+      }
+    } catch (_e) {
+      window.prompt('Copy this link:', url);
     }
   };
 
@@ -222,24 +245,6 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     }
   };
 
-  const handleCompare = async () => {
-    if (isAdding || !productId) return;
-    setIsAdding(true);
-    try {
-      await toggleCompare(productId, {
-        name: product?.name,
-        image: currentImages?.[0],
-        price: currentPrice,
-        brand: product?.brand,
-        sku: currentSku,
-        color: hasColorVariants ? currentVariant?.colorName : selectedSimpleColor,
-        size: selectedSize,
-      });
-    } finally {
-      setTimeout(() => setIsAdding(false), 1000);
-    }
-  };
-
   const handleProductActions = (index) => {
     setProductActionsIndex(index);
   };
@@ -277,7 +282,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             Rs. {product?.originalPrice ?? 999}
           </span>
         )}
-        <span className="newprice text-[18px] md:text-[22px] font-[700] text-red-600">
+        <span className="newprice text-[18px] md:text-[22px] font-[700] text-[#2874F0]">
           Rs. {currentPrice ?? 799}
         </span>
         <span className="text-gray-500 text-[12px] md:text-[14px] cursor-pointer mt-1">
@@ -428,7 +433,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           variant="contained"
           disabled={isAdding || !productId}
           onClick={handleAddToCart}
-          className="!bg-red-600 !text-white !px-6 !py-3 !rounded-md hover:!bg-black transition-all duration-300 flex items-center gap-2"
+          className="!bg-[#FF9F00] !text-gray-900 !px-6 !py-3 !rounded-md hover:!bg-[#fb8c00] transition-all duration-300 flex items-center gap-2"
         >
           <FaCartShopping className="text-[20px]" /> {isAdding ? 'Adding...' : 'Add To Cart'}
         </Button>
@@ -437,7 +442,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           variant="contained"
           disabled={isAdding || !productId}
           onClick={handleBuyNow}
-          className="!bg-black !text-white !px-6 !py-3 !rounded-md hover:!bg-red-600 transition-all duration-300"
+          className="!bg-[#2874F0] !text-white !px-6 !py-3 !rounded-md hover:!bg-[#1f5fc6] transition-all duration-300"
         >
           {isAdding ? 'Please wait...' : 'Buy Now'}
         </Button>
@@ -449,17 +454,18 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           type="button"
           disabled={isAdding || !productId}
           onClick={handleWishlist}
-          className="flex items-center gap-2 text-[13px] md:text-[15px] font-[500] text-gray-700 hover:text-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 text-[13px] md:text-[15px] font-[500] text-gray-700 hover:text-[#2874F0] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FaRegHeart className="text-[16px] md:text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Wishlist'}
         </button>
+
         <button
           type="button"
-          disabled={isAdding || !productId}
-          onClick={handleCompare}
+          disabled={!productId}
+          onClick={handleShare}
           className="flex items-center gap-2 text-[13px] md:text-[15px] font-[500] text-gray-700 hover:text-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <IoIosGitCompare className="text-[16px] md:text-[18px]" /> {isAdding ? 'Adding...' : 'Add to Compare'}
+          <FaShareAlt className="text-[16px] md:text-[18px]" /> Share
         </button>
       </div>
 

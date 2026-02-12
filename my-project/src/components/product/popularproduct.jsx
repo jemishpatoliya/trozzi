@@ -69,30 +69,7 @@ const PopularProducts = () => {
     <section className="py-4 sm:py-8 bg-gray-100">
       <div className="px-3 sm:px-6">
         <div className="text-center">
-          <h2 className="text-[18px] sm:text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">Popular</h2>
-          <p className="text-[13px] sm:text-base text-gray-600 mt-1 max-w-2xl mx-auto">
-              Discover our most loved products. Handpicked favorites that customers can't get enough of.
-          </p>
-        </div>
-
-        {/* Categories (Text-only, centered) */}
-        <div className="-mx-3 sm:mx-0 mt-4">
-          <div className="flex gap-2 px-3 sm:px-0 pb-2 overflow-x-auto scrollbar-hide sm:overflow-visible sm:flex-wrap sm:justify-center">
-            {visibleCategories.map((cat, i) => (
-              <button
-                key={cat.id || i}
-                type="button"
-                onClick={() => setActiveCategoryId(cat.id)}
-                className={
-                  activeCategoryId === cat.id
-                    ? "px-4 py-2 text-[13px] font-semibold whitespace-nowrap rounded-lg bg-orange-500 text-white shadow-sm"
-                    : "px-4 py-2 text-[13px] font-semibold whitespace-nowrap rounded-lg bg-white text-gray-800 border border-gray-200 hover:bg-orange-50"
-                }
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-[16px] sm:text-[22px] md:text-[26px] font-bold text-gray-900 tracking-tight">Popular products</h2>
         </div>
 
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">

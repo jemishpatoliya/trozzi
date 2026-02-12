@@ -53,7 +53,19 @@ async function main() {
     throw new Error("Missing MONGODB_URI env var");
   }
 
-  await connectDb(MONGODB_URI);
+  try {
+    await connectDb(MONGODB_URI);
+  } catch (err: any) {
+    // eslint-disable-next-line no-console
+    console.error('❌ MongoDB connection failed');
+    if (err?.name) console.error('name:', err.name);
+    if (err?.code) console.error('code:', err.code);
+    if (err?.message) console.error('message:', err.message);
+    if (String(err?.message || '').includes('ENOTFOUND')) {
+      console.error('Hint: DNS lookup failed for your MongoDB host. Check MONGODB_URI in your .env and internet/DNS settings.');
+    }
+    throw err;
+  }
   
   // Ensure upload directories exist
   ensureUploadDirectories();

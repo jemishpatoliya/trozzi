@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { FaStar, FaShoppingCart, FaHeart, FaRegHeart, FaTruck, FaShieldAlt, FaUndo, FaCheck } from 'react-icons/fa';
+import { FaStar, FaShoppingCart, FaHeart, FaRegHeart, FaTruck, FaShieldAlt, FaUndo, FaCheck, FaShareAlt } from 'react-icons/fa';
 import { fetchProductDetails, fetchProductReviews, submitProductReview } from '../../api/productDetails';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -69,6 +69,32 @@ const ProductDetail = () => {
             return doc.body.innerHTML;
         } catch (_e) {
             return '';
+        }
+    };
+
+    const handleShare = async () => {
+        if (!productDocId) return;
+
+        const url = `${window.location.origin}${location.pathname}${location.search || ''}`;
+        const title = String(product?.name || 'Product');
+
+        try {
+            if (navigator.share) {
+                await navigator.share({ title, text: title, url });
+                return;
+            }
+        } catch (_e) {
+            // ignore
+        }
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(url);
+            } else {
+                window.prompt('Copy this link:', url);
+            }
+        } catch (_e) {
+            window.prompt('Copy this link:', url);
         }
     };
 
@@ -510,6 +536,13 @@ const ProductDetail = () => {
                                     className="p-3 rounded-lg border border-gray-300 hover:border-red-500 hover:text-red-500 transition-colors"
                                 >
                                     {productDocId && isInWishlist(productDocId) ? <FaHeart /> : <FaRegHeart />}
+                                </button>
+
+                                <button
+                                    onClick={handleShare}
+                                    className="p-3 rounded-lg border border-gray-300 hover:border-gray-400 transition-colors"
+                                >
+                                    <FaShareAlt />
                                 </button>
                             </div>
 

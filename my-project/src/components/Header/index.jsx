@@ -5,15 +5,13 @@ import GlobalSearch from "./GlobalSearch";
 import Badge from "@mui/material/Badge";
 import { styled } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
-import { FiShoppingCart, FiHeart, FiMenu, FiX } from "react-icons/fi";
-import { GoGitCompare } from "react-icons/go";
+import { FiShoppingCart, FiHeart, FiMenu, FiSearch, FiX } from "react-icons/fi";
 import Tooltip from "@mui/material/Tooltip";
 import UserMenu from "./UserMenu";
 import Navigation from "./Navigation";
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useContentSettings } from '../../context/ContentSettingsContext';
-import { fetchCategories } from '../../api/catalog';
 
 import CartDrawer from '../CartPanel/CartDrawer';
 import NotificationBell from './NotificationBell';
@@ -44,7 +42,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const { settings } = useContentSettings();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [mobileCategories, setMobileCategories] = useState([]);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const headerClassName = useMemo(() => {
     const base = "bg-white border-b border-gray-200 sticky top-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
@@ -56,26 +54,6 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const wishlistBadgeCount = settings?.showWishlistCount ? wishlistCount : 0;
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const data = await fetchCategories();
-
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : [];
-        setMobileCategories(list.filter((c) => c && c.name));
-      } catch (_e) {
-        if (!cancelled) setMobileCategories([]);
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!isMobileMenuOpen) return;
 
     const prevOverflow = document.body.style.overflow;
@@ -85,18 +63,16 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
     };
   }, [isMobileMenuOpen]);
 
-  const topMobileCategories = useMemo(() => {
-    return (Array.isArray(mobileCategories) ? mobileCategories : []).filter((c) => !c.parentId);
-  }, [mobileCategories]);
-
-  const routeForCategory = (value) => `/ProductListing?category=${encodeURIComponent(String(value))}`;
-
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
   };
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const toggleMobileSearch = () => {
+    setIsMobileSearchOpen((prev) => !prev);
   };
 
   const mobileMenuNode =
@@ -207,116 +183,92 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
       <div className="header bg-white">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="py-2 md:py-0">
-            <div className="h-10 md:h-16 flex items-center gap-2 md:gap-4 relative">
-              {/* Mobile Menu Button */}
-              <button
-                onClick={toggleMobileMenu}
-                className="md:hidden w-9 h-9 flex items-center justify-center text-[22px] text-gray-800 active:scale-[0.98] transition-transform"
-                type="button"
-                aria-label="Menu"
-              >
-                {isMobileMenuOpen ? <FiX /> : <FiMenu />}
-              </button>
+            <div className="relative">
+              <div className="h-10 md:h-16 flex items-center gap-2 md:gap-4 relative">
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={toggleMobileMenu}
+                  className="md:hidden w-9 h-9 flex items-center justify-center text-[22px] text-gray-800 active:scale-[0.98] transition-transform"
+                  type="button"
+                  aria-label="Menu"
+                >
+                  {isMobileMenuOpen ? <FiX /> : <FiMenu />}
+                </button>
 
-              {/* Brand */}
-              <Link
-                to="/"
-                className="flex items-center flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
-                aria-label="Home"
-              >
-                <span className="font-extrabold tracking-[0.18em] text-[18px] md:text-[22px] text-gray-900">
-                  TROZZI
-                </span>
-              </Link>
+                {/* Brand */}
+                <Link
+                  to="/"
+                  className="flex items-center flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
+                  aria-label="Home"
+                >
+                  <span className="font-extrabold tracking-[0.18em] text-[18px] md:text-[22px] text-gray-900">
+                    TROZZI
+                  </span>
+                </Link>
 
-              {/* Desktop Search */}
-              <div className="hidden md:block flex-1 max-w-2xl mx-4">
-                <GlobalSearch />
-              </div>
-
-              {/* Actions */}
-              <div className="ml-auto flex items-center gap-1 md:gap-2">
-                <div className="hidden md:block">
-                  <UserMenu />
+                {/* Desktop Search */}
+                <div className="hidden md:block absolute left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
+                  <GlobalSearch />
                 </div>
 
-                <div className="hidden md:block">
-                  <NotificationBell />
-                </div>
-
-                <Tooltip title="Cart" arrow>
-                  <IconButton
-                    aria-label="cart"
-                    onClick={toggleCart}
-                    className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
-                  >
-                    <StyledBadge badgeContent={itemCount} color="secondary">
-                      <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
-                    </StyledBadge>
-                  </IconButton>
-                </Tooltip>
-
-                <Tooltip title="Wishlist" arrow>
-                  <Link to="/wishlist" className="hidden md:inline-flex">
+                {/* Actions */}
+                <div className="ml-auto flex items-center gap-1 md:gap-2">
+                  <Tooltip title="Search" arrow>
                     <IconButton
-                      aria-label="wishlist"
+                      aria-label="search"
+                      onClick={toggleMobileSearch}
+                      className="md:hidden !w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
+                    >
+                      {isMobileSearchOpen ? (
+                        <FiX className="text-lg text-gray-700" />
+                      ) : (
+                        <FiSearch className="text-lg text-gray-700" />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+
+                  <div className="hidden md:block">
+                    <UserMenu />
+                  </div>
+
+                  <div className="hidden md:block">
+                    <NotificationBell />
+                  </div>
+
+                  <Tooltip title="Cart" arrow>
+                    <IconButton
+                      aria-label="cart"
+                      onClick={toggleCart}
                       className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
                     >
-                      <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
-                        <FiHeart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                      <StyledBadge badgeContent={itemCount} color="secondary">
+                        <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
                       </StyledBadge>
                     </IconButton>
-                  </Link>
-                </Tooltip>
+                  </Tooltip>
 
-                <Tooltip title="Compare" arrow>
-                  <IconButton
-                    aria-label="compare"
-                    className="hidden lg:inline-flex hover:bg-orange-50 transition-colors rounded-xl"
-                  >
-                    <StyledBadge badgeContent={0} color="secondary">
-                      <GoGitCompare className="text-xl md:text-2xl text-gray-700" />
-                    </StyledBadge>
-                  </IconButton>
-                </Tooltip>
-              </div>
-            </div>
-
-            {/* Mobile Search */}
-            <div className="md:hidden mt-2">
-              <GlobalSearch />
-            </div>
-
-            {/* Mobile Categories */}
-            {topMobileCategories.length > 0 && (
-              <div className="md:hidden mt-2 -mx-3 px-3">
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-                  <Link
-                    to="/"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="shrink-0 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-[13px] font-semibold"
-                  >
-                    Home
-                  </Link>
-                  {topMobileCategories.slice(0, 12).map((cat) => (
-                    <Link
-                      key={String(cat?.id || cat?._id || cat?.name)}
-                      to={routeForCategory(cat?.id || cat?.name)}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="shrink-0 px-3 py-1.5 rounded-full bg-gray-100 text-gray-800 text-[13px] font-semibold"
-                    >
-                      {cat?.name}
+                  <Tooltip title="Wishlist" arrow>
+                    <Link to="/wishlist" className="hidden md:inline-flex">
+                      <IconButton
+                        aria-label="wishlist"
+                        className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
+                      >
+                        <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
+                          <FiHeart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                        </StyledBadge>
+                      </IconButton>
                     </Link>
-                  ))}
+                  </Tooltip>
                 </div>
               </div>
-            )}
 
-            {/* Mobile Offer Strip */}
-            <div className="md:hidden mt-2">
-              <div className="w-full rounded-xl border border-orange-100 bg-orange-50 px-3 py-2 overflow-x-auto scrollbar-hide whitespace-nowrap text-[12px] text-gray-800">
-                <span className="font-semibold">Offer:</span> Free Delivery | Extra discounts on selected items
-              </div>
+              {isMobileSearchOpen ? (
+                <div className="md:hidden absolute left-0 right-0 top-full mt-2 z-[1200]">
+                  <div className="rounded-xl bg-white border border-gray-200 shadow-lg p-2">
+                    <GlobalSearch />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

@@ -120,21 +120,18 @@ const GlobalSearch = () => {
             {/* Search Input */}
             <div className="relative">
                 <form onSubmit={handleSearch}>
-                    <div className={`flex items-center bg-gray-100 rounded-full border border-transparent transition-all duration-200 ${isSearchOpen ? 'ring-2 ring-orange-200 shadow-sm' : 'hover:bg-gray-200/70'}`}>
+                    <div className={`flex items-center bg-white rounded-xl border-2 border-blue-500 transition-all duration-200 ${isSearchOpen ? 'shadow-sm ring-2 ring-blue-100' : ''}`}>
+                        <div className="pl-3 pr-2 text-gray-500">
+                            <IoSearchSharp className="text-[18px]" />
+                        </div>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchOpen(true)}
-                            placeholder="Search for items"
-                            className="flex-1 px-3 sm:px-4 py-2.5 bg-transparent outline-none text-[13px] text-gray-900 placeholder-gray-500"
+                            placeholder="Search for Products, Brands and More"
+                            className="flex-1 pr-3 sm:pr-4 py-2.5 bg-transparent outline-none text-[14px] text-gray-900 placeholder-gray-400"
                         />
-                        <button
-                            type="submit"
-                            className="p-2.5 text-gray-500 hover:text-orange-700 transition-colors"
-                        >
-                            <IoSearchSharp className="text-xl" />
-                        </button>
                         {searchQuery && (
                             <button
                                 type="button"
@@ -173,6 +170,8 @@ const GlobalSearch = () => {
                                         <img
                                             src={product.image || FALLBACK_IMAGE}
                                             alt={product.name}
+                                            width={48}
+                                            height={48}
                                             className="w-12 h-12 object-cover rounded-lg mr-3 border border-border-200 dark:border-border-700"
                                             onError={(e) => {
                                                 e.currentTarget.onerror = null;

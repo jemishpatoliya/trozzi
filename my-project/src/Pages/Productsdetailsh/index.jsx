@@ -214,14 +214,11 @@ const Productsdetailsh = () => {
         <>
             <div className="py-3 sm:py-5 pb-0">
                 <div className="container">
-                    <Breadcrumbs aria-label="breadcrumb">
-                        <Link underline="hover" color="inherit" href="/" className="link transition">
+                    <Breadcrumbs aria-label="breadcrumb" className="text-[12px] sm:text-[13px] text-gray-600">
+                        <Link underline="hover" color="inherit" href="/" className="link transition text-[12px] sm:text-[13px]">
                             Home
                         </Link>
-                        <Link underline="hover" color="inherit" href="/ProductListing" className="link transition">
-                            {product?.category || 'Products'}
-                        </Link>
-                        <Link underline="hover" color="inherit" className="link transition">
+                        <Link underline="hover" color="inherit" className="link transition text-[12px] sm:text-[13px]">
                             {product?.name || 'Product Details'}
                         </Link>
                     </Breadcrumbs>
