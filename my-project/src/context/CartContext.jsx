@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
@@ -21,17 +21,17 @@ export const CartProvider = ({ children }) => {
     const [itemCount, setItemCount] = useState(0);
     const [isHydrated, setIsHydrated] = useState(false);
 
-    const getUserId = () => {
+    const getUserId = useCallback(() => {
         const uid = user?._id || user?.id || user?.userId;
         return uid ? String(uid) : '';
-    };
+    }, [user]);
 
-    const getCartStorageKey = () => {
+    const getCartStorageKey = useCallback(() => {
         const uid = getUserId();
         return uid ? `classyshop_cart_${uid}` : 'classyshop_cart_guest';
-    };
+    }, [getUserId]);
 
-    const roundMoney = (v) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
+    const roundMoney = useCallback((v) => Math.round((Number(v ?? 0) || 0) * 100) / 100, []);
 
     const getComparableId = (item) => item?.product?._id || item?.product || item?._id;
 
@@ -45,15 +45,15 @@ export const CartProvider = ({ children }) => {
         );
     };
 
-    const calculateTotalAmount = (cartItems) => {
+    const calculateTotalAmount = useCallback((cartItems) => {
         return roundMoney(cartItems.reduce((sum, item) => {
             const qty = Number(item?.quantity ?? 0) || 0;
             const price = Number(item?.price ?? item?.product?.price ?? 0) || 0;
             return sum + (price * qty);
         }, 0));
-    };
+    }, [roundMoney]);
 
-    const loadCartFromStorage = () => {
+    const loadCartFromStorage = useCallback(() => {
         try {
             const key = getCartStorageKey();
 
@@ -77,15 +77,15 @@ export const CartProvider = ({ children }) => {
         } catch (e) {
             console.warn('Failed to load cart from localStorage', e);
         }
-    };
+    }, [getCartStorageKey]);
 
-    const saveCartToStorage = (itemsToSave, amountToSave) => {
+    const saveCartToStorage = useCallback((itemsToSave, amountToSave) => {
         try {
             localStorage.setItem(getCartStorageKey(), JSON.stringify({ items: itemsToSave, totalAmount: amountToSave }));
         } catch (e) {
             console.warn('Failed to save cart to localStorage', e);
         }
-    };
+    }, [getCartStorageKey]);
 
     useEffect(() => {
         const count = items.reduce((total, item) => total + (item.quantity || 0), 0);
@@ -95,9 +95,9 @@ export const CartProvider = ({ children }) => {
     useEffect(() => {
         if (!isHydrated) return;
         saveCartToStorage(items, totalAmount);
-    }, [items, totalAmount, isHydrated]);
+    }, [items, totalAmount, isHydrated, saveCartToStorage]);
 
-    const fetchCart = async () => {
+    const fetchCart = useCallback(async () => {
         try {
             setLoading(true);
             const response = await apiClient.get('/cart');
@@ -145,7 +145,7 @@ export const CartProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [calculateTotalAmount, getCartStorageKey, loadCartFromStorage]);
 
     // Add item to cart (with localStorage fallback)
     // Signature supports both:
@@ -217,11 +217,6 @@ export const CartProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
-
-    // Helper to calculate total amount
-    const newTotalAmount = (cartItems) => {
-        return cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
     };
 
     // Update cart item quantity (with localStorage fallback)
@@ -320,7 +315,7 @@ export const CartProvider = ({ children }) => {
         if (token) {
             fetchCart();
         }
-    }, [user]);
+    }, [user, fetchCart, loadCartFromStorage]);
 
     const value = {
         items,

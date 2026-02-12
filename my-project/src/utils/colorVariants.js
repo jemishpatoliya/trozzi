@@ -87,26 +87,6 @@ const normalizeVariant = (variant, product) => {
   };
 };
 
-const buildVariantsFromColorsAndImages = (colors, defaultImages, product) => {
-  return colors.map((colorNameRaw) => {
-    const colorName = String(colorNameRaw || '').trim();
-    const needle = normalizeToken(colorName);
-    const matched = needle
-      ? defaultImages.filter((img) => normalizeToken(img).includes(needle))
-      : [];
-
-    return {
-      color: normalizeColorKey(colorName) || colorName,
-      colorName: colorName,
-      colorCode: colorNameToHex(colorName),
-      images: matched.length > 0 ? matched : [],
-      sku: product?.sku,
-      price: product?.price,
-      stock: product?.stock,
-    };
-  });
-};
-
 export const buildColorVariantsFromProduct = (product) => {
   const existingVariantsRaw = Array.isArray(product?.colorVariants) ? product.colorVariants : [];
   const existingVariants = existingVariantsRaw.map((v) => normalizeVariant(v, product));

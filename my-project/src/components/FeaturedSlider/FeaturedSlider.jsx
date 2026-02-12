@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import ProductCard from "../product/ProductCard";
-import ProductSlider from "../product/productslider";
 
 import { fetchProducts } from "../../api/catalog";
 
@@ -43,11 +42,7 @@ const FeaturedSlider = () => {
       <div className="">
         <h2 className="text-[16px] sm:text-[22px] md:text-[26px] font-bold text-gray-900 mb-1.5 sm:mb-4 text-center">Featured Products</h2>
 
-        <div className="md:hidden">
-          <ProductSlider products={items} />
-        </div>
-
-        <div className="hidden md:grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-4 lg:gap-6">
           {items.map((item) => (
             <ProductCard key={item.id || item._id} product={item} />
           ))}

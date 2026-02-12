@@ -12,7 +12,7 @@ const WishlistPage = () => {
 
     useEffect(() => {
         fetchWishlist();
-    }, []);
+    }, [fetchWishlist]);
 
     const handleAddToCart = async (productId) => {
         try {

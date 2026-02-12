@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
-import Qtybox from '../QtyBox';
 import Rating from '@mui/material/Rating';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -16,7 +15,6 @@ import { normalizeColorKey, normalizeToken } from '../../utils/colorVariants';
 import { fetchSizeGuide } from '../../api/sizeGuides';
 
 const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect, useVariantImages = true }) => {
-  const [productActionsIndex, setProductActionsIndex] = useState(false);
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || 'M');
   const [selectedSimpleColor, setSelectedSimpleColor] = useState(product?.colors?.[0] || '');
   const [quantity, setQuantity] = useState(1);
@@ -84,32 +82,6 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
 
   const { addToCart } = useCart();
   const { toggleWishlist } = useWishlist();
-
-  const sanitizeHtml = (input) => {
-    const html = String(input ?? '').trim();
-    if (!html) return '';
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-      doc.querySelectorAll('script,style,iframe,object,embed').forEach((el) => el.remove());
-      doc.querySelectorAll('*').forEach((el) => {
-        [...el.attributes].forEach((attr) => {
-          const name = String(attr.name || '').toLowerCase();
-          const value = String(attr.value || '');
-          if (name.startsWith('on')) {
-            el.removeAttribute(attr.name);
-            return;
-          }
-          if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(value)) {
-            el.removeAttribute(attr.name);
-          }
-        });
-      });
-      return doc.body.innerHTML;
-    } catch (_e) {
-      return '';
-    }
-  };
 
   const handleShare = async () => {
     if (!productId) return;
@@ -243,10 +215,6 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     } finally {
       setTimeout(() => setIsAdding(false), 1000);
     }
-  };
-
-  const handleProductActions = (index) => {
-    setProductActionsIndex(index);
   };
 
   return (

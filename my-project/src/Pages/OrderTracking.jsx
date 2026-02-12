@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FiPackage, FiTruck, FiCheck, FiClock, FiMapPin, FiCreditCard, FiCalendar, FiUser, FiArrowRight } from 'react-icons/fi';
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ const OrderTracking = () => {
     const { user } = useAuth();
     const location = useLocation();
     const [orders, setOrders] = useState([]);
+    const ordersRef = useRef([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [shipmentTimeline, setShipmentTimeline] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -78,6 +79,7 @@ const OrderTracking = () => {
 
                 if (!cancelled) {
                     setOrders(data);
+                    ordersRef.current = data;
                     setCounts((prev) => ({ ...prev, ...computeCountsFromOrders(data) }));
                 }
             } catch (e) {
@@ -85,6 +87,7 @@ const OrderTracking = () => {
                 if (!cancelled) {
                     setError(message);
                     setOrders([]);
+                    ordersRef.current = [];
                     setCounts((prev) => ({ ...prev, ...computeCountsFromOrders([]) }));
                 }
             } finally {
@@ -116,19 +119,22 @@ const OrderTracking = () => {
                 }
             } catch (_e) {
                 if (!cancelled) {
-                    // keep existing counts if stats endpoint fails
+                    setCounts((prev) => ({ ...prev, ...computeCountsFromOrders(ordersRef.current) }));
                 }
             }
         };
 
         const token = localStorage.getItem('token');
-        const socketUrl = process.env.REACT_APP_SOCKET_URL || (String(window.location.port) === '3000'
-            ? `${window.location.protocol}//${window.location.hostname}:5051`
-            : window.location.origin);
+        const socketUrl = process.env.REACT_APP_SOCKET_URL || window.location.origin;
 
         const socket = io(socketUrl, {
             auth: token ? { token } : {},
-            transports: ['websocket'],
+            path: '/socket.io',
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 800,
+            timeout: 8000,
         });
 
         socket.on('order:status_changed', (evt) => {
@@ -138,6 +144,7 @@ const OrderTracking = () => {
 
             setOrders((prev) => {
                 const next = prev.map((o) => (String(o?.id) === id ? { ...o, status } : o));
+                ordersRef.current = next;
                 setCounts((c) => ({ ...c, ...computeCountsFromOrders(next) }));
                 return next;
             });
@@ -165,13 +172,20 @@ const OrderTracking = () => {
             });
         });
 
-        socket.on('connect', () => console.log('User Socket.IO connected'));
+        socket.on('connect', () => {
+            // connected
+        });
+
+        socket.on('connect_error', (_err) => {
+            // ignore noisy connection errors in UI
+        });
 
         loadOrders();
         loadCounts();
 
         return () => {
             cancelled = true;
+            socket.off('connect_error');
             socket.disconnect();
         };
     }, [user]);

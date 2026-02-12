@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useContentSettings } from '../../context/ContentSettingsContext';
 import { FaUser, FaShoppingCart, FaHeart, FaSignOutAlt } from 'react-icons/fa';
 
-const UserMenu = () => {
+const UserMenu = ({ onNavigate }) => {
     const { user, logout } = useAuth();
     const { settings } = useContentSettings();
     const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +14,7 @@ const UserMenu = () => {
         logout();
         navigate('/');
         setIsOpen(false);
+        onNavigate?.();
     };
 
     if (!user) {
@@ -50,16 +51,22 @@ const UserMenu = () => {
                     <Link
                         to="/profile"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsOpen(false)}
+                        onClick={() => {
+                            setIsOpen(false);
+                            onNavigate?.();
+                        }}
                     >
                         <FaUser className="mr-2 h-4 w-4" />
                         My Profile
                     </Link>
-                    {settings?.showOrderHistory ? (
+                    {settings?.showOrderHistory !== false ? (
                         <Link
                             to="/orders"
                             className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => setIsOpen(false)}
+                            onClick={() => {
+                                setIsOpen(false);
+                                onNavigate?.();
+                            }}
                         >
                             <FaShoppingCart className="mr-2 h-4 w-4" />
                             My Orders
@@ -68,7 +75,10 @@ const UserMenu = () => {
                     <Link
                         to="/wishlist"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => setIsOpen(false)}
+                        onClick={() => {
+                            setIsOpen(false);
+                            onNavigate?.();
+                        }}
                     >
                         <FaHeart className="mr-2 h-4 w-4" />
                         Wishlist

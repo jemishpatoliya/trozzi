@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-    FaHome,
     FaBox,
     FaShoppingCart,
     FaUsers,
@@ -10,12 +9,7 @@ import {
     FaCog,
     FaSignOutAlt,
     FaBars,
-    FaTachometerAlt,
-    FaClipboardList,
-    FaComments,
-    FaQuestionCircle,
-    FaChevronDown,
-    FaChevronRight
+    FaTachometerAlt
 } from 'react-icons/fa';
 import { getReviewStats } from '../../api/adminReviews';
 
@@ -31,11 +25,7 @@ const AdminSidebar = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const location = useLocation();
 
-    useEffect(() => {
-        loadReviewStats();
-    }, []);
-
-    const loadReviewStats = async () => {
+    const loadReviewStats = useCallback(async () => {
         try {
             setLoading(true);
             const stats = await getReviewStats();
@@ -45,7 +35,11 @@ const AdminSidebar = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadReviewStats();
+    }, [loadReviewStats]);
 
     const menuItems = [
         {

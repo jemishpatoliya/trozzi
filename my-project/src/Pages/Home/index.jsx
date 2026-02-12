@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FaGem, FaTshirt, FaUtensils } from 'react-icons/fa'
 import Homeslider from '../../components/Homeslider'
@@ -7,16 +7,58 @@ import PopularProducts from '../../components/product/popularproduct'
 import LatestProducts from '../../components/Latestproduct/latestproduct'
 import FeaturedSlider from '../../components/FeaturedSlider/FeaturedSlider'
 import AdBannerSection from '../../components/aBanner/Banner'
-import WellnessSection from '../../components/welness/welness'
+import { fetchCategories } from '../../api/catalog'
 
 
 // Main Home component
 const Home = () => {
-  const categories = [
-    { name: 'Kitchen', icon: FaUtensils, color: 'border-blue-600', bg: 'bg-blue-50', to: '/ProductListing?category=Kitchen' },
-    { name: 'Jewellery', icon: FaGem, color: 'border-purple-600', bg: 'bg-purple-50', to: '/ProductListing?category=Jewellery' },
-    { name: 'Fashion', icon: FaTshirt, color: 'border-pink-600', bg: 'bg-pink-50', to: '/ProductListing?category=Fashion' },
-  ]
+  const [apiCategories, setApiCategories] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      try {
+        const data = await fetchCategories()
+        if (cancelled) return
+        setApiCategories(Array.isArray(data) ? data : [])
+      } catch (_e) {
+        if (!cancelled) setApiCategories([])
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const resolveCategoryToParam = useMemo(() => {
+    const list = Array.isArray(apiCategories) ? apiCategories : []
+    return (name) => {
+      const raw = String(name || '').trim()
+      if (!raw) return ''
+      const rawLower = raw.toLowerCase()
+      const match = list.find((c) => {
+        const n = String(c?.name || c?.title || '').trim().toLowerCase()
+        const slug = String(c?.slug || '').trim().toLowerCase()
+        return (n && n === rawLower) || (slug && slug === rawLower)
+      })
+      return String(match?.id || match?._id || raw)
+    }
+  }, [apiCategories])
+
+  const categories = useMemo(() => {
+    const buildTo = (name) => {
+      const param = resolveCategoryToParam(name)
+      return param ? `/ProductListing?category=${encodeURIComponent(param)}` : '/ProductListing'
+    }
+
+    return [
+      { name: 'Kitchen', icon: FaUtensils, color: 'border-blue-600', bg: 'bg-blue-50', to: buildTo('Kitchen') },
+      { name: 'Jewellery', icon: FaGem, color: 'border-purple-600', bg: 'bg-purple-50', to: buildTo('Jewellery') },
+      { name: 'Fashion', icon: FaTshirt, color: 'border-pink-600', bg: 'bg-pink-50', to: buildTo('Fashion') },
+    ]
+  }, [resolveCategoryToParam])
 
   return (
     <div className="home-page bg-[#f7f7f7]">
@@ -70,7 +112,6 @@ const Home = () => {
 
       {/* Content Sections */}
       <section className="content-sections">
-        <WellnessSection />
       </section>
     </div>
   )

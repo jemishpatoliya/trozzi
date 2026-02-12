@@ -1,10 +1,20 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FaFacebook, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa';
 
 const Footer = () => {
+    const location = useLocation();
+    const pathname = String(location?.pathname || '');
+    const hideOnMobile = (
+        pathname.startsWith('/product/') ||
+        pathname === '/cart' ||
+        pathname === '/checkout' ||
+        pathname === '/payment' ||
+        pathname === '/summary' ||
+        pathname.startsWith('/ProductListing')
+    );
     return (
-        <footer className="bg-slate-950 text-slate-200">
+        <footer className={`${hideOnMobile ? 'hidden md:block' : ''} bg-slate-950 text-slate-200`}>
             <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-14">
                 <div className="grid grid-cols-1 gap-10 sm:gap-12 md:grid-cols-3">
                     {/* Company Info */}

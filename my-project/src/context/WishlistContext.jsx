@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../api/client';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
@@ -19,18 +19,17 @@ export const WishlistProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [itemCount, setItemCount] = useState(0);
 
-    const getUserId = () => {
+    const userId = useMemo(() => {
         const uid = user?._id || user?.id || user?.userId;
         return uid ? String(uid) : '';
-    };
+    }, [user?._id, user?.id, user?.userId]);
 
-    const getWishlistStorageKey = () => {
-        const uid = getUserId();
-        return uid ? `classyshop_wishlist_${uid}` : 'classyshop_wishlist_guest';
-    };
+    const getWishlistStorageKey = useCallback(() => {
+        return userId ? `classyshop_wishlist_${userId}` : 'classyshop_wishlist_guest';
+    }, [userId]);
 
     // Load wishlist from localStorage on mount
-    const loadWishlistFromStorage = () => {
+    const loadWishlistFromStorage = useCallback(() => {
         try {
             const key = getWishlistStorageKey();
 
@@ -53,16 +52,16 @@ export const WishlistProvider = ({ children }) => {
         } catch (e) {
             console.warn('Failed to load wishlist from localStorage', e);
         }
-    };
+    }, [getWishlistStorageKey]);
 
     // Save wishlist to localStorage
-    const saveWishlistToStorage = (items) => {
+    const saveWishlistToStorage = useCallback((items) => {
         try {
             localStorage.setItem(getWishlistStorageKey(), JSON.stringify({ items }));
         } catch (e) {
             console.warn('Failed to save wishlist to localStorage', e);
         }
-    };
+    }, [getWishlistStorageKey]);
 
     // Calculate item count whenever items change
     useEffect(() => {
@@ -72,10 +71,10 @@ export const WishlistProvider = ({ children }) => {
     // Sync to localStorage whenever items change
     useEffect(() => {
         saveWishlistToStorage(items);
-    }, [items]);
+    }, [items, saveWishlistToStorage]);
 
     // Fetch wishlist from server
-    const fetchWishlist = async () => {
+    const fetchWishlist = useCallback(async () => {
         try {
             setLoading(true);
             const response = await apiClient.get('/wishlist');
@@ -87,7 +86,7 @@ export const WishlistProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [loadWishlistFromStorage]);
 
     // Add item to wishlist (with localStorage fallback)
     // Signature supports both:
@@ -204,7 +203,7 @@ export const WishlistProvider = ({ children }) => {
         if (token) {
             fetchWishlist();
         }
-    }, [user]);
+    }, [user, fetchWishlist, loadWishlistFromStorage]);
 
     const value = {
         items,

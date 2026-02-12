@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
-            const response = await apiClient.post('/auth/register', userData);
+            await apiClient.post('/auth/register', userData);
             
             console.log('✅ Registration successful, redirecting to login...');
             

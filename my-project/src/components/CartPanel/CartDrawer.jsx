@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { Drawer, Button, IconButton, Typography, Box, Divider } from '@mui/material';
 import { MdDelete, MdClose } from 'react-icons/md';
 import { useCart } from '../../context/CartContext';
@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const CartDrawer = ({ open, onClose }) => {
-    const { items, totalAmount, removeFromCart, updateQuantity, clearCart, loading } = useCart();
+    const { items, removeFromCart, updateQuantity, loading } = useCart();
     const navigate = useNavigate();
 
     const roundMoney = (v) => Math.round((Number(v ?? 0) || 0) * 100) / 100;

@@ -35,8 +35,13 @@ const Homeslider = () => {
             {items.map((b) => (
               <SwiperSlide key={b.id}>
                 <div className='item rounded-2xl overflow-hidden'>
-                  <div className='w-full aspect-[16/9] sm:aspect-[16/6] bg-gray-100'>
-                    <img src={b.imageUrl} alt='Banner silder' className='w-full h-full object-cover' />
+                  <div className='w-full aspect-[16/9] sm:aspect-[16/6] bg-gray-100 relative'>
+                    <div
+                      className='absolute inset-0 sm:hidden bg-center bg-no-repeat bg-cover blur-md scale-110'
+                      style={{ backgroundImage: `url(${b.imageUrl})` }}
+                      aria-hidden="true"
+                    />
+                    <img src={b.imageUrl} alt='Banner silder' className='relative z-10 w-full h-full object-contain sm:object-cover' />
                   </div>
                 </div>
               </SwiperSlide>

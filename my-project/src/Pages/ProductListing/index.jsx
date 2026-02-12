@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Breadcrumbs from "@mui/material/Breadcrumbs";
@@ -15,7 +15,7 @@ const ProductListing = () => {
     const [limit] = useState(12);
     const [category, setCategory] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
-    const [sortBy, setSortBy] = useState("relevance");
+    const [sortBy] = useState("relevance");
     const [priceRange, setPriceRange] = useState([0, 10000]);
 
     const [selectedFilters, setSelectedFilters] = useState({
@@ -29,7 +29,26 @@ const ProductListing = () => {
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
+
+    const resolvedCategory = useMemo(() => {
+        const raw = String(category || '').trim();
+        if (!raw) return '';
+
+        const rawLower = raw.toLowerCase();
+        const list = Array.isArray(categories) ? categories : [];
+
+        const match = list.find((c) => {
+            if (!c || typeof c !== 'object') return false;
+            const id = String(c.id || c._id || '').trim();
+            if (id && id === raw) return true;
+
+            const name = String(c.name || c.title || '').trim().toLowerCase();
+            const slug = String(c.slug || '').trim().toLowerCase();
+            return (name && name === rawLower) || (slug && slug === rawLower);
+        });
+
+        return match ? String(match.id || match._id || raw) : raw;
+    }, [category, categories]);
 
     useEffect(() => {
         const urlCategory = searchParams.get("category") || "";
@@ -74,6 +93,51 @@ const ProductListing = () => {
             .filter(Boolean);
     }, [selectedFilters.sizes]);
 
+    const handleFiltersChange = useCallback((sidebarFilters) => {
+        const nextAvailability = sidebarFilters.availability || 'all';
+        const nextSizes = sidebarFilters.sizes || [];
+        const nextRating = sidebarFilters.rating || 0;
+        const nextPriceRange = sidebarFilters.priceRange;
+
+        setSelectedFilters((prev) => {
+            const prevAvailability = prev.availability || 'all';
+            const prevSizes = Array.isArray(prev.sizes) ? prev.sizes : [];
+            const prevRating = prev.rating || 0;
+
+            const sameAvailability = prevAvailability === nextAvailability;
+            const sameRating = Number(prevRating) === Number(nextRating);
+            const sameSizes = prevSizes.length === nextSizes.length && prevSizes.every((s, idx) => s === nextSizes[idx]);
+
+            if (sameAvailability && sameRating && sameSizes) return prev;
+
+            return {
+                ...prev,
+                availability: nextAvailability,
+                sizes: nextSizes,
+                rating: nextRating,
+            };
+        });
+
+        if (Array.isArray(nextPriceRange) && nextPriceRange.length === 2) {
+            setPriceRange((prev) => {
+                if (!Array.isArray(prev) || prev.length !== 2) return nextPriceRange;
+                if (Number(prev[0]) === Number(nextPriceRange[0]) && Number(prev[1]) === Number(nextPriceRange[1])) return prev;
+                return nextPriceRange;
+            });
+        }
+
+        setPage(1);
+    }, []);
+
+    const sidebarInitialFilters = useMemo(() => {
+        return {
+            availability: selectedFilters.availability || 'all',
+            sizes: selectedFilters.sizes,
+            priceRange: priceRange,
+            rating: selectedFilters.rating,
+        };
+    }, [priceRange, selectedFilters.availability, selectedFilters.rating, selectedFilters.sizes]);
+
     useEffect(() => {
         let cancelled = false;
         const run = async () => {
@@ -90,7 +154,7 @@ const ProductListing = () => {
                     mode: "public",
                     page,
                     limit,
-                    category: category || undefined,
+                    category: resolvedCategory || undefined,
                     q: searchQuery || undefined,
                     sort: sortBy && sortBy !== "relevance" ? sortBy : undefined,
                     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
@@ -104,12 +168,10 @@ const ProductListing = () => {
                 const list = Array.isArray(data) ? data : (data?.items || []);
                 setItems(Array.isArray(list) ? list : []);
                 setTotalPages(Number(data?.totalPages) > 0 ? Number(data.totalPages) : 1);
-                setTotalItems(Number(data?.totalItems ?? data?.total ?? 0) || 0);
             } catch {
                 if (!cancelled) {
                     setItems([]);
                     setTotalPages(1);
-                    setTotalItems(0);
                     setError("Failed to load products");
                 }
             } finally {
@@ -121,12 +183,12 @@ const ProductListing = () => {
         return () => {
             cancelled = true;
         };
-    }, [category, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
+    }, [resolvedCategory, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
 
     return (
-        <section className="py-3 sm:py-5 bg-gray-50 min-h-screen">
-            <div className="container mx-auto px-3 sm:px-4">
-                <Breadcrumbs aria-label="breadcrumb" className="mb-4">
+        <section className="py-2 sm:py-5 bg-gray-50 min-h-screen">
+            <div className="container mx-auto px-2 sm:px-4">
+                <Breadcrumbs aria-label="breadcrumb" className="hidden sm:flex mb-4">
                     <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
                         Home
                     </Link>
@@ -136,8 +198,9 @@ const ProductListing = () => {
                 </Breadcrumbs>
             </div>
 
-            <div className="container mx-auto px-3 sm:px-4">
+            <div className="container mx-auto px-2 sm:px-4">
                 <div className="flex gap-6">
+
                     <div className="hidden lg:block w-64 flex-shrink-0">
                         <div className="bg-white rounded-lg shadow-sm p-4 sticky" style={{ top: 'calc(var(--app-header-height, 0px) + 1rem)' }}>
                             <Sidebar
@@ -145,28 +208,15 @@ const ProductListing = () => {
                                 categories={categories}
                                 onChangeCategory={(next) => {
                                     setCategory(next);
+
                                     setPage(1);
                                     const nextParams = new URLSearchParams(searchParams);
                                     if (next) nextParams.set("category", next);
                                     else nextParams.delete("category");
                                     setSearchParams(nextParams, { replace: true });
                                 }}
-                                onFiltersChange={(sidebarFilters) => {
-                                    setSelectedFilters((prev) => ({
-                                        ...prev,
-                                        availability: sidebarFilters.availability || 'all',
-                                        sizes: sidebarFilters.sizes || [],
-                                        rating: sidebarFilters.rating || 0,
-                                    }));
-                                    if (sidebarFilters.priceRange) setPriceRange(sidebarFilters.priceRange);
-                                    setPage(1);
-                                }}
-                                initialFilters={{
-                                    availability: selectedFilters.availability || 'all',
-                                    sizes: selectedFilters.sizes,
-                                    priceRange: priceRange,
-                                    rating: selectedFilters.rating,
-                                }}
+                                onFiltersChange={handleFiltersChange}
+                                initialFilters={sidebarInitialFilters}
                             />
                         </div>
                     </div>
@@ -186,7 +236,7 @@ const ProductListing = () => {
                                 <p className="text-gray-500 text-[13px] sm:text-sm mt-2">Try adjusting your filters</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4">
                                 {items.map((product) => (
                                     <ProductCard key={product.id || product._id} product={product} view="grid" />
                                 ))}

@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaStar, FaChartBar, FaChartLine, FaUsers, FaShoppingCart, FaBox, FaComments, FaQuestionCircle, FaEye, FaEdit, FaTrash, FaDownload, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaArrowUp, FaArrowDown, FaMinus } from 'react-icons/fa';
-import { getReviewStats, fetchAllReviews } from '../../api/adminReviews';
+import { FaStar, FaChartBar, FaChartLine, FaUsers, FaShoppingCart, FaBox, FaComments, FaEye, FaTrash, FaExclamationTriangle, FaInfoCircle, FaCheckCircle, FaArrowUp, FaArrowDown, FaMinus } from 'react-icons/fa';
 import { fetchCompleteDashboard } from '../../api/adminDashboard';
-import { fetchProducts } from '../../api/catalog';
 import AdminSidebar from '../../components/AdminSidebar';
 
 const AdminDashboard = () => {
@@ -45,11 +43,10 @@ const AdminDashboard = () => {
     });
     const [loading, setLoading] = useState(true);
     const [recentReviews, setRecentReviews] = useState([]);
-    const [products, setProducts] = useState([]);
     const [error, setError] = useState('');
     const [selectedPeriod, setSelectedPeriod] = useState('today');
 
-    const loadDashboardData = async () => {
+    const loadDashboardData = useCallback(async () => {
         try {
             setLoading(true);
             setError('');
@@ -109,11 +106,11 @@ const AdminDashboard = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedPeriod]);
 
     useEffect(() => {
         loadDashboardData();
-    }, [selectedPeriod]);
+    }, [loadDashboardData]);
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -416,7 +413,7 @@ const AdminDashboard = () => {
                         </Link>
                     </div>
 
-                    {(dashboardData.topProducts.length === 0 && products.length === 0) ? (
+                    {dashboardData.topProducts.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                             <FaBox className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                             <p>No products available</p>
@@ -433,7 +430,7 @@ const AdminDashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(dashboardData.topProducts.length > 0 ? dashboardData.topProducts : products.slice(0, 5)).map((product, index) => (
+                                    {dashboardData.topProducts.map((product, index) => (
                                         <tr key={product.productId || product._id} className="border-b border-gray-100 hover:bg-gray-50">
                                             <td className="py-3 px-4">
                                                 <div className="flex items-center gap-3">

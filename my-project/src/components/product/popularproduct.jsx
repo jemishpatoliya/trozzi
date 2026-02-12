@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ProductCard from "./ProductCard";
 
 import { fetchCategories, fetchProducts } from "../../api/catalog";
 
 const PopularProducts = () => {
   const [activeCategoryId, setActiveCategoryId] = useState("");
-  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
 
   useEffect(() => {
@@ -21,13 +20,11 @@ const PopularProducts = () => {
           .filter((c) => !c.parentId)
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-        setCategories(top);
         if (top.length > 0) {
           setActiveCategoryId((prev) => prev || top[0].id);
         }
       } catch (e) {
         if (cancelled) return;
-        setCategories([]);
       }
     }
 
@@ -59,12 +56,6 @@ const PopularProducts = () => {
     };
   }, [activeCategoryId]);
 
-  const visibleCategories = useMemo(() =>
-    categories
-      .map((c) => ({ id: c.id, name: c.name }))
-      .filter((cat) => !['Footwear', 'Electronics', 'Bags'].includes(cat.name))
-  , [categories]);
-
   return (
     <section className="py-4 sm:py-8 bg-gray-100">
       <div className="px-3 sm:px-6">
@@ -72,7 +63,7 @@ const PopularProducts = () => {
           <h2 className="text-[16px] sm:text-[22px] md:text-[26px] font-bold text-gray-900 tracking-tight">Popular products</h2>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
           {products.map((product) => (
             <ProductCard key={product.id || product._id} product={product} />
           ))}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import './Style.css'
@@ -8,7 +8,6 @@ import Button from '@mui/material/Button';
 import { FaAngleUp } from "react-icons/fa6";
 import RangeSlider from 'react-range-slider-input';
 import 'react-range-slider-input/dist/style.css';
-import Rating from '@mui/material/Rating';
 
 const Sidebar = ({
   selectedCategory = "",
@@ -20,7 +19,6 @@ const Sidebar = ({
   const [isOpenAvailfilter, setIsOpenAvailfilter] = useState(true);
   const [isOpenSizefilter, setIsOpenSizefilter] = useState(true);
   const [isOpenPricefilter, setIsOpenPricefilter] = useState(true);
-  const [isOpenRatingfilter, setIsOpenRatingfilter] = useState(true);
 
   // Filter states
   const [availability, setAvailability] = useState(initialFilters.availability || 'all');
@@ -28,9 +26,15 @@ const Sidebar = ({
   const [priceRange, setPriceRange] = useState(initialFilters.priceRange || [100, 5000]);
   const [rating, setRating] = useState(initialFilters.rating || 0);
 
+  const onFiltersChangeRef = useRef(onFiltersChange);
+
+  useEffect(() => {
+    onFiltersChangeRef.current = onFiltersChange;
+  }, [onFiltersChange]);
+
   // Notify parent of filter changes
   useEffect(() => {
-    onFiltersChange?.({
+    onFiltersChangeRef.current?.({
       availability,
       sizes: selectedSizes,
       priceRange,
@@ -52,10 +56,6 @@ const Sidebar = ({
 
   const handlePriceChange = (values) => {
     setPriceRange(values);
-  };
-
-  const handleRatingChange = (value) => {
-    setRating(value === rating ? 0 : value); // Toggle rating
   };
 
   const clearAllFilters = () => {

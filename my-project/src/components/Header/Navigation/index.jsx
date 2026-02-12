@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '@mui/material/Button';
 import { IoRocketSharp } from "react-icons/io5";
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { fetchCategories } from '../../../api/catalog';
 import './style.css';
 
@@ -36,7 +36,10 @@ const Navigation = () => {
     const map = new Map();
     categories.forEach((c) => {
       if (!c || !c.parentId) return;
-      const key = String(c.parentId);
+      const parentKey = c.parentId && typeof c.parentId === 'object'
+        ? (c.parentId.id || c.parentId._id)
+        : c.parentId;
+      const key = String(parentKey);
       const prev = map.get(key) || [];
       prev.push(c);
       map.set(key, prev);
@@ -63,6 +66,11 @@ const Navigation = () => {
 
   const routeForCategory = (value) => `/ProductListing?category=${encodeURIComponent(String(value))}`;
 
+  const tabLinkClass = ({ isActive }) => (
+    `link transition font-bold text-text-900 dark:text-text-100 hover:text-primary-600 dark:hover:text-primary-400 text-sm py-2 px-3 rounded-lg hover:bg-primary-50 dark:hover:bg-surface-800 ` +
+    (isActive ? 'text-primary-600 border-b-2 border-primary-600 rounded-b-none' : 'border-b-2 border-transparent')
+  );
+
   return (
     <>
       <nav className='py-3'>
@@ -74,32 +82,29 @@ const Navigation = () => {
               {topCategories.length > 0 ? (
                 <>
                   <li key="Home" className='list-none relative group'>
-                    <Link to="/">
-                      <button className='link transition font-bold text-text-900 dark:text-text-100 hover:text-primary-600 dark:hover:text-primary-400 text-sm py-2 px-3 rounded-lg hover:bg-primary-50 dark:hover:bg-surface-800'>
-                        Home
-                      </button>
-                    </Link>
+                    <NavLink to="/" className={tabLinkClass}>
+                      Home
+                    </NavLink>
                   </li>
                   {topCategories.map((cat) => {
-                    const children = childrenByParent.get(String(cat.id)) || [];
+                    const catKey = String(cat.id || cat._id || cat.name);
+                    const children = childrenByParent.get(catKey) || [];
                     return (
-                      <li key={cat.id || cat.name} className='list-none relative group'>
-                        <Link to={routeForCategory(cat.id || cat.name)}>
-                          <button className='link transition font-bold text-text-900 dark:text-text-100 hover:text-primary-600 dark:hover:text-primary-400 text-sm py-2 px-3 rounded-lg hover:bg-primary-50 dark:hover:bg-surface-800'>
-                            {cat.name}
-                          </button>
-                        </Link>
+                      <li key={catKey} className='list-none relative group'>
+                        <NavLink to={routeForCategory(cat.id || cat._id || cat.name)} className={tabLinkClass}>
+                          {cat.name}
+                        </NavLink>
 
                         {children.length > 0 && (
                           <div className='submenu absolute top-[100%] left-0 min-w-[220px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                             <ul>
                               {children.map((child) => (
                                 <li key={child.id || child.name}>
-                                  <Link to={routeForCategory(child.id || child.name)}>
+                                  <NavLink to={routeForCategory(child.id || child._id || child.name)}>
                                     <Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>
                                       {child.name}
                                     </Button>
-                                  </Link>
+                                  </NavLink>
                                 </li>
                               ))}
                             </ul>
@@ -112,11 +117,9 @@ const Navigation = () => {
               ) : (
                 menuItems.map((item) => (
                   <li key={item} className='list-none relative group'>
-                    <Link to={routeForMenuItem(item)}>
-                      <button className='link transition font-bold text-text-900 dark:text-text-100 hover:text-primary-600 dark:hover:text-primary-400 text-sm py-2 px-3 rounded-lg hover:bg-primary-50 dark:hover:bg-surface-800'>
-                        {item}
-                      </button>
-                    </Link>
+                    <NavLink to={routeForMenuItem(item)} className={tabLinkClass}>
+                      {item}
+                    </NavLink>
 
                     {/* Fashion -> Submenu */}
                     {item === 'Fashion' && (
@@ -124,36 +127,36 @@ const Navigation = () => {
                         <ul>
                           {/* Women */}
                           <li className='list-none relative group/sub'>
-                            <Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></Link>
+                            <NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></NavLink>
                             <div className='submenu absolute top-0 left-[100%] min-w-[200px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                               <ul>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Dresses</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Shoes</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Bags</Button></Link></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Dresses</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Shoes</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Bags</Button></NavLink></li>
                               </ul>
                             </div>
                           </li>
 
                           {/* Men */}
                           <li className='list-none relative group/sub'>
-                            <Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></Link>
+                            <NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></NavLink>
                             <div className='submenu absolute top-0 left-[100%] min-w-[200px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                               <ul>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Shirts</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Watches</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Jackets</Button></Link></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Shirts</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Watches</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Jackets</Button></NavLink></li>
                               </ul>
                             </div>
                           </li>
 
                           {/* Girls */}
                           <li className='list-none relative group/sub'>
-                            <Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Girls</Button></Link>
+                            <NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Girls</Button></NavLink>
                             <div className='submenu absolute top-0 left-[100%] min-w-[200px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                               <ul>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Tops</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Skirts</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Frocks</Button></Link></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Tops</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Skirts</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Fashion')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Frocks</Button></NavLink></li>
                               </ul>
                             </div>
                           </li>
@@ -165,22 +168,22 @@ const Navigation = () => {
                     {item === 'Electronics' && (
                       <div className='submenu absolute top-[100%] left-0 min-w-[220px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                         <ul>
-                          <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Laptop</Button></Link></li>
-                          <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Smartwatch</Button></Link></li>
+                          <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Laptop</Button></NavLink></li>
+                          <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Smartwatch</Button></NavLink></li>
 
                           {/* Mobile with nested submenu */}
                           <li className='list-none relative group/sub'>
-                            <Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Mobile</Button></Link>
+                            <NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Mobile</Button></NavLink>
                             <div className='submenu absolute top-0 left-[100%] min-w-[200px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                               <ul>
-                                <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Vivo</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Oppo</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>iPhone</Button></Link></li>
-                                <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Samsung</Button></Link></li>
+                                <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Vivo</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Oppo</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>iPhone</Button></NavLink></li>
+                                <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Samsung</Button></NavLink></li>
                               </ul>
                             </div>
                           </li>
-                          <li><Link to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Charger</Button></Link></li>
+                          <li><NavLink to={routeForMenuItem('Electronics')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Charger</Button></NavLink></li>
                         </ul>
                       </div>
                     )}
@@ -189,8 +192,8 @@ const Navigation = () => {
                     {item === 'Bags' && (
                       <div className='submenu absolute top-[100%] left-0 min-w-[220px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                         <ul>
-                          <li><Link to={routeForMenuItem('Bags')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></Link></li>
-                          <li><Link to={routeForMenuItem('Bags')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></Link></li>
+                          <li><NavLink to={routeForMenuItem('Bags')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></NavLink></li>
+                          <li><NavLink to={routeForMenuItem('Bags')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></NavLink></li>
                         </ul>
                       </div>
                     )}
@@ -199,8 +202,8 @@ const Navigation = () => {
                     {item === 'Footwear' && (
                       <div className='submenu absolute top-[100%] left-0 min-w-[220px] bg-white dark:bg-surface-900 shadow-xl border border-border-200 dark:border-border-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 rounded-xl overflow-hidden z-50'>
                         <ul>
-                          <li><Link to={routeForMenuItem('Footwear')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></Link></li>
-                          <li><Link to={routeForMenuItem('Footwear')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></Link></li>
+                          <li><NavLink to={routeForMenuItem('Footwear')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Men</Button></NavLink></li>
+                          <li><NavLink to={routeForMenuItem('Footwear')}><Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>Women</Button></NavLink></li>
                         </ul>
                       </div>
                     )}
@@ -212,12 +215,12 @@ const Navigation = () => {
 
           {/* Right: Info & Links */}
           <div className='col_3 flex-shrink-0 flex items-center gap-4'>
-            <Link to="/help-center" className="text-sm font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <NavLink to="/help-center" className="text-sm font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
               Help
-            </Link>
-            <Link to="/order-tracking" className="text-sm font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            </NavLink>
+            <NavLink to="/order-tracking" className="text-sm font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
               Track
-            </Link>
+            </NavLink>
             <p className='text-sm font-semibold text-text-700 dark:text-text-300 flex items-center gap-2 mb-0 mt-0 bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 px-3 py-2 rounded-lg border border-success-200 dark:border-success-800'>
               <IoRocketSharp className='text-[16px]' /> Free Delivery
             </p>

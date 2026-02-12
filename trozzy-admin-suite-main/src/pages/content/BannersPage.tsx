@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Plus, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { uploadImageQueued } from '@/lib/uploadQueue';
 
 import {
   createAdminBanner,
@@ -33,6 +34,7 @@ const BannersPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -57,6 +59,24 @@ const BannersPage = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingImage(true);
+    try {
+      const url = await uploadImageQueued(file, { endpoint: '/api/upload/image?folder=banners' });
+      setFormData((prev) => ({ ...prev, imageUrl: url }));
+      toast({ title: 'Uploaded', description: 'Banner image uploaded successfully.' });
+    } catch (e: any) {
+      toast({
+        title: 'Upload failed',
+        description: e?.message || 'Failed to upload image',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -174,13 +194,45 @@ const BannersPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="imageUrl">Image URL</Label>
-                <Input
-                  id="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="Enter image URL"
-                  required
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="imageUrl"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                    placeholder="Enter image URL"
+                    required
+                  />
+                  <div>
+                    <input
+                      id="bannerImageFile"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        void handleImageUpload(file);
+                        e.currentTarget.value = '';
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isUploadingImage}
+                      onClick={() => {
+                        const el = document.getElementById('bannerImageFile') as HTMLInputElement | null;
+                        el?.click();
+                      }}
+                    >
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      {isUploadingImage ? 'Uploading...' : 'Upload'}
+                    </Button>
+                  </div>
+                </div>
+                {formData.imageUrl ? (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <img src={formData.imageUrl} alt="Banner preview" className="w-full h-32 object-cover" />
+                  </div>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="link">Link URL</Label>

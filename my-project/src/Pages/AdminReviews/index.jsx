@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FaStar, FaTrash, FaEdit, FaSearch, FaFilter, FaEye, FaThumbsUp } from 'react-icons/fa';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FaStar, FaTrash, FaEdit, FaSearch, FaEye } from 'react-icons/fa';
 import { fetchAllReviews, deleteReview, updateReviewStatus } from '../../api/adminReviews';
 import AdminSidebar from '../../components/AdminSidebar';
 
@@ -15,11 +15,7 @@ const AdminReviews = () => {
     const [selectedReview, setSelectedReview] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
 
-    useEffect(() => {
-        loadReviews();
-    }, [currentPage, searchTerm, filterRating, filterStatus]);
-
-    const loadReviews = async () => {
+    const loadReviews = useCallback(async () => {
         try {
             setLoading(true);
             const params = {
@@ -39,7 +35,11 @@ const AdminReviews = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, filterRating, filterStatus, searchTerm]);
+
+    useEffect(() => {
+        loadReviews();
+    }, [loadReviews]);
 
     const handleDeleteReview = async (reviewId) => {
         if (!window.confirm('Are you sure you want to delete this review?')) return;

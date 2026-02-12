@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import GlobalSearch from "./GlobalSearch";
 import Badge from "@mui/material/Badge";
 import { styled } from "@mui/material/styles";
@@ -40,6 +40,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const { itemCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   const { settings } = useContentSettings();
+  const location = useLocation();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -62,6 +63,12 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
       document.body.style.overflow = prevOverflow;
     };
   }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen && !isMobileSearchOpen) return;
+    setIsMobileMenuOpen(false);
+    setIsMobileSearchOpen(false);
+  }, [location.pathname]);
 
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
@@ -104,7 +111,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
 
               {/* User Menu Mobile */}
               <div className="mb-6 pb-6 border-b border-border-200 dark:border-border-700">
-                <UserMenu />
+                <UserMenu onNavigate={() => setIsMobileMenuOpen(false)} />
               </div>
 
               {/* Mobile Navigation Links */}
@@ -135,7 +142,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                   onClick={toggleMobileMenu}
                   className="flex items-center text-base font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-surface-800 px-4 py-3 rounded-xl transition-colors"
                 >
-                  🔔 Notifications
+                  � Orders
                 </Link>
                 <Link
                   to="/about"
@@ -217,7 +224,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                     <IconButton
                       aria-label="search"
                       onClick={toggleMobileSearch}
-                      className="md:hidden !w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
+                      className="!w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
                     >
                       {isMobileSearchOpen ? (
                         <FiX className="text-lg text-gray-700" />
@@ -262,13 +269,13 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                 </div>
               </div>
 
-              {isMobileSearchOpen ? (
-                <div className="md:hidden absolute left-0 right-0 top-full mt-2 z-[1200]">
-                  <div className="rounded-xl bg-white border border-gray-200 shadow-lg p-2">
+              {isMobileSearchOpen && (
+                <div className="md:hidden mt-2 pb-2">
+                  <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-2">
                     <GlobalSearch />
                   </div>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
         </div>

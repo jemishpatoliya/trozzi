@@ -31,7 +31,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "cmd /c \"set HOST=localhost&& set WDS_SOCKET_HOST=localhost&& set WDS_SOCKET_PORT=3000&& set WDS_SOCKET_PATH=/ws&& react-scripts start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

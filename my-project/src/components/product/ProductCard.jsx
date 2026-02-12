@@ -30,7 +30,6 @@ import { FaCheck, FaCheckCircle, FaHeart, FaRegHeart, FaShareAlt, FaShoppingCart
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { useWishlist } from "../../context/WishlistContext";
-import ColorPicker from "./ColorPicker";
 import { normalizeProductForColorVariants } from "../../utils/colorVariants";
 
 const ProductCard = ({ product, view = "grid" }) => {
@@ -43,7 +42,7 @@ const ProductCard = ({ product, view = "grid" }) => {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const [hoveredImage, setHoveredImage] = useState(null);
-  const [selectedColorVariant, setSelectedColorVariant] = useState(null);
+  const [selectedColorVariant] = useState(null);
 
   const normalized = useMemo(() => {
     try {
@@ -232,43 +231,42 @@ const ProductCard = ({ product, view = "grid" }) => {
   const shouldShowTrusted = Boolean(normalized?.featured) || (String(normalized?.badge || '').toLowerCase() === 'trusted');
 
   return (
-    <div className="animate-fade-in">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={handleProductClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleProductClick();
-        }}
-        className={
-          isList
-            ? "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex h-[280px]"
-            : "group cursor-pointer overflow-hidden rounded-xl bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-[410px] sm:h-[430px]"
-        }
-      >
-        <div className="transition-transform duration-300 flex flex-col h-full">
-          {/* Image Section */}
-          <div
-            className={
-              isList
-                ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
-                : "bg-gray-50 overflow-hidden relative h-[180px] sm:h-[200px]"
-            }
-          >
-            <div className={isList ? "relative overflow-hidden w-full h-full p-2" : "relative overflow-hidden w-full h-full p-2"}>
-              <img
-                src={displayImage}
-                alt={normalized.name}
-                width={480}
-                height={480}
-                className={
-                  isList
-                    ? "w-full h-full object-contain transition-all duration-500 group-hover:scale-105"
-                    : "w-full h-full object-contain transition-all duration-500 group-hover:scale-105"
-                }
-                loading="lazy"
-              />
-            </div>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleProductClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") handleProductClick();
+      }}
+      className={
+        isList
+          ? "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex h-[280px]"
+          : "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-full"
+      }
+    >
+      <div className={isList ? "transition-transform duration-300 flex flex-row h-full" : "transition-transform duration-300 flex flex-col h-full"}>
+        {/* Image Section */}
+        <div
+          className={
+            isList
+              ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
+              : "aspect-square bg-gray-50 overflow-hidden relative"
+          }
+        >
+          <div className={isList ? "relative overflow-hidden w-full h-full p-2" : "relative overflow-hidden w-full h-full p-2"}>
+            <img
+              src={displayImage}
+              alt={normalized.name}
+              width={480}
+              height={480}
+              className={
+                isList
+                  ? "w-full h-full object-contain transition-all duration-500 group-hover:scale-105"
+                  : "w-full h-full object-contain transition-all duration-500 group-hover:scale-105"
+              }
+              loading="lazy"
+            />
+          </div>
 
           {/* Discount Badge */}
           {shouldShowDiscount && normalized.discountPercent > 0 && (
@@ -330,32 +328,32 @@ const ProductCard = ({ product, view = "grid" }) => {
         </div>
 
         {/* Content Section */}
-        <div className="p-2.5 sm:p-3 space-y-1.5 sm:space-y-2 flex flex-col flex-1">
+        <div className={isList ? "p-3 space-y-2 flex flex-col flex-1 min-w-0" : "p-2 sm:p-3 space-y-1 sm:space-y-2 flex flex-col flex-1 min-h-[160px]"}>
           {/* Product Title */}
-          <h3 className="font-semibold text-[14px] sm:text-[15px] text-[#1A237E] line-clamp-2 leading-snug">
+          <h3 className="font-semibold text-[12px] sm:text-[15px] text-[#1A237E] line-clamp-2 leading-snug">
             {normalized.name}
           </h3>
 
           {/* Price Section */}
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-[18px] sm:text-[20px] font-extrabold text-gray-900">
+            <span className="text-[15px] sm:text-[20px] font-extrabold text-gray-900">
               {formatPrice(displaySelling)}
             </span>
             {displayMrp > displaySelling ? (
-              <span className="text-[13px] sm:text-sm text-gray-400 line-through">
+              <span className="text-[11px] sm:text-sm text-gray-400 line-through">
                 {formatPrice(displayMrp)}
               </span>
             ) : null}
             {normalized.discountPercent > 0 ? (
-              <span className="text-[13px] sm:text-sm text-green-600 font-semibold">
+              <span className="text-[11px] sm:text-sm text-green-600 font-semibold">
                 {normalized.discountPercent}% off
               </span>
             ) : null}
           </div>
 
-          <div className="mt-1 min-h-[28px]">
+          <div className="mt-1 min-h-[22px]">
             {shouldShowOffers ? (
-              <div className="inline-flex items-center rounded-md border border-green-300 bg-green-50 text-green-700 px-2 py-1 text-[12px] font-semibold">
+              <div className="inline-flex items-center rounded-md border border-green-300 bg-green-50 text-green-700 px-2 py-1 text-[10px] sm:text-[12px] font-semibold">
                 ₹{Math.max(1, Math.round(displaySelling * 0.055))} with 2 Special Offers
               </div>
             ) : null}
@@ -379,7 +377,7 @@ const ProductCard = ({ product, view = "grid" }) => {
           <div className="mt-auto">
             <div className="flex items-center justify-between pt-2">
               {shouldShowRating ? (
-                <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[12px] font-semibold">
+                <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[11px] sm:text-[12px] font-semibold">
                   <span>{safeRating.toFixed(1)}</span>
                   <FaStar className="h-3 w-3 fill-current" />
                   <span className="text-white/90">({Number(normalized.reviews || 0)})</span>
@@ -387,7 +385,7 @@ const ProductCard = ({ product, view = "grid" }) => {
               ) : <span />}
 
               {shouldShowTrusted ? (
-                <div className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
+                <div className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
                   <FaCheckCircle className="text-[14px]" />
                   Trusted
                 </div>
@@ -399,7 +397,7 @@ const ProductCard = ({ product, view = "grid" }) => {
               onClick={handleAddToCart}
               disabled={isAddingToCart || normalized.stock <= 0}
               className={
-                "mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold bg-white text-[#2874F0] border border-[#2874F0] hover:bg-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                "mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] sm:text-[13px] font-semibold bg-white text-[#2874F0] border border-[#2874F0] hover:bg-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               }
             >
               {justAdded ? (
@@ -417,7 +415,6 @@ const ProductCard = ({ product, view = "grid" }) => {
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { apiClient } from '../api/client';
 import { useAuth } from './AuthContext';
@@ -15,20 +15,36 @@ export const NotificationProvider = ({ children }) => {
   const { user, token, isAuthenticated } = useAuth();
 
   const socketRef = useRef(null);
+  const socketErrorLoggedRef = useRef(false);
   const [socket, setSocket] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const socketEnabled = useMemo(() => {
+    return Boolean(process.env.REACT_APP_SOCKET_URL);
+  }, []);
+
   const socketUrl = useMemo(() => {
     if (process.env.REACT_APP_SOCKET_URL) return process.env.REACT_APP_SOCKET_URL;
-    if (typeof window !== 'undefined' && String(window.location.port) === '3000') {
-      return `${window.location.protocol}//${window.location.hostname}:5051`;
-    }
+    if (typeof window === 'undefined') return '';
     return window.location.origin;
   }, []);
 
-  const refreshNotifications = async () => {
+  const socketOptions = useMemo(() => {
+    const explicit = Boolean(process.env.REACT_APP_SOCKET_URL);
+    return {
+      path: '/socket.io',
+      transports: explicit ? ['websocket', 'polling'] : ['polling'],
+      upgrade: explicit,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 500,
+      timeout: 8000,
+    };
+  }, []);
+
+  const refreshNotifications = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
@@ -40,9 +56,9 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const refreshUnreadCount = async () => {
+  const refreshUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const res = await apiClient.get('/notifications/unread-count');
@@ -51,9 +67,9 @@ export const NotificationProvider = ({ children }) => {
     } catch (_e) {
       // ignore
     }
-  };
+  }, [isAuthenticated]);
 
-  const markRead = async (id) => {
+  const markRead = useCallback(async (id) => {
     const nid = String(id || '');
     if (!nid) return;
 
@@ -64,9 +80,9 @@ export const NotificationProvider = ({ children }) => {
     } catch (_e) {
       // ignore
     }
-  };
+  }, [refreshUnreadCount]);
 
-  const markAllRead = async () => {
+  const markAllRead = useCallback(async () => {
     try {
       await apiClient.post('/notifications/mark-all-read');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
@@ -74,7 +90,7 @@ export const NotificationProvider = ({ children }) => {
     } catch (_e) {
       // ignore
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !token || !user) {
@@ -88,51 +104,82 @@ export const NotificationProvider = ({ children }) => {
       return;
     }
 
-    const s = io(socketUrl, {
-      auth: token ? { token } : {},
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 500,
-    });
+    if (!socketEnabled) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      setSocket(null);
+      return;
+    }
 
-    socketRef.current = s;
-    setSocket(s);
+    let cancelled = false;
 
-    const onNewNotification = (payload) => {
-      const id = String(payload?.id || '');
-      if (!id) return;
+    const connectIfAvailable = async () => {
+      if (cancelled) return;
+      socketErrorLoggedRef.current = false;
 
-      setNotifications((prev) => {
-        const exists = prev.some((n) => String(n?.id) === id);
-        if (exists) return prev;
-        return [payload, ...prev].slice(0, 50);
+      const s = io(socketUrl, {
+        auth: token ? { token } : {},
+        ...socketOptions,
       });
 
-      if (!payload?.isRead) {
-        setUnreadCount((c) => (Number(c) || 0) + 1);
-      }
+      socketRef.current = s;
+      setSocket(s);
+
+      const onNewNotification = (payload) => {
+        const id = String(payload?.id || '');
+        if (!id) return;
+
+        setNotifications((prev) => {
+          const exists = prev.some((n) => String(n?.id) === id);
+          if (exists) return prev;
+          return [payload, ...prev].slice(0, 50);
+        });
+
+        if (!payload?.isRead) {
+          setUnreadCount((c) => (Number(c) || 0) + 1);
+        }
+      };
+
+      s.on('notification:new', onNewNotification);
+
+      s.on('connect', () => {
+        refreshUnreadCount();
+        refreshNotifications();
+      });
+
+      s.on('reconnect', () => {
+        refreshUnreadCount();
+        refreshNotifications();
+      });
+
+      s.on('connect_error', (err) => {
+        if (socketErrorLoggedRef.current) return;
+        socketErrorLoggedRef.current = true;
+        // eslint-disable-next-line no-console
+        console.warn('[notifications] socket connection error:', err?.message || err);
+      });
+
+      return () => {
+        s.off('notification:new', onNewNotification);
+        s.off('connect_error');
+        s.disconnect();
+      };
     };
 
-    s.on('notification:new', onNewNotification);
-
-    s.on('connect', () => {
-      refreshUnreadCount();
-      refreshNotifications();
-    });
-
-    s.on('reconnect', () => {
-      refreshUnreadCount();
-      refreshNotifications();
-    });
+    let cleanupSocket = null;
+    void (async () => {
+      cleanupSocket = await connectIfAvailable();
+    })();
 
     return () => {
-      s.off('notification:new', onNewNotification);
-      s.disconnect();
+      cancelled = true;
+      if (typeof cleanupSocket === 'function') cleanupSocket();
       socketRef.current = null;
       setSocket(null);
     };
-  }, [isAuthenticated, token, user, socketUrl]);
+  }, [isAuthenticated, socketEnabled, token, user, socketOptions, socketUrl, refreshNotifications, refreshUnreadCount]);
 
   const value = useMemo(() => {
     return {
@@ -145,7 +192,7 @@ export const NotificationProvider = ({ children }) => {
       markRead,
       markAllRead,
     };
-  }, [socket, notifications, unreadCount, loading]);
+  }, [socket, notifications, unreadCount, loading, markAllRead, markRead, refreshNotifications, refreshUnreadCount]);
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 };

@@ -33,7 +33,18 @@ const PaymentGateway = ({
         };
     }, [amount, orderId, customerInfo, location]);
 
-    const safeOnPaymentSuccess = typeof onPaymentSuccess === 'function' ? onPaymentSuccess : () => {};
+    const safeOnPaymentSuccess = typeof onPaymentSuccess === 'function'
+        ? onPaymentSuccess
+        : (result) => {
+            const state = (location && location.state) ? location.state : {};
+            navigate('/summary', {
+                replace: true,
+                state: {
+                    ...state,
+                    paymentResult: result,
+                }
+            });
+        };
     const safeOnPaymentFailure = typeof onPaymentFailure === 'function' ? onPaymentFailure : () => {};
     const safeOnCancel = typeof onCancel === 'function' ? onCancel : () => navigate(-1);
 
@@ -345,8 +356,75 @@ const PaymentGateway = ({
     };
 
     return (
-        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 space-y-4">
-            <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 space-y-4 pb-24 sm:pb-0">
+            <div className="sm:hidden flex items-center justify-between mb-2">
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200"
+                >
+                    <FiX className="text-gray-700" />
+                </button>
+                <div className="text-[18px] font-bold text-gray-900">Payment</div>
+                <div className="w-10" />
+            </div>
+
+            <div className="sm:hidden mb-3">
+                <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                        <div className="flex items-center gap-2 text-emerald-600">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-emerald-600 text-white">
+                                <FiCheck className="w-4 h-4" />
+                            </div>
+                            <span className="font-semibold">Cart</span>
+                        </div>
+                        <div className="flex-1 h-[2px] mx-1.5 bg-emerald-200" />
+                        <div className="flex items-center gap-1.5 text-emerald-600">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-emerald-600 text-white">
+                                <FiCheck className="w-4 h-4" />
+                            </div>
+                            <span className="font-semibold">Address</span>
+                        </div>
+                        <div className="flex-1 h-[2px] mx-1.5 bg-gray-200" />
+                        <div className="flex items-center gap-1.5 text-[#5A0B5A]">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-[#5A0B5A] text-white">3</div>
+                            <span className="font-semibold">Payment</span>
+                        </div>
+                        <div className="flex-1 h-[2px] mx-1.5 bg-gray-200" />
+                        <div className="flex items-center gap-1.5 text-gray-400">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-gray-200">4</div>
+                            <span className="font-semibold">Summary</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="sm:hidden bg-[#F5EAF4] border border-[#E7CFE6] rounded-xl p-3 flex gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/60 border border-white/50 flex items-center justify-center">
+                    <span className="text-[#5A0B5A] text-[12px] font-bold">★</span>
+                </div>
+                <div className="min-w-0">
+                    <div className="text-[13px] font-bold text-gray-900">Pay online & get EXTRA ₹33 off</div>
+                    <div className="text-[12px] text-gray-600 mt-0.5">Valid for UPI payments only</div>
+                </div>
+            </div>
+
+            <div className="sm:hidden bg-white border border-gray-200 rounded-xl p-3">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                            <FiCheck className="text-emerald-600" />
+                        </div>
+                        <div>
+                            <div className="text-[13px] font-bold text-gray-900">100% SAFE PAYMENTS</div>
+                            <div className="text-[12px] text-gray-600">SSL encrypted, secure payment gateway</div>
+                        </div>
+                    </div>
+                    <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">Verified</span>
+                </div>
+            </div>
+
+            <div className="hidden sm:block bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <div className="text-sm font-semibold text-gray-900">Payment</div>
@@ -371,29 +449,28 @@ const PaymentGateway = ({
 
             {/* Payment Method Selection */}
             <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
-                <h3 className="text-base font-extrabold text-gray-900">Select payment method</h3>
-                <p className="text-xs text-gray-500 mt-1">Choose an option to complete your payment.</p>
-                <div className="grid gap-4 md:grid-cols-2">
-                    {paymentMethods.map((method) => (
-                        <button
-                            key={method.id}
-                            onClick={() => setSelectedMethod(method.id)}
-                            className={`p-4 border rounded-lg transition-all ${selectedMethod === method.id
-                                ? 'border-orange-500 bg-orange-50'
-                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-2xl ${method.badgeClass} flex items-center justify-center`}>
-                                    {method.icon}
+                <h3 className="text-base font-extrabold text-gray-900">Choose Payment Method</h3>
+                <div className="mt-3 space-y-3">
+                    {paymentMethods.map((method) => {
+                        const active = selectedMethod === method.id;
+                        return (
+                            <button
+                                key={method.id}
+                                type="button"
+                                onClick={() => setSelectedMethod(method.id)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition ${active ? 'border-[#5A0B5A] bg-[#F5EAF4]' : 'border-gray-200 bg-white'}`}
+                            >
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${active ? 'border-[#5A0B5A] bg-[#5A0B5A]' : 'border-gray-300 bg-white'}`}>
+                                    <div className={`w-2 h-2 rounded-full ${active ? 'bg-white' : 'bg-transparent'}`} />
                                 </div>
-                                <div className="text-left">
-                                    <p className="font-semibold text-gray-900">{method.name}</p>
-                                    <p className="text-xs text-gray-500">{method.description}</p>
+                                <div className={`w-10 h-10 rounded-xl ${method.badgeClass} flex items-center justify-center`}>{method.icon}</div>
+                                <div className="flex-1 text-left">
+                                    <div className="text-[14px] font-semibold text-gray-900">{method.name}</div>
                                 </div>
-                            </div>
-                        </button>
-                    ))}
+                                <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-700">UPI</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* UPI ID Input for UPI method */}
@@ -422,11 +499,10 @@ const PaymentGateway = ({
                     </div>
                 )}
 
-                {/* Pay Button */}
                 <button
                     onClick={handlePayment}
                     disabled={!selectedMethod || (selectedMethod === 'upi' && !upiId.trim()) || isProcessing}
-                    className="w-full mt-4 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:cursor-not-allowed"
+                    className="hidden sm:flex w-full mt-4 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white font-semibold py-3 px-4 rounded-xl transition-colors disabled:cursor-not-allowed items-center justify-center"
                 >
                     {isProcessing ? (
                         <div className="flex items-center justify-center gap-2">
@@ -437,6 +513,23 @@ const PaymentGateway = ({
                         `Pay ₹${Number(resolved.amount || 0).toLocaleString()}`
                     )}
                 </button>
+            </div>
+
+            <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <div className="text-[16px] font-extrabold text-[#5A0B5A] truncate">₹{Number(resolved.amount || 0).toFixed(2)}</div>
+                        <div className="text-[12px] text-gray-500">Inclusive of all taxes</div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handlePayment}
+                        disabled={!selectedMethod || (selectedMethod === 'upi' && !upiId.trim()) || isProcessing}
+                        className="h-12 px-6 inline-flex items-center justify-center rounded-xl bg-[#A78C9E] disabled:bg-gray-200 text-white text-sm font-extrabold shadow-sm flex-1"
+                    >
+                        {isProcessing ? 'Processing...' : `Pay ₹${Number(resolved.amount || 0).toFixed(2)}`}
+                    </button>
+                </div>
             </div>
 
             {/* Payment Status Modal */}

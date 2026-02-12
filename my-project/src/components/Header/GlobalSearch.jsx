@@ -5,6 +5,12 @@ import { fetchProducts } from '../../api/catalog';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
+const formatInr = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '';
+    return `₹${num.toLocaleString()}`;
+};
+
 const GlobalSearch = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -49,7 +55,7 @@ const GlobalSearch = () => {
 
         setIsLoading(true);
         try {
-            const results = await fetchProducts({ q: query, limit: 10 });
+            const results = await fetchProducts({ mode: "public", q: query, limit: 10 });
             const items = Array.isArray(results) ? results : (results && Array.isArray(results.items) ? results.items : []);
             setSearchResults(items.map(normalizeProduct).filter(Boolean));
         } catch (error) {
@@ -120,7 +126,7 @@ const GlobalSearch = () => {
             {/* Search Input */}
             <div className="relative">
                 <form onSubmit={handleSearch}>
-                    <div className={`flex items-center bg-white rounded-xl border-2 border-blue-500 transition-all duration-200 ${isSearchOpen ? 'shadow-sm ring-2 ring-blue-100' : ''}`}>
+                    <div className={`flex items-center bg-white rounded-full border border-gray-200 transition-all duration-200 ${isSearchOpen ? 'shadow-sm ring-2 ring-[#2874F0]/15 border-[#2874F0]/40' : ''}`}>
                         <div className="pl-3 pr-2 text-gray-500">
                             <IoSearchSharp className="text-[18px]" />
                         </div>
@@ -130,7 +136,7 @@ const GlobalSearch = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchOpen(true)}
                             placeholder="Search for Products, Brands and More"
-                            className="flex-1 pr-3 sm:pr-4 py-2.5 bg-transparent outline-none text-[14px] text-gray-900 placeholder-gray-400"
+                            className="flex-1 pr-3 sm:pr-4 py-2 bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-900 placeholder-gray-400"
                         />
                         {searchQuery && (
                             <button
@@ -186,7 +192,7 @@ const GlobalSearch = () => {
                                                 {product.description}
                                             </p>
                                             <p className="text-sm font-bold text-success-600 dark:text-success-400 mt-1">
-                                                ${product.price?.toFixed(2)}
+                                                {formatInr(product.price)}
                                             </p>
                                         </div>
                                     </div>
