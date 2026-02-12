@@ -65,7 +65,7 @@ const CheckoutPage = () => {
         });
     };
 
-    const TAX_RATE = 0.18;
+    const TAX_RATE = Number(process.env.REACT_APP_TAX_RATE ?? 0.18);
     const roundMoney = (v) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
     const roundRupees = (v) => Math.round(Number(v ?? 0) || 0);
 

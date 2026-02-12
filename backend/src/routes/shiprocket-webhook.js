@@ -8,27 +8,10 @@ const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
 
-function normalizeShiprocketStatus(raw) {
-  const base = String(raw ?? '').trim().toLowerCase();
-  const map = {
-    'new': 'new',
-    'pickup scheduled': 'processing',
-    'picked up': 'processing',
-    'in transit': 'shipped',
-    'out for delivery': 'shipped',
-    'delivered': 'delivered',
-    'cancelled': 'cancelled',
-    'rto initiated': 'returned',
-    'rto delivered': 'returned',
-    'returned': 'returned',
-  };
-  return map[base] || 'new';
-}
-
-router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), async (req, res) => {
+async function handleShiprocketWebhook(req, res) {
   try {
     const ip = req.ip || req.connection.remoteAddress;
-    const rawBody = req.body || '';
+    const rawBody = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
     let body;
     try {
       body = JSON.parse(rawBody);
@@ -38,9 +21,16 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
 
     // 1. Signature verification
     const signature = req.headers['x-shiprocket-signature'] || '';
+    const apiKey = req.headers['x-api-key'] || '';
     const secret = process.env.SHIPROCKET_WEBHOOK_SECRET;
-    const sigVerify = verifyShiprocketSignature({ rawBody, signature, secret });
+    const sigVerify = verifyShiprocketSignature({ rawBody, signature, secret, apiKey });
     if (!sigVerify.ok) {
+      console.error('[WEBHOOK-Shiprocket] Verification debug:', {
+        hasApiKeyHeader: Boolean(apiKey),
+        hasSignatureHeader: Boolean(signature),
+        tokenConfigured: Boolean(String(process.env.SHIPROCKET_WEBHOOK_TOKEN || '').trim()),
+        secretConfigured: Boolean(String(process.env.SHIPROCKET_WEBHOOK_SECRET || '').trim()),
+      });
       logWebhookFailure('Shiprocket', sigVerify.reason, ip, body);
       return res.status(401).json({ ok: false, message: 'Webhook verification failed', reason: sigVerify.reason });
     }
@@ -48,7 +38,8 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
     // 2. Extract required fields
     const awb = String(body.awb || '');
     const orderNumber = String(body.order_id || '');
-    const currentStatus = normalizeShiprocketStatus(body.status);
+    const statusRaw = body.status ?? body.current_status ?? body.shipment_status;
+    const currentStatus = normalizeShiprocketStatus(statusRaw);
     const eventId = String(body.event_id || '');
     const now = new Date();
 
@@ -181,19 +172,19 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
       io.to('admin').emit('shipment:status_changed', payload);
       io.to('admin').emit('orders:stats', await computeAdminOrderStats(mongoose.connection.db));
 
-      const order = await Order.findById(shipment.order).populate('user', '_id email');
-      if (order && order.user) {
-        const userId = String(order.user._id || order.user);
-        const email = String(order.user.email || '').toLowerCase();
+      const orderForUser = await Order.findById(shipment.order).populate('user', '_id email');
+      if (orderForUser && orderForUser.user) {
+        const userId = String(orderForUser.user._id || orderForUser.user);
+        const email = String(orderForUser.user.email || '').toLowerCase();
         io.to(`user:${userId}`).emit('shipment:status_changed', payload);
         io.to(`user_${userId}`).emit('shipment:status_changed', payload);
         if (email) io.to(`user_email:${email}`).emit('shipment:status_changed', payload);
 
         // Emit order status change as well
         const orderPayload = {
-          id: String(order._id),
-          orderNumber: String(order.orderNumber || ''),
-          status: order.status,
+          id: String(orderForUser._id),
+          orderNumber: String(orderForUser.orderNumber || ''),
+          status: orderForUser.status,
           updatedAt: now.toISOString(),
           source: 'shiprocket',
         };
@@ -209,7 +200,29 @@ router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), as
     console.error('Shiprocket webhook error:', e);
     return res.status(500).json({ ok: false, message: 'Webhook processing failed' });
   }
-});
+}
+
+function normalizeShiprocketStatus(raw) {
+  const base = String(raw ?? '').trim().toLowerCase();
+  const map = {
+    'new': 'new',
+    'pickup scheduled': 'processing',
+    'picked up': 'processing',
+    'in transit': 'shipped',
+    'out for delivery': 'shipped',
+    'delivered': 'delivered',
+    'cancelled': 'cancelled',
+    'rto initiated': 'returned',
+    'rto delivered': 'returned',
+    'returned': 'returned',
+  };
+  return map[base] || 'new';
+}
+
+router.post('/webhook/shiprocket', express.raw({ type: 'application/json' }), handleShiprocketWebhook);
+
+// New, simpler endpoint so app can mount this router at /api/shiprocket/webhook
+router.post('/', express.raw({ type: 'application/json' }), handleShiprocketWebhook);
 
 async function computeAdminOrderStats(db) {
   try {

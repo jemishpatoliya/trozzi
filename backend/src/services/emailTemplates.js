@@ -147,9 +147,27 @@ function orderDeliveredEmail({ customerName, orderNumber }) {
   });
 }
 
+function refundApprovedEmail({ customerName, orderNumber, amount, refundDueAtIso }) {
+  const dueLabel = refundDueAtIso ? escapeHtml(new Date(refundDueAtIso).toLocaleString()) : '';
+  const contentHtml = `
+    <div style="font-size:16px;font-weight:700;">Refund approved</div>
+    <div style="margin-top:8px;">Hi ${escapeHtml(customerName || 'Customer')},</div>
+    <div style="margin-top:8px;">Your order <b>${escapeHtml(orderNumber)}</b> has been cancelled.</div>
+    <div style="margin-top:8px;">Your refund of <b>₹${Number(amount ?? 0).toFixed(2)}</b> has been approved and will be processed within <b>3 days</b>.</div>
+    ${dueLabel ? `<div style="margin-top:8px;color:#6b7280;">Expected processing on: ${dueLabel}</div>` : ''}
+  `;
+
+  return baseLayout({
+    title: 'Refund Approved',
+    preheader: `Refund approved for order ${orderNumber}`,
+    contentHtml,
+  });
+}
+
 module.exports = {
   orderConfirmationEmail,
   orderCancellationEmail,
   orderShippedEmail,
   orderDeliveredEmail,
+  refundApprovedEmail,
 };

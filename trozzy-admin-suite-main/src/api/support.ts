@@ -154,7 +154,6 @@ type OrderStatsUiData = {
   processing: number;
   shipped: number;
   delivered: number;
-  returned: number;
   cancelled: number;
 };
 
@@ -176,9 +175,9 @@ type OrdersAPI = {
   downloadOrderReceipt: (orderId: string) => Promise<any>;
   downloadOrdersReceipt: (payload: { ids: string[] }) => Promise<any>;
   cancelOrder: (orderId: string, reason: string) => Promise<any>;
-  returnOrder: (orderId: string, returnData: any) => Promise<any>;
   addTracking: (orderId: string, trackingData: any) => Promise<any>;
   getOrderTracking: (orderId: string) => Promise<any>;
+  approveRefundRequest: (refundRequestId: string) => Promise<any>;
 };
 
 export const ordersAPI: OrdersAPI = {
@@ -208,7 +207,6 @@ export const ordersAPI: OrdersAPI = {
             processing: Number(stats.processingCount ?? 0) || 0,
             shipped: Number(stats.shippedCount ?? 0) || 0,
             delivered: Number(stats.deliveredCount ?? 0) || 0,
-            returned: Number(stats.returnedCount ?? 0) || 0,
             cancelled: Number(stats.cancelledCount ?? 0) || 0,
           },
         } as OrderStatsUiResponse;
@@ -254,6 +252,18 @@ export const ordersAPI: OrdersAPI = {
       return response.data;
     } catch (error) {
       console.error('Error fetching order:', error);
+      throw error;
+    }
+  },
+
+  approveRefundRequest: async (refundRequestId: string) => {
+    try {
+      const response = await axios.post(`/api/admin/refund-requests/${refundRequestId}/approve`, null, {
+        headers: ordersAPI.getAuthHeaders(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error approving refund request:', error);
       throw error;
     }
   },
@@ -330,19 +340,6 @@ export const ordersAPI: OrdersAPI = {
       return response.data;
     } catch (error) {
       console.error('Error cancelling order:', error);
-      throw error;
-    }
-  },
-
-  // Return order
-  returnOrder: async (orderId: string, returnData: any) => {
-    try {
-      const response = await axios.put(`/api/orders/${orderId}/return`, returnData, {
-        headers: ordersAPI.getAuthHeaders(),
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error returning order:', error);
       throw error;
     }
   },

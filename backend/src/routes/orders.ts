@@ -103,6 +103,21 @@ function makeOrderNumber() {
   return `ORD-${Date.now().toString().slice(-6)}-${part}`;
 }
 
+async function resolvePaymentMethod(order: any) {
+  const fromOrder = String(order?.paymentMethod || '').trim();
+  if (fromOrder && fromOrder !== 'unknown') return fromOrder;
+
+  const orderId = order?._id ? String(order._id) : '';
+  if (!orderId || !Types.ObjectId.isValid(orderId)) return 'unknown';
+
+  const payment = await PaymentModel.findOne({ order: new Types.ObjectId(orderId) })
+    .select({ paymentMethod: 1, provider: 1 })
+    .sort({ createdAt: -1 })
+    .lean<{ paymentMethod?: string; provider?: string } | null>();
+
+  return String(payment?.paymentMethod || payment?.provider || 'unknown');
+}
+
 router.get("/", authenticateAny, async (req: AnyAuthRequest, res: Response) => {
   if (req.authType !== 'admin') {
     return res.status(403).json({ success: false, message: 'Access denied: Admin token required' });
@@ -134,9 +149,11 @@ router.get("/", authenticateAny, async (req: AnyAuthRequest, res: Response) => {
     .limit(limit)
     .lean<(OrderDoc & { _id: unknown })[]>();
 
+  const paymentMethods = await Promise.all(docs.map((d) => resolvePaymentMethod(d)));
+
   res.json({
     success: true,
-    data: docs.map((order: OrderDoc & { _id: unknown }) => ({
+    data: docs.map((order: OrderDoc & { _id: unknown }, idx: number) => ({
       id: String(order._id),
       orderNumber: order.orderNumber,
       customer: order.customer?.name ?? '',
@@ -146,7 +163,7 @@ router.get("/", authenticateAny, async (req: AnyAuthRequest, res: Response) => {
         ? order.items.reduce((sum: number, i: { quantity?: number }) => sum + (i.quantity ?? 0), 0)
         : 0,
       date: order.createdAtIso,
-      paymentMethod: 'unknown',
+      paymentMethod: paymentMethods[idx] || 'unknown',
       status: order.status,
     })),
   });
@@ -199,9 +216,36 @@ router.get("/my", authenticateToken, async (req: AuthenticatedRequest, res: Resp
     return bTime - aTime;
   });
 
+  // Hide orders that were created for online payment initiation but never got paid.
+  // Keep COD orders visible.
+  const docIds = docs.map((d) => String(d._id)).filter((id) => Types.ObjectId.isValid(id));
+  const completedPayments = docIds.length
+    ? await PaymentModel.find({
+        user: userObjectId,
+        order: { $in: docIds.map((id) => new Types.ObjectId(id)) },
+        status: 'completed',
+      })
+        .select({ order: 1 })
+        .lean<{ order?: Types.ObjectId }[]>()
+    : [];
+  const paidOrderIds = new Set(completedPayments.map((p) => (p.order ? String(p.order) : '')).filter(Boolean));
+
+  const visibleDocs = docs.filter((order) => {
+    const pm = String((order as any)?.paymentMethod || '').trim().toLowerCase();
+    if (pm === 'cod') return true;
+
+    const status = String((order as any)?.status || '').trim().toLowerCase();
+    if (status && status !== 'new') return true;
+
+    const id = String((order as any)?._id || '');
+    return paidOrderIds.has(id);
+  });
+
+  const paymentMethods = await Promise.all(visibleDocs.map((d) => resolvePaymentMethod(d)));
+
   res.json({
     success: true,
-    data: docs.map((order: OrderDoc & { _id: unknown }) => ({
+    data: visibleDocs.map((order: OrderDoc & { _id: unknown }, idx: number) => ({
       id: String(order._id),
       orderNumber: order.orderNumber,
       customer: order.customer?.name ?? '',
@@ -211,7 +255,7 @@ router.get("/my", authenticateToken, async (req: AuthenticatedRequest, res: Resp
         ? order.items.reduce((sum: number, i: { quantity?: number }) => sum + (i.quantity ?? 0), 0)
         : 0,
       date: order.createdAtIso,
-      paymentMethod: 'unknown',
+      paymentMethod: paymentMethods[idx] || 'unknown',
       status: order.status,
     })),
   });

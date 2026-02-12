@@ -214,7 +214,6 @@ const ContactUs = () => {
                                             <option value="">Select a subject</option>
                                             <option value="order">Order Related</option>
                                             <option value="payment">Payment Issue</option>
-                                            <option value="return">Return/Refund</option>
                                             <option value="technical">Technical Support</option>
                                             <option value="general">General Inquiry</option>
                                         </select>
@@ -273,11 +272,8 @@ const ContactUs = () => {
                         <Link to="/terms-of-service" className="text-indigo-600 hover:text-indigo-800">
                             Terms of Service
                         </Link>
-                        <Link to="/refund-policy" className="text-indigo-600 hover:text-indigo-800">
-                            Refund Policy
-                        </Link>
                         <Link to="/about" className="text-indigo-600 hover:text-indigo-800">
-                            About Us
+                            About
                         </Link>
                     </div>
                 </div>

@@ -93,6 +93,34 @@ function normalizeOrderItemSnapshot(item) {
   };
 }
 
+async function normalizeAndHydrateOrderItems(rawItems) {
+  const items = Array.isArray(rawItems) ? rawItems.map(normalizeOrderItemSnapshot) : [];
+
+  const missing = items.filter((it) => it && it.productId && (!String(it.name || '').trim() || !Number(it.price) || !String(it.image || '').trim()));
+  if (missing.length === 0) return items;
+
+  const ids = Array.from(new Set(missing.map((it) => String(it.productId)).filter(Boolean)));
+  if (ids.length === 0) return items;
+
+  const products = await ProductModel.find({ _id: { $in: ids } }).select({ name: 1, price: 1, images: 1, image: 1 }).lean();
+  const byId = new Map(products.map((p) => [String(p._id), p]));
+
+  return items.map((it) => {
+    if (!it || !it.productId) return it;
+    const p = byId.get(String(it.productId));
+    if (!p) return it;
+
+    const hydratedName = String(it.name || '').trim() ? it.name : String(p.name || '').trim();
+    const hydratedPrice = Number(it.price) ? Number(it.price) : Number(p.price ?? 0) || 0;
+    const pImage =
+      (Array.isArray(p.images) && p.images.length ? String(p.images[0] || '').trim() : '') ||
+      String(p.image || '').trim();
+    const hydratedImage = String(it.image || '').trim() ? it.image : pImage;
+
+    return { ...it, name: hydratedName, price: hydratedPrice, image: hydratedImage };
+  });
+}
+
 function safeJsonParse(raw) {
   try {
     return { ok: true, value: JSON.parse(String(raw || '')) };
@@ -965,69 +993,27 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
     let shiprocketResult = null;
     if (nextStatus === 'completed' && updatedOrder) {
       try {
-        const { createShiprocketOrder } = require('../services/shiprocket');
-        const shiprocketPayload = {
-          order_id: String(updatedOrder.orderNumber || ''),
-          order_date: new Date().toISOString().split('T')[0],
-          pickup_location: 'Primary',
-          channel_id: '',
-          comment: 'Order created via PhonePe payment',
-          billing_customer_name: String(updatedOrder.customer?.name || ''),
-          billing_last_name: '',
-          billing_address: String(updatedOrder.address?.line1 || ''),
-          billing_address_2: String(updatedOrder.address?.line2 || ''),
-          billing_city: String(updatedOrder.address?.city || ''),
-          billing_state: String(updatedOrder.address?.state || ''),
-          billing_pincode: String(updatedOrder.address?.postalCode || ''),
-          billing_country: String(updatedOrder.address?.country || 'India'),
-          billing_email: String(updatedOrder.customer?.email || ''),
-          billing_phone: String(updatedOrder.customer?.phone || ''),
-          shipping_is_billing: true,
-          shipping_customer_name: '',
-          shipping_last_name: '',
-          shipping_address: '',
-          shipping_address_2: '',
-          shipping_city: '',
-          shipping_state: '',
-          shipping_pincode: '',
-          shipping_country: '',
-          shipping_email: '',
-          shipping_phone: '',
-          order_items: (updatedOrder.items || []).map(item => ({
-            name: String(item.name || ''),
-            sku: String(item.sku || ''),
-            units: Number(item.quantity || 1),
-            selling_price: Number(item.price || 0),
-            discount: Number(item.discount || 0),
-            tax: Number(item.tax || 0),
-            hsn: Number(item.hsn || 0),
-          })),
-          payment_method: 'Prepaid',
-          shipping_charges: Number(updatedOrder.shipping || 0),
-          giftwrap_charges: 0,
-          transaction_charges: 0,
-          total_discount: 0,
-          sub_total: Number(updatedOrder.subtotal || 0),
-          length: 10,
-          breadth: 10,
-          height: 10,
-          weight: 0.5,
-        };
-        shiprocketResult = await createShiprocketOrder(shiprocketPayload);
+        const { createShipmentForOrder } = require('../services/shiprocket.service');
+        shiprocketResult = await createShipmentForOrder(updatedOrder, { paymentMethod: 'Prepaid' });
+
         // Store shipment details
         const { Shipment } = require('../models/shipment');
         await Shipment.create({
           order: updatedOrder._id,
-          shiprocketOrderId: String(shiprocketResult.order_id || ''),
-          awbNumber: String(shiprocketResult.awb_code || ''),
-          courierName: String(shiprocketResult.courier_name || ''),
+          shiprocketOrderId: String(shiprocketResult?.order_id || ''),
+          shiprocketShipmentId: String(shiprocketResult?.shipment_id || ''),
+          courierId: Number(shiprocketResult?.courier_id || 0) || 0,
+          awbNumber: String(shiprocketResult?.awb_code || ''),
+          courierName: String(shiprocketResult?.courier_name || ''),
           status: 'new',
-          trackingUrl: shiprocketResult.tracking_url || '',
-          estimatedDelivery: shiprocketResult.estimated_delivery_days ? new Date(Date.now() + shiprocketResult.estimated_delivery_days * 24 * 60 * 60 * 1000) : null,
+          trackingUrl: shiprocketResult?.tracking_url || '',
+          estimatedDelivery: shiprocketResult?.estimated_delivery_days
+            ? new Date(Date.now() + Number(shiprocketResult.estimated_delivery_days) * 24 * 60 * 60 * 1000)
+            : null,
           eventHistory: [{ status: 'new', at: new Date(), raw: shiprocketResult }],
         });
       } catch (e) {
-        console.error('Shiprocket order creation error:', e);
+        console.error('Shiprocket shipment creation error:', e?.raw || e);
         // Mark order as paid_but_shipment_failed and schedule retry
         await Order.updateOne(
           { _id: updatedOrder._id },
@@ -1043,13 +1029,15 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
         await Shipment.create({
           order: updatedOrder._id,
           shiprocketOrderId: '',
+          shiprocketShipmentId: '',
+          courierId: 0,
           awbNumber: '',
           courierName: '',
           status: 'failed',
           lastError: e.message,
           nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
           retryCount: 1,
-          eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message } }],
+          eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
         });
       }
     }
@@ -1162,6 +1150,15 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'orderData is required when orderId is not provided' });
       }
 
+      const normalizedItems = await normalizeAndHydrateOrderItems(orderData.items);
+      if (!normalizedItems.length) {
+        return res.status(400).json({ error: 'orderData.items is required' });
+      }
+      const badItem = normalizedItems.find((it) => !String(it?.productId || '').trim() || !String(it?.name || '').trim() || !Number(it?.price) || !(Number(it?.quantity) > 0));
+      if (badItem) {
+        return res.status(400).json({ error: 'Invalid orderData.items (missing productId/name/price/quantity)' });
+      }
+
       orderDoc = await Order.create({
         user: new mongoose.Types.ObjectId(req.userId),
         orderNumber: makeOrderNumber(),
@@ -1173,7 +1170,7 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         codCharge: Number(orderData.codCharge ?? 0),
         total: Number(orderData.total ?? amount ?? 0),
         paymentMethod: String(orderData.paymentMethod || provider || 'upi'),
-        items: Array.isArray(orderData.items) ? orderData.items.map(normalizeOrderItemSnapshot) : [],
+        items: normalizedItems,
         customer: orderData.customer || {},
         address: orderData.address || {},
         createdAtIso: nowIso,
@@ -1249,8 +1246,31 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         .redirectUrl(redirectUrl)
         .build();
 
-      const client = getPhonePeClient();
-      const initJson = await client.pay(payRequest);
+      let initJson;
+      try {
+        const client = getPhonePeClient();
+        initJson = await client.pay(payRequest);
+      } catch (e) {
+        const resolvedEnv = getPhonePeSdkEnv() === Env.PRODUCTION ? 'PRODUCTION' : 'SANDBOX';
+        console.error('[PhonePe SDK] pay failed', {
+          type: e?.type,
+          httpStatusCode: e?.httpStatusCode,
+          code: e?.code,
+          resolvedEnv,
+        });
+
+        if (e?.type === 'UnauthorizedAccess' || e?.httpStatusCode === 401) {
+          return res.status(502).json({
+            error: 'PhonePe authentication failed',
+            message:
+              'Your PhonePe client credentials are invalid for the selected environment. Use SANDBOX clientId/secret for SANDBOX, and PRODUCTION creds for PRODUCTION.',
+            resolvedEnv,
+          });
+        }
+
+        throw e;
+      }
+
       const redirect = extractPhonePeRedirectUrl(initJson);
 
       await Payment.updateOne(
@@ -1307,6 +1327,9 @@ router.post('/create-order', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Create order error:', error);
+    if (error?.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Order validation failed', details: String(error.message || '') });
+    }
     const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
     return res.status(500).json({
       error: 'Failed to create payment order',
@@ -1344,6 +1367,8 @@ router.post('/verify', authenticateToken, async (req, res) => {
       const part = Math.random().toString(16).slice(2, 8).toUpperCase();
       const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${part}`;
 
+      const normalizedItems = await normalizeAndHydrateOrderItems(orderData.items);
+
       const createdOrder = await Order.create({
         user: new mongoose.Types.ObjectId(req.userId),
         orderNumber,
@@ -1355,7 +1380,7 @@ router.post('/verify', authenticateToken, async (req, res) => {
         codCharge: Number(orderData.codCharge ?? 0),
         total: Number(orderData.total ?? 0),
         paymentMethod: String(orderData.paymentMethod || payment.paymentMethod || payment.provider || 'upi'),
-        items: Array.isArray(orderData.items) ? orderData.items.map(normalizeOrderItemSnapshot) : [],
+        items: normalizedItems,
         customer: orderData.customer || {},
         address: orderData.address || {},
         createdAtIso: nowIso,

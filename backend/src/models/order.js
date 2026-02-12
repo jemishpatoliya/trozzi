@@ -40,7 +40,9 @@ const OrderSchema = new mongoose.Schema(
     subtotal: { type: Number, required: true, default: 0 },
     shipping: { type: Number, required: true, default: 0 },
     tax: { type: Number, required: true, default: 0 },
+    codCharge: { type: Number, required: false, default: 0 },
     total: { type: Number, required: true, default: 0 },
+    paymentMethod: { type: String, required: false, default: 'unknown' },
     items: {
       type: [
         {

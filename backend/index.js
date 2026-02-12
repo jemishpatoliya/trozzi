@@ -123,6 +123,11 @@ app.use('/api', publicLimiter);
 
 // Shiprocket webhooks need raw body for signature verification.
 app.use('/api/shipping/webhook/shiprocket', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
+// New Shiprocket webhook endpoint (required): /api/shiprocket/webhook
+app.use('/api/shiprocket/webhook', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
+// Shiprocket dashboard may reject URLs containing keywords like "shiprocket" or "sr".
+// Provide a neutral URL alias for production/local testing.
+app.use('/api/webhooks/shipping', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
 // PhonePe webhook needs raw body for signature/authorization verification.
 app.use('/api/payments/webhook/phonepe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
@@ -308,6 +313,16 @@ cron.schedule('*/5 * * * *', async () => {
     await retryFailedShipments();
   } catch (e) {
     console.error('Cron retry error:', e);
+  }
+});
+
+// Cron: process approved refunds (due) every 10 minutes
+cron.schedule('*/10 * * * *', async () => {
+  try {
+    const { processDueRefunds } = require('./src/workers/refundWorker');
+    await processDueRefunds();
+  } catch (e) {
+    console.error('Cron refund processing error:', e);
   }
 });
 

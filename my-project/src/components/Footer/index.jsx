@@ -68,7 +68,6 @@ const Footer = () => {
                             <li><Link to="/shipping-policy" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Shipping Policy</Link></li>
                             <li><Link to="/privacy-policy" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Privacy Policy</Link></li>
                             <li><Link to="/terms-of-service" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Terms of Service</Link></li>
-                            <li><Link to="/refund-policy" className="text-slate-400 transition hover:text-white focus:outline-none focus:underline">Refund Policy</Link></li>
                         </ul>
                     </div>
                 </div>

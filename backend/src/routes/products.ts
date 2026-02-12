@@ -42,6 +42,9 @@ function mapProduct(req: Request, p: any) {
     images: Array.isArray(v?.images) ? v.images.map((img: any) => toAbsoluteUrl(req, img)).filter(Boolean) : [],
   }));
 
+  const sellingPrice = Number(p?.management?.pricing?.sellingPrice ?? p?.management?.pricing?.selling_price ?? NaN);
+  const price = Number.isFinite(sellingPrice) ? sellingPrice : Number(p?.price ?? 0) || 0;
+
   return {
     id: String(p._id),
     slug: p.slug,
@@ -49,7 +52,7 @@ function mapProduct(req: Request, p: any) {
     name: p.name,
     sku: p.sku,
     originalPrice: Number(p?.originalPrice ?? p?.management?.pricing?.originalPrice ?? 0) || 0,
-    price: p.price,
+    price,
     stock: p.stock,
     status: p.status,
     image: toAbsoluteUrl(req, p.image),
@@ -72,7 +75,10 @@ function mapProduct(req: Request, p: any) {
           .map((v: any) => String(v))
           .filter((v: string) => v.trim().length > 0))
       : [],
-    colorVariants,
+    colorVariants: colorVariants.map((v: any) => ({
+      ...v,
+      price: Number.isFinite(Number(v?.price)) ? Number(v.price) : undefined,
+    })),
     variants: p.variants,
     tags: p.tags,
     keyFeatures: p.keyFeatures,

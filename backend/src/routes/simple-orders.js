@@ -38,10 +38,10 @@ function normalizeStatus(raw) {
     delivered: 'delivered',
     canceled: 'cancelled',
     cancelled: 'cancelled',
-    refunded: 'returned',
-    refund: 'returned',
-    returned: 'returned',
-    return_requested: 'returned',
+    refunded: 'cancelled',
+    refund: 'cancelled',
+    returned: 'cancelled',
+    return_requested: 'cancelled',
   };
   return map[key] || key || 'new';
 }
@@ -169,6 +169,64 @@ router.post('/cod', async (req, res) => {
       statusHistory: [{ status: 'new', at: nowIso, source: 'cod' }],
       statusTimestamps: { new: nowIso },
     });
+
+    // Create Shiprocket shipment immediately for COD orders
+    try {
+      const { Order } = require('../models/order');
+      const { Shipment } = require('../models/shipment');
+      const { createShipmentForOrder } = require('../services/shiprocket.service');
+
+      const insertedOrder = await Order.findById(insert.insertedId);
+      if (insertedOrder) {
+        const shiprocketResult = await createShipmentForOrder(insertedOrder, { paymentMethod: 'COD' });
+
+        await Shipment.create({
+          order: insertedOrder._id,
+          shiprocketOrderId: String(shiprocketResult?.order_id || ''),
+          shiprocketShipmentId: String(shiprocketResult?.shipment_id || ''),
+          courierId: Number(shiprocketResult?.courier_id || 0) || 0,
+          awbNumber: String(shiprocketResult?.awb_code || ''),
+          courierName: String(shiprocketResult?.courier_name || ''),
+          status: 'new',
+          trackingUrl: shiprocketResult?.tracking_url || '',
+          estimatedDelivery: shiprocketResult?.estimated_delivery_days
+            ? new Date(Date.now() + Number(shiprocketResult.estimated_delivery_days) * 24 * 60 * 60 * 1000)
+            : null,
+          eventHistory: [{ status: 'new', at: new Date(), raw: shiprocketResult }],
+        });
+      }
+    } catch (e) {
+      console.error('Shiprocket shipment creation error (COD):', e?.raw || e);
+      // Mark order as paid_but_shipment_failed and schedule retry
+      try {
+        const { Order } = require('../models/order');
+        await Order.updateOne(
+          { _id: insert.insertedId },
+          {
+            $set: { status: 'paid_but_shipment_failed' },
+            $push: {
+              statusHistory: { status: 'paid_but_shipment_failed', at: nowIso, source: 'cod', error: e.message },
+            },
+          }
+        );
+        const { Shipment } = require('../models/shipment');
+        await Shipment.create({
+          order: insert.insertedId,
+          shiprocketOrderId: '',
+          shiprocketShipmentId: '',
+          courierId: 0,
+          awbNumber: '',
+          courierName: '',
+          status: 'failed',
+          lastError: e.message,
+          nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000),
+          retryCount: 1,
+          eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
+        });
+      } catch (e2) {
+        console.error('Failed to record Shiprocket COD failure:', e2);
+      }
+    }
 
     try {
       await adjustStockForOrderOnce(db, insert.insertedId, items);
@@ -519,6 +577,54 @@ router.post('/:id/cancel', async (req, res) => {
       },
     );
 
+    let refundRequestDoc = null;
+    try {
+      const isPhonePePrepaid = String(order?.paymentMethod || '').toLowerCase() === 'phonepe';
+      const rawOrderStatus = String(order?.status || '').trim().toLowerCase();
+      if (isPhonePePrepaid && rawOrderStatus === 'paid') {
+        const payment = await db.collection('payments').findOne({ order: _id, user: uid, provider: 'phonepe', status: 'completed' });
+        if (payment) {
+          const existing = await db.collection('refund_requests').findOne({ orderId: String(_id), paymentId: String(payment._id) });
+          if (!existing) {
+            const insert = await db.collection('refund_requests').insertOne({
+              orderId: String(_id),
+              paymentId: String(payment._id),
+              userId: String(uid),
+              amount: Number(payment.amount ?? order.total ?? 0) || 0,
+              currency: String(payment.currency || order.currency || 'INR'),
+              status: 'pending_admin_approval',
+              createdAt: nowIso,
+              updatedAt: nowIso,
+              approvedAt: '',
+              refundDueAt: '',
+              processedAt: '',
+              attemptCount: 0,
+              lastError: '',
+            });
+            refundRequestDoc = {
+              id: String(insert.insertedId),
+              orderId: String(_id),
+              paymentId: String(payment._id),
+              status: 'pending_admin_approval',
+              amount: Number(payment.amount ?? order.total ?? 0) || 0,
+              createdAt: nowIso,
+            };
+          } else {
+            refundRequestDoc = {
+              id: String(existing._id),
+              orderId: String(existing.orderId || _id),
+              paymentId: String(existing.paymentId || ''),
+              status: String(existing.status || 'pending_admin_approval'),
+              amount: Number(existing.amount ?? payment.amount ?? order.total ?? 0) || 0,
+              createdAt: String(existing.createdAt || nowIso),
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Refund request creation on cancel error:', e);
+    }
+
     const itemsArr = Array.isArray(order.items) ? order.items : [];
     const restockOps = itemsArr
       .map((it) => ({
@@ -573,6 +679,7 @@ router.post('/:id/cancel', async (req, res) => {
             userEmail: String(order?.customer?.email || auth.email || ''),
             customerName: String(order?.customer?.name || ''),
             items: restockOps,
+            refundRequest: refundRequestDoc,
           },
         });
         notificationDoc = {
@@ -590,6 +697,7 @@ router.post('/:id/cancel', async (req, res) => {
             userEmail: String(order?.customer?.email || auth.email || ''),
             customerName: String(order?.customer?.name || ''),
             items: restockOps,
+            refundRequest: refundRequestDoc,
           },
         };
       } catch (e) {
@@ -1217,6 +1325,27 @@ router.get('/:id', async (req, res) => {
     // Fetch shipment details
     const shipment = await db.collection('shipments').findOne({ order: _id });
 
+    let refundRequest = null;
+    try {
+      if (auth.type === 'admin') {
+        const rr = await db.collection('refund_requests').find({ orderId: String(_id) }).sort({ createdAt: -1, _id: -1 }).limit(1).toArray();
+        if (rr && rr[0]) {
+          refundRequest = {
+            id: String(rr[0]._id),
+            status: String(rr[0].status || ''),
+            amount: Number(rr[0].amount ?? 0) || 0,
+            currency: String(rr[0].currency || 'INR'),
+            createdAt: String(rr[0].createdAt || ''),
+            approvedAt: String(rr[0].approvedAt || ''),
+            refundDueAt: String(rr[0].refundDueAt || ''),
+            processedAt: String(rr[0].processedAt || ''),
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Refund request lookup error:', e);
+    }
+
     res.json({
       success: true,
       data: {
@@ -1237,6 +1366,7 @@ router.get('/:id', async (req, res) => {
           estimatedDelivery: shipment.estimatedDelivery,
           eventHistory: shipment.eventHistory || [],
         } : null,
+        refundRequest,
         statusHistory: Array.isArray(doc?.statusHistory) ? doc.statusHistory : [],
         statusTimestamps: doc?.statusTimestamps && typeof doc.statusTimestamps === 'object' ? doc.statusTimestamps : {},
       },
@@ -1519,6 +1649,112 @@ router.put('/:id/tracking', async (req, res) => {
   } catch (error) {
     console.error('Error updating tracking:', error);
     return res.status(500).json({ success: false, message: 'Failed to update tracking' });
+  }
+});
+
+// GET /api/orders/:id/shipment-timeline (admin or owning user)
+router.get('/:id/shipment-timeline', async (req, res) => {
+  try {
+    const auth = await authenticateAny(req, res);
+    if (!auth) return;
+
+    const db = mongoose.connection.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database not ready' });
+    }
+
+    const id = String(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid order id' });
+    }
+
+    const _id = new mongoose.Types.ObjectId(id);
+
+    let doc;
+    if (auth.type === 'admin') {
+      doc = await db.collection('orders').findOne({ _id });
+    } else {
+      const uid = new mongoose.Types.ObjectId(auth.userId);
+      doc = await db.collection('orders').findOne({
+        _id,
+        $or: [{ user: uid }, { 'customer.email': auth.email }],
+      });
+    }
+
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const { Shipment } = require('../models/shipment');
+    const shipment = await Shipment.findOne({ order: _id }).lean();
+
+    const toIsoMaybe = (v) => {
+      if (!v) return '';
+      if (v instanceof Date) return v.toISOString();
+      const s = String(v);
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+      return s;
+    };
+
+    const timeline = [];
+    const history = Array.isArray(shipment?.eventHistory) ? shipment.eventHistory : [];
+    for (const h of history) {
+      const raw = h?.raw;
+      timeline.push({
+        at: toIsoMaybe(h?.at),
+        status: String(h?.status || ''),
+        location: '',
+        activity: '',
+        source: 'shiprocket',
+        raw,
+      });
+
+      const scans = Array.isArray(raw?.scans) ? raw.scans : [];
+      for (const s of scans) {
+        timeline.push({
+          at: toIsoMaybe(s?.date),
+          status: String(s?.status || ''),
+          location: String(s?.location || ''),
+          activity: String(s?.activity || ''),
+          source: 'shiprocket_scan',
+          raw: s,
+        });
+      }
+    }
+
+    // Sort newest first (if parsing fails, keep stable ordering)
+    timeline.sort((a, b) => {
+      const da = new Date(a.at);
+      const dbb = new Date(b.at);
+      const ta = Number.isNaN(da.getTime()) ? 0 : da.getTime();
+      const tb = Number.isNaN(dbb.getTime()) ? 0 : dbb.getTime();
+      return tb - ta;
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        orderId: String(doc._id),
+        orderNumber: String(doc.orderNumber || ''),
+        shipment: shipment ? {
+          id: String(shipment._id),
+          awbNumber: String(shipment.awbNumber || ''),
+          courierName: String(shipment.courierName || ''),
+          trackingUrl: String(shipment.trackingUrl || ''),
+          status: String(shipment.status || ''),
+          shiprocketOrderId: String(shipment.shiprocketOrderId || ''),
+          shiprocketShipmentId: String(shipment.shiprocketShipmentId || ''),
+          courierId: Number(shipment.courierId || 0) || 0,
+          estimatedDelivery: shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toISOString() : null,
+          updatedAt: shipment.updatedAt ? new Date(shipment.updatedAt).toISOString() : null,
+        } : null,
+        timeline,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching shipment timeline:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch shipment timeline' });
   }
 });
 

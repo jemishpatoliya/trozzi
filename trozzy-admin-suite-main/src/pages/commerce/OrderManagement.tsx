@@ -82,16 +82,14 @@ const OrderManagement: React.FC = () => {
     { value: 'shipped', label: 'Shipped' },
     { value: 'out_for_delivery', label: 'Out for Delivery' },
     { value: 'delivered', label: 'Delivered' },
-    { value: 'cancelled', label: 'Cancelled' },
-    { value: 'returned', label: 'Returned' }
+    { value: 'cancelled', label: 'Cancelled' }
   ];
 
   const paymentStatusOptions = [
     { value: '', label: 'All Payment Status' },
     { value: 'pending', label: 'Pending' },
     { value: 'completed', label: 'Completed' },
-    { value: 'failed', label: 'Failed' },
-    { value: 'refunded', label: 'Refunded' }
+    { value: 'failed', label: 'Failed' }
   ];
 
   const getStatusColor = (status: string) => {
@@ -110,8 +108,6 @@ const OrderManagement: React.FC = () => {
         return 'text-success-600 bg-success-50 border-success-200';
       case 'cancelled':
         return 'text-danger-600 bg-danger-50 border-danger-200';
-      case 'returned':
-        return 'text-danger-600 bg-danger-50 border-danger-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -125,8 +121,6 @@ const OrderManagement: React.FC = () => {
         return 'text-warning-600 bg-warning-50 border-warning-200';
       case 'failed':
         return 'text-danger-600 bg-danger-50 border-danger-200';
-      case 'refunded':
-        return 'text-info-600 bg-info-50 border-info-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }

@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useContentSettings } from '../context/ContentSettingsContext';
 import { apiClient } from '../api/client';
 import { useNotifications } from '../context/NotificationContext';
+import { useNavigate } from 'react-router-dom';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const Orders = () => {
   const { settings } = useContentSettings();
   const { socket } = useNotifications();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [orders, setOrders] = useState([]);
@@ -94,10 +96,12 @@ const Orders = () => {
   const normalizedOrders = useMemo(() => {
     return (Array.isArray(orders) ? orders : []).map((o) => {
       const items = Array.isArray(o?.itemsDetail) ? o.itemsDetail : [];
+      const rawStatus = String(o?.orderStatus || o?.status || 'new').toLowerCase();
+      const status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
       return {
         id: String(o?.id || ''),
         orderNumber: String(o?.orderNumber || ''),
-        status: String(o?.orderStatus || o?.status || 'new'),
+        status,
         createdAtIso: String(o?.createdAtIso || o?.date || ''),
         total: Number(o?.total ?? 0) || 0,
         items,
@@ -142,7 +146,19 @@ const Orders = () => {
       ) : (
         <div className="space-y-4">
           {normalizedOrders.map((order) => (
-            <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+            <div
+              key={order.id}
+              className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/order-tracking?id=${encodeURIComponent(order.id)}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`/order-tracking?id=${encodeURIComponent(order.id)}`);
+                }
+              }}
+            >
               <div className="p-4 border-b bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <div className="text-sm text-gray-500">Order</div>
@@ -161,7 +177,10 @@ const Orders = () => {
                         type="button"
                         className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-60"
                         disabled={cancellingId === order.id}
-                        onClick={() => handleCancelOrder(order)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelOrder(order);
+                        }}
                       >
                         {cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}
                       </button>

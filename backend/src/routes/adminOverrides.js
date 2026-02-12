@@ -7,8 +7,109 @@ const { createShiprocketOrder } = require('../services/shiprocket');
 const { verifyShiprocketSignature, ensureIdempotency, logWebhookFailure } = require('../middleware/webhookSecurity');
 const { validateTransition } = require('../middleware/stateMachine');
 const domainEvents = require('../services/domainEvents');
+const { authenticateAny } = require('../middleware/authAny');
 
 const router = express.Router();
+
+// Admin: list refund requests (pending/approved/completed)
+router.get('/admin/refund-requests', authenticateAny, async (req, res) => {
+  try {
+    if (!req.admin) {
+      return res.status(403).json({ success: false, message: 'Access denied: Admin token required' });
+    }
+
+    const db = mongoose.connection.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database not ready' });
+    }
+
+    const status = String(req.query?.status || '').trim();
+    const q = {};
+    if (status) q.status = status;
+
+    const docs = await db.collection('refund_requests')
+      .find(q)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(200)
+      .toArray();
+
+    return res.json({ success: true, data: docs.map((d) => ({ ...d, id: String(d._id) })) });
+  } catch (e) {
+    console.error('Admin refund-requests list error:', e);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Admin: approve refund request (sets refundDueAt = approvedAt + 3 days)
+router.post('/admin/refund-requests/:id/approve', authenticateAny, async (req, res) => {
+  try {
+    if (!req.admin) {
+      return res.status(403).json({ success: false, message: 'Access denied: Admin token required' });
+    }
+
+    const id = String(req.params.id || '').trim();
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid refund request id' });
+    }
+
+    const db = mongoose.connection.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database not ready' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const dueIso = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+    const reqId = new mongoose.Types.ObjectId(id);
+    const existing = await db.collection('refund_requests').findOne({ _id: reqId });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Refund request not found' });
+    }
+
+    const currentStatus = String(existing.status || '').trim();
+    if (currentStatus !== 'pending_admin_approval') {
+      return res.status(400).json({ success: false, message: `Refund request not approvable from status ${currentStatus || 'unknown'}` });
+    }
+
+    await db.collection('refund_requests').updateOne(
+      { _id: reqId },
+      {
+        $set: {
+          status: 'approved',
+          approvedAt: nowIso,
+          refundDueAt: dueIso,
+          updatedAt: nowIso,
+          approvedByAdminId: String(req.admin._id),
+        },
+      },
+    );
+
+    try {
+      const paymentId = String(existing.paymentId || '').trim();
+      const orderId = String(existing.orderId || '').trim();
+      const payment = paymentId && mongoose.Types.ObjectId.isValid(paymentId) ? await Payment.findById(paymentId) : null;
+      const order = orderId && mongoose.Types.ObjectId.isValid(orderId) ? await Order.findById(orderId).lean() : null;
+      if (payment && order && payment.user) {
+        const user = await require('../models/user').UserModel.findById(payment.user);
+        if (user) {
+          domainEvents.emit('refund:approved', {
+            user,
+            order,
+            payment,
+            refundDueAtIso: dueIso,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Refund approval email emit error:', e);
+    }
+
+    return res.json({ success: true, message: 'Refund approved', data: { id, status: 'approved', refundDueAt: dueIso } });
+  } catch (e) {
+    console.error('Admin refund approve error:', e);
+    return res.status(500).json({ success: false, message: 'Server error', error: e.message });
+  }
+});
 
 // Admin: retry Shiprocket shipment creation for an order
 router.post('/admin/shipments/:orderId/retry', async (req, res) => {

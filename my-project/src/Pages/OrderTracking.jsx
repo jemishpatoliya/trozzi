@@ -3,14 +3,18 @@ import { FiPackage, FiTruck, FiCheck, FiClock, FiMapPin, FiCreditCard, FiCalenda
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
+import { useLocation } from 'react-router-dom';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const OrderTracking = () => {
     const { user } = useAuth();
+    const location = useLocation();
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [shipmentTimeline, setShipmentTimeline] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [detailsLoading, setDetailsLoading] = useState(false);
     const [error, setError] = useState('');
     const [counts, setCounts] = useState({
         totalOrders: 0,
@@ -18,7 +22,6 @@ const OrderTracking = () => {
         processingCount: 0,
         shippedCount: 0,
         deliveredCount: 0,
-        returnedCount: 0,
         cancelledCount: 0,
     });
 
@@ -28,8 +31,7 @@ const OrderTracking = () => {
         paid: { label: 'Paid', icon: <FiCreditCard />, color: 'text-info-600 bg-info-50' },
         shipped: { label: 'Shipped', icon: <FiTruck />, color: 'text-warning-600 bg-warning-50' },
         delivered: { label: 'Delivered', icon: <FiCheck />, color: 'text-success-600 bg-success-50' },
-        cancelled: { label: 'Cancelled', icon: <FiClock />, color: 'text-danger-600 bg-danger-50' },
-        returned: { label: 'Returned', icon: <FiPackage />, color: 'text-danger-600 bg-danger-50' }
+        cancelled: { label: 'Cancelled', icon: <FiClock />, color: 'text-danger-600 bg-danger-50' }
     };
 
     const baseStatusFlow = ['new', 'processing', 'shipped', 'delivered'];
@@ -42,7 +44,6 @@ const OrderTracking = () => {
             processingCount: rows.filter((o) => (o?.status || '') === 'processing').length,
             shippedCount: rows.filter((o) => (o?.status || '') === 'shipped').length,
             deliveredCount: rows.filter((o) => (o?.status || '') === 'delivered').length,
-            returnedCount: rows.filter((o) => (o?.status || '') === 'returned').length,
             cancelledCount: rows.filter((o) => (o?.status || '') === 'cancelled').length,
         };
         return next;
@@ -50,7 +51,6 @@ const OrderTracking = () => {
 
     const getStatusFlow = (currentStatus) => {
         if (currentStatus === 'cancelled') return [...baseStatusFlow.slice(0, 1), 'cancelled'];
-        if (currentStatus === 'returned') return [...baseStatusFlow, 'returned'];
         return baseStatusFlow;
     };
 
@@ -69,7 +69,12 @@ const OrderTracking = () => {
 
                 const response = await apiClient.get('/orders/my');
                 const payload = response?.data;
-                const data = Array.isArray(payload?.data) ? payload.data : [];
+                const dataRaw = Array.isArray(payload?.data) ? payload.data : [];
+                const data = dataRaw.map((o) => {
+                    const rawStatus = String(o?.status || 'new').toLowerCase();
+                    const status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
+                    return { ...o, status };
+                });
 
                 if (!cancelled) {
                     setOrders(data);
@@ -91,7 +96,7 @@ const OrderTracking = () => {
             try {
                 if (!user) {
                     if (!cancelled) {
-                        setCounts({ totalOrders: 0, newCount: 0, processingCount: 0, shippedCount: 0, deliveredCount: 0, returnedCount: 0, cancelledCount: 0 });
+                        setCounts({ totalOrders: 0, newCount: 0, processingCount: 0, shippedCount: 0, deliveredCount: 0, cancelledCount: 0 });
                     }
                     return;
                 }
@@ -99,11 +104,19 @@ const OrderTracking = () => {
                 const payload = response?.data;
                 const next = payload?.data;
                 if (!cancelled && next) {
-                    setCounts((prev) => ({ ...prev, ...next }));
+                    const safeNext = {
+                        totalOrders: Number(next?.totalOrders ?? 0) || 0,
+                        newCount: Number(next?.newCount ?? 0) || 0,
+                        processingCount: Number(next?.processingCount ?? 0) || 0,
+                        shippedCount: Number(next?.shippedCount ?? 0) || 0,
+                        deliveredCount: Number(next?.deliveredCount ?? 0) || 0,
+                        cancelledCount: Number(next?.cancelledCount ?? 0) || 0,
+                    };
+                    setCounts((prev) => ({ ...prev, ...safeNext }));
                 }
             } catch (_e) {
                 if (!cancelled) {
-                    setCounts((prev) => ({ ...prev, ...computeCountsFromOrders(orders) }));
+                    // keep existing counts if stats endpoint fails
                 }
             }
         };
@@ -163,6 +176,18 @@ const OrderTracking = () => {
         };
     }, [user]);
 
+    useEffect(() => {
+        const params = new URLSearchParams(location.search || '');
+        const id = String(params.get('id') || '').trim();
+        if (!id) return;
+        if (loading) return;
+
+        const found = (Array.isArray(orders) ? orders : []).find((o) => String(o?.id || '') === id);
+        if (found) {
+            openOrder(found);
+        }
+    }, [location.search, loading, orders]);
+
     const getStatusIndex = (flow, status) => {
         return flow.indexOf(status);
     };
@@ -195,7 +220,8 @@ const OrderTracking = () => {
 
     const normalizeOrderDetail = (raw) => {
         const createdAtIso = raw?.createdAtIso || raw?.date || new Date().toISOString();
-        const status = raw?.status || 'new';
+        const rawStatus = String(raw?.status || 'new').toLowerCase();
+        const status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
 
         return {
             id: raw?.id,
@@ -219,25 +245,63 @@ const OrderTracking = () => {
         };
     };
 
+    const normalizeShipmentTimeline = (raw) => {
+        const data = raw?.data || raw;
+        const shipment = data?.shipment || null;
+        const timeline = Array.isArray(data?.timeline) ? data.timeline : [];
+
+        const normalizedTimeline = timeline
+            .map((t, idx) => ({
+                key: `${idx}_${String(t?.at || '')}_${String(t?.source || '')}`,
+                at: t?.at || '',
+                status: String(t?.status || ''),
+                location: String(t?.location || ''),
+                activity: String(t?.activity || ''),
+                source: String(t?.source || ''),
+            }))
+            .filter((t) => t.at || t.status || t.activity || t.location);
+
+        return {
+            shipment: shipment ? {
+                awbNumber: String(shipment?.awbNumber || ''),
+                courierName: String(shipment?.courierName || ''),
+                trackingUrl: String(shipment?.trackingUrl || ''),
+                status: String(shipment?.status || ''),
+                estimatedDelivery: shipment?.estimatedDelivery || null,
+                updatedAt: shipment?.updatedAt || null,
+            } : null,
+            timeline: normalizedTimeline,
+        };
+    };
+
     const formatCurrency = (value) => {
         const n = Number(value ?? 0) || 0;
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
     };
 
     const openOrder = async (orderSummary) => {
-        setLoading(true);
+        setDetailsLoading(true);
         setError('');
+        setShipmentTimeline(null);
 
         try {
             const response = await apiClient.get(`/orders/${orderSummary.id}`);
             const raw = response?.data?.data ?? response?.data;
             const normalized = normalizeOrderDetail(raw);
             setSelectedOrder(normalized);
+
+            try {
+                const trackingRes = await apiClient.get(`/orders/${orderSummary.id}/shipment-timeline`);
+                const trackingRaw = trackingRes?.data;
+                setShipmentTimeline(normalizeShipmentTimeline(trackingRaw));
+            } catch (_e) {
+                setShipmentTimeline(null);
+            }
         } catch (e) {
             const message = e?.response?.data?.message || e?.message || 'Failed to load order details';
             setError(message);
         } finally {
-            setLoading(false);
+            setDetailsLoading(false);
         }
     };
 
@@ -297,10 +361,6 @@ const OrderTracking = () => {
                                 <div className="rounded-lg border border-border-200 dark:border-border-700 p-4 bg-surface-50 dark:bg-surface-900">
                                     <p className="text-sm text-text-600 dark:text-text-400">Delivered</p>
                                     <p className="text-2xl font-bold text-text-900 dark:text-text-100">{counts.deliveredCount}</p>
-                                </div>
-                                <div className="rounded-lg border border-border-200 dark:border-border-700 p-4 bg-surface-50 dark:bg-surface-900">
-                                    <p className="text-sm text-text-600 dark:text-text-400">Returned</p>
-                                    <p className="text-2xl font-bold text-text-900 dark:text-text-100">{counts.returnedCount}</p>
                                 </div>
                                 <div className="rounded-lg border border-border-200 dark:border-border-700 p-4 bg-surface-50 dark:bg-surface-900">
                                     <p className="text-sm text-text-600 dark:text-text-400">Cancelled</p>
@@ -385,6 +445,12 @@ const OrderTracking = () => {
                         >
                             ← Back to all orders
                         </button>
+
+                        {detailsLoading && (
+                            <div className="p-6 rounded-xl bg-white dark:bg-surface-800 shadow-sm border border-border-200 dark:border-border-700">
+                                <p className="text-sm text-text-600 dark:text-text-400">Loading order details...</p>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Order Info */}
@@ -535,7 +601,7 @@ const OrderTracking = () => {
                                 </div>
 
                                 {/* Tracking Info */}
-                                {selectedOrder.trackingNumber && (
+                                {(selectedOrder.trackingNumber || shipmentTimeline?.shipment?.awbNumber) && (
                                     <div className="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-border-200 dark:border-border-700 p-6">
                                         <h3 className="text-lg font-semibold text-text-900 dark:text-text-100 mb-4">
                                             Tracking Information
@@ -544,15 +610,57 @@ const OrderTracking = () => {
                                             <div>
                                                 <p className="text-sm text-text-600 dark:text-text-400">Tracking Number</p>
                                                 <p className="font-mono text-text-900 dark:text-text-100">
-                                                    {selectedOrder.trackingNumber}
+                                                    {shipmentTimeline?.shipment?.awbNumber || selectedOrder.trackingNumber}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-text-600 dark:text-text-400">Courier</p>
                                                 <p className="text-text-900 dark:text-text-100">
-                                                    {selectedOrder.courierName}
+                                                    {shipmentTimeline?.shipment?.courierName || selectedOrder.courierName}
                                                 </p>
                                             </div>
+                                            {(shipmentTimeline?.shipment?.trackingUrl) && (
+                                                <a
+                                                    href={shipmentTimeline.shipment.trackingUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
+                                                >
+                                                    Track Package
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {shipmentTimeline?.timeline?.length > 0 && (
+                                    <div className="bg-white dark:bg-surface-800 rounded-xl shadow-sm border border-border-200 dark:border-border-700 p-6">
+                                        <h3 className="text-lg font-semibold text-text-900 dark:text-text-100 mb-4">
+                                            Tracking Timeline
+                                        </h3>
+
+                                        <div className="space-y-4">
+                                            {shipmentTimeline.timeline.map((t) => (
+                                                <div key={t.key} className="rounded-lg border border-border-200 dark:border-border-700 p-4 bg-surface-50 dark:bg-surface-900">
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-semibold text-text-900 dark:text-text-100 break-words">
+                                                                {t.activity || t.status || 'Update'}
+                                                            </p>
+                                                            {(t.location || t.source) && (
+                                                                <p className="text-xs text-text-600 dark:text-text-400 mt-1 break-words">
+                                                                    {[t.location, t.source].filter(Boolean).join(' • ')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        {t.at && (
+                                                            <p className="text-xs text-text-600 dark:text-text-400 whitespace-nowrap">
+                                                                {new Date(t.at).toLocaleString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}

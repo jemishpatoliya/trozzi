@@ -63,10 +63,30 @@ const Cart = mongoose.models.Cart || mongoose.model('Cart', CartSchema);
 router.get('/', authenticateUser, requireUser, async (req, res) => {
     try {
         const cart = await Cart.findOne({ user: req.user._id })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions management');
 
         if (!cart) {
             return res.json({ items: [], totalAmount: 0 });
+        }
+
+        // Refresh line prices from latest product pricing so admin updates reflect in cart/checkout.
+        let changed = false;
+        cart.items.forEach((item) => {
+            const p = item?.product;
+            if (!p || typeof p !== 'object') return;
+
+            const sellingPriceRaw = p?.management?.pricing?.sellingPrice;
+            const sellingPrice = Number(sellingPriceRaw);
+            const latest = Number.isFinite(sellingPrice) ? sellingPrice : (Number(p?.price ?? 0) || 0);
+            if (Number(item.price) !== Number(latest)) {
+                item.price = latest;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            cart.totalAmount = cart.items.reduce((total, item) => total + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
+            await cart.save();
         }
 
         res.json({

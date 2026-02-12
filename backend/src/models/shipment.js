@@ -3,9 +3,11 @@ const mongoose = require('mongoose');
 const shipmentSchema = new mongoose.Schema({
   order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
   shiprocketOrderId: { type: String, required: true },
+  shiprocketShipmentId: { type: String, required: false, default: '' },
+  courierId: { type: Number, required: false, default: 0 },
   awbNumber: { type: String, required: true },
   courierName: { type: String, required: true },
-  status: { type: String, required: true, enum: ['new', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'], default: 'new' },
+  status: { type: String, required: true, enum: ['new', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'failed'], default: 'new' },
   trackingUrl: { type: String },
   estimatedDelivery: { type: Date },
   shippedAt: { type: Date },

@@ -37,21 +37,30 @@ function verifyPhonePeBasicAuth(req) {
 }
 
 // Shiprocket webhook signature verification
-function verifyShiprocketSignature({ rawBody, signature, secret }) {
+function verifyShiprocketSignature({ rawBody, signature, secret, apiKey }) {
+  // 1) Preferred: HMAC signature verification (x-shiprocket-signature)
+  if (secret && signature) {
+    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
+    const isValid = crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(signature, 'hex'));
+    if (!isValid) {
+      console.error('Shiprocket signature mismatch:', { expected: expectedSignature, got: signature });
+    }
+    return { ok: isValid, reason: isValid ? null : 'Signature mismatch' };
+  }
+
+  // 2) Fallback: Shiprocket dashboard "Token" header verification (x-api-key)
+  const expectedToken = String(process.env.SHIPROCKET_WEBHOOK_TOKEN || '').trim();
+  if (expectedToken) {
+    if (!apiKey) return { ok: false, reason: 'Missing x-api-key header' };
+    const ok = crypto.timingSafeEqual(Buffer.from(String(expectedToken)), Buffer.from(String(apiKey)));
+    return { ok, reason: ok ? null : 'Invalid x-api-key token' };
+  }
+
+  // If neither mechanism is configured, reject.
   if (!secret) {
-    return { ok: false, reason: 'Missing SHIPROCKET_WEBHOOK_SECRET' };
+    return { ok: false, reason: 'Missing SHIPROCKET_WEBHOOK_SECRET (HMAC) and SHIPROCKET_WEBHOOK_TOKEN (x-api-key)' };
   }
-  if (!signature) {
-    return { ok: false, reason: 'Missing X-Shiprocket-Signature header' };
-  }
-
-  const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
-  const isValid = crypto.timingSafeEqual(Buffer.from(expectedSignature, 'hex'), Buffer.from(signature, 'hex'));
-
-  if (!isValid) {
-    console.error('Shiprocket signature mismatch:', { expected: expectedSignature, got: signature });
-  }
-  return { ok: isValid, reason: isValid ? null : 'Signature mismatch' };
+  return { ok: false, reason: 'Missing X-Shiprocket-Signature header' };
 }
 
 // Idempotency: reject duplicate events using event_id

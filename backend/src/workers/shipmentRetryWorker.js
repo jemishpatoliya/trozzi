@@ -1,7 +1,13 @@
 const mongoose = require('mongoose');
 const { Shipment } = require('../models/shipment');
 const { Order } = require('../models/order');
-const { createShiprocketOrder } = require('../services/shiprocket');
+const { createShipmentForOrder } = require('../services/shiprocket.service');
+
+function toShiprocketPaymentMethod(order) {
+  const raw = String(order?.paymentMethod || '').toLowerCase();
+  if (raw === 'cod' || raw === 'cash_on_delivery') return 'COD';
+  return 'Prepaid';
+}
 
 async function retryFailedShipments() {
   try {
@@ -18,55 +24,8 @@ async function retryFailedShipments() {
         const order = await Order.findById(shipment.order);
         if (!order) continue;
 
-        const shiprocketPayload = {
-          order_id: String(order.orderNumber || ''),
-          order_date: new Date().toISOString().split('T')[0],
-          pickup_location: 'Primary',
-          channel_id: '',
-          comment: `Retry attempt ${shipment.retryCount + 1}`,
-          billing_customer_name: String(order.customer?.name || ''),
-          billing_last_name: '',
-          billing_address: String(order.address?.line1 || ''),
-          billing_address_2: String(order.address?.line2 || ''),
-          billing_city: String(order.address?.city || ''),
-          billing_state: String(order.address?.state || ''),
-          billing_pincode: String(order.address?.postalCode || ''),
-          billing_country: String(order.address?.country || 'India'),
-          billing_email: String(order.customer?.email || ''),
-          billing_phone: String(order.customer?.phone || ''),
-          shipping_is_billing: true,
-          shipping_customer_name: '',
-          shipping_last_name: '',
-          shipping_address: '',
-          shipping_address_2: '',
-          shipping_city: '',
-          shipping_state: '',
-          shipping_pincode: '',
-          shipping_country: '',
-          shipping_email: '',
-          shipping_phone: '',
-          order_items: (order.items || []).map(item => ({
-            name: String(item.name || ''),
-            sku: String(item.sku || ''),
-            units: Number(item.quantity || 1),
-            selling_price: Number(item.price || 0),
-            discount: Number(item.discount || 0),
-            tax: Number(item.tax || 0),
-            hsn: Number(item.hsn || 0),
-          })),
-          payment_method: 'Prepaid',
-          shipping_charges: Number(order.shipping || 0),
-          giftwrap_charges: 0,
-          transaction_charges: 0,
-          total_discount: 0,
-          sub_total: Number(order.subtotal || 0),
-          length: 10,
-          breadth: 10,
-          height: 10,
-          weight: 0.5,
-        };
-
-        const shiprocketResult = await createShiprocketOrder(shiprocketPayload);
+        const paymentMethod = toShiprocketPaymentMethod(order);
+        const shiprocketResult = await createShipmentForOrder(order, { paymentMethod });
         if (shiprocketResult && shiprocketResult.order_id) {
           // Success: update shipment
           await Shipment.updateOne(
@@ -74,6 +33,8 @@ async function retryFailedShipments() {
             {
               $set: {
                 shiprocketOrderId: String(shiprocketResult.order_id || ''),
+                shiprocketShipmentId: String(shiprocketResult.shipment_id || ''),
+                courierId: Number(shiprocketResult.courier_id || 0) || 0,
                 awbNumber: String(shiprocketResult.awb_code || ''),
                 courierName: String(shiprocketResult.courier_name || ''),
                 status: 'new',

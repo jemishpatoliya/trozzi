@@ -23,7 +23,7 @@ interface Order {
   items: number;
   date: string;
   paymentMethod: string;
-  status: 'new' | 'processing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
+  status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 }
 
 type OrderDetailItem = {
@@ -57,6 +57,15 @@ type OrderDetail = {
     country?: string;
   };
   createdAtIso?: string;
+  refundRequest?: {
+    id: string;
+    status: string;
+    amount: number;
+    currency?: string;
+    refundDueAt?: string;
+    approvedAt?: string;
+    processedAt?: string;
+  } | null;
 };
 
 type OrderStatusCounts = {
@@ -65,7 +74,6 @@ type OrderStatusCounts = {
   processing: number;
   shipped: number;
   delivered: number;
-  returned: number;
   cancelled: number;
 };
 
@@ -80,7 +88,6 @@ const OrdersPage = () => {
     processing: 0,
     shipped: 0,
     delivered: 0,
-    returned: 0,
     cancelled: 0,
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,7 +119,6 @@ const OrdersPage = () => {
         processing: Number(payload.processing ?? payload.processingCount ?? 0) || 0,
         shipped: Number(payload.shipped ?? payload.shippedCount ?? 0) || 0,
         delivered: Number(payload.delivered ?? payload.deliveredCount ?? 0) || 0,
-        returned: Number(payload.returned ?? payload.returnedCount ?? 0) || 0,
         cancelled: Number(payload.cancelled ?? payload.cancelledCount ?? 0) || 0,
       });
     });
@@ -173,7 +179,6 @@ const OrdersPage = () => {
     processing: list.filter((o) => o.status === 'processing').length,
     shipped: list.filter((o) => o.status === 'shipped').length,
     delivered: list.filter((o) => o.status === 'delivered').length,
-    returned: list.filter((o) => o.status === 'returned').length,
     cancelled: list.filter((o) => o.status === 'cancelled').length,
   });
 
@@ -468,20 +473,6 @@ const OrdersPage = () => {
                 <RotateCcw className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Returned</p>
-                <p className="text-2xl font-bold">{counts.returned}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center">
-                <RotateCcw className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
                 <p className="text-sm text-muted-foreground">Cancelled</p>
                 <p className="text-2xl font-bold">{counts.cancelled}</p>
               </div>
@@ -497,7 +488,6 @@ const OrdersPage = () => {
           <TabsTrigger value="processing">Processing ({counts.processing})</TabsTrigger>
           <TabsTrigger value="shipped">Shipped ({counts.shipped})</TabsTrigger>
           <TabsTrigger value="delivered">Delivered ({counts.delivered})</TabsTrigger>
-          <TabsTrigger value="returned">Returned ({counts.returned})</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled ({counts.cancelled})</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -517,7 +507,6 @@ const OrdersPage = () => {
             <SelectItem value="processing">Processing</SelectItem>
             <SelectItem value="shipped">Shipped</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
-            <SelectItem value="returned">Returned</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
@@ -563,6 +552,40 @@ const OrdersPage = () => {
                   Download Receipt
                 </Button>
               </div>
+
+              {selectedOrder.status === 'cancelled' && selectedOrderDetails?.refundRequest?.status === 'pending_admin_approval' && (
+                <div className="flex items-center justify-end">
+                  <Button
+                    onClick={async () => {
+                      const refundRequestId = String(selectedOrderDetails?.refundRequest?.id || '').trim();
+                      if (!refundRequestId) return;
+                      try {
+                        setDetailsLoading(true);
+                        const resp = await ordersAPI.approveRefundRequest(refundRequestId);
+                        if (!resp?.success) {
+                          throw new Error(resp?.message || 'Failed to approve refund');
+                        }
+                        const refreshed = await ordersAPI.getOrder(selectedOrder.id);
+                        if (refreshed?.success && refreshed?.data) {
+                          setSelectedOrderDetails(refreshed.data as OrderDetail);
+                        }
+                        toast({
+                          title: 'Refund Approved',
+                          description: 'Refund approved. It will be processed in 3 days.',
+                        });
+                      } catch (error) {
+                        const err: any = error;
+                        const msg = err?.response?.data?.message || err?.message || 'Failed to approve refund';
+                        toast({ title: 'Error', description: String(msg), variant: 'destructive' });
+                      } finally {
+                        setDetailsLoading(false);
+                      }
+                    }}
+                  >
+                    Approve Refund (3 days)
+                  </Button>
+                </div>
+              )}
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Order Number</p>
@@ -667,7 +690,6 @@ const OrdersPage = () => {
                     <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="shipped">Shipped</SelectItem>
                     <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="returned">Returned</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>

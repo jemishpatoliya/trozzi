@@ -7,6 +7,7 @@ const {
   orderCancellationEmail,
   orderShippedEmail,
   orderDeliveredEmail,
+  refundApprovedEmail,
 } = require('./emailTemplates');
 
 class DomainEvents extends EventEmitter {
@@ -14,6 +15,28 @@ class DomainEvents extends EventEmitter {
     super();
     this.notificationService = new NotificationService();
     this.bindEvents();
+  }
+
+  async notifyRefundApproved(data) {
+    const { user, order, payment, refundDueAtIso } = data;
+    if (!user || !order || !payment) return;
+
+    try {
+      const to = String(order.customer?.email || user.email || '').trim();
+      if (!to) return;
+      await sendMail({
+        to,
+        subject: `Refund Approved - ${String(order.orderNumber || '')}`,
+        html: refundApprovedEmail({
+          customerName: String(order.customer?.name || user.firstName || 'Customer'),
+          orderNumber: String(order.orderNumber || ''),
+          amount: Number(payment.amount ?? 0),
+          refundDueAtIso: String(refundDueAtIso || ''),
+        }),
+      });
+    } catch (e) {
+      console.error('Refund approved email error:', e);
+    }
   }
 
   async notifyOrderConfirmed(data) {
@@ -69,6 +92,10 @@ class DomainEvents extends EventEmitter {
     });
 
     // Refund events
+    this.on('refund:approved', async (data) => {
+      await this.notifyRefundApproved(data);
+    });
+
     this.on('payment:refunded', async (data) => {
       await this.notifyRefundProcessed(data);
     });
