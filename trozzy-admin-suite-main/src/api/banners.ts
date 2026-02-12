@@ -31,10 +31,28 @@ interface BackendBanner {
 }
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
   return {
     Authorization: token ? `Bearer ${token}` : undefined,
   };
+}
+
+export async function uploadAdminBannerImage(file: File) {
+  const form = new FormData();
+  form.append('image', file);
+
+  const response = await axios.post(`${API_BASE_URL}/admin/banners/upload`, form, {
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  const data = response.data;
+  if (!data?.success || !data?.url) {
+    throw new Error(data?.message || 'Failed to upload banner image');
+  }
+  return String(data.url);
 }
 
 function normalizeBanner(b: BackendBanner): AdminBanner {
@@ -72,7 +90,6 @@ export async function fetchAdminBanners(params?: { position?: string; active?: b
 export async function createAdminBanner(input: {
   title: string;
   imageUrl: string;
-  link?: string;
   position: string;
   active: boolean;
   order: number;
@@ -83,7 +100,7 @@ export async function createAdminBanner(input: {
       title: input.title,
       position: input.position,
       image: input.imageUrl,
-      link: input.link || '',
+      link: '',
       active: input.active,
       order: input.order,
     },
@@ -99,7 +116,6 @@ export async function updateAdminBanner(
   input: {
     title: string;
     imageUrl: string;
-    link?: string;
     position: string;
     active: boolean;
     order: number;
@@ -111,7 +127,7 @@ export async function updateAdminBanner(
       title: input.title,
       position: input.position,
       image: input.imageUrl,
-      link: input.link || '',
+      link: '',
       active: input.active,
       order: input.order,
     },

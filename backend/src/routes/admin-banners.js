@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const crypto = require('crypto');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const Banner = require('../models/banner');
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../../public/uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const { authenticateAdmin, requireAdmin } = require('../middleware/adminAuth');
+
+const AWS_REGION = process.env.AWS_REGION;
+const AWS_S3_BUCKET = process.env.AWS_S3_BUCKET;
+
+const s3 = new S3Client({ region: AWS_REGION });
+
+router.use(authenticateAdmin, requireAdmin);
 
 // POST /api/admin/banners/json - Create new banner via JSON (no multipart/form-data required)
 router.post('/json', async (req, res) => {
@@ -56,19 +59,8 @@ router.post('/json', async (req, res) => {
     }
 });
 
-// Configure multer for banner image uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'banner-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
 const upload = multer({
-    storage: storage,
+    storage: multer.memoryStorage(),
     limits: {
         fileSize: 10 * 1024 * 1024 // 10MB limit for banners
     },
@@ -80,6 +72,30 @@ const upload = multer({
         }
     }
 });
+
+async function uploadBannerToS3(file) {
+    if (!AWS_REGION || !AWS_S3_BUCKET) {
+        throw new Error('Missing AWS configuration (AWS_REGION, AWS_S3_BUCKET)');
+    }
+
+    const ext = (file.originalname || '').split('.').pop() || 'bin';
+    const random = crypto.randomBytes(12).toString('hex');
+    const key = `uploads/banners/${Date.now()}-${random}.${ext}`;
+
+    await s3.send(
+        new PutObjectCommand({
+            Bucket: AWS_S3_BUCKET,
+            Key: key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+        })
+    );
+
+    return {
+        key,
+        url: `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`,
+    };
+}
 
 // GET /api/admin/banners - Get all banners
 router.get('/', async (req, res) => {
@@ -166,9 +182,9 @@ router.post('/', upload.single('image'), async (req, res) => {
 
         let imageUrl = req.body.image; // For external URLs
 
-        // If file was uploaded, use the uploaded file path
         if (req.file) {
-            imageUrl = `/uploads/${req.file.filename}`;
+            const s3Obj = await uploadBannerToS3(req.file);
+            imageUrl = s3Obj.url;
         }
 
         if (!imageUrl) {
@@ -226,16 +242,9 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         if (active !== undefined) banner.active = active === 'true';
         if (order !== undefined) banner.order = parseInt(order);
 
-        // If new image file was uploaded, update image URL
         if (req.file) {
-            // Delete old image file if it's a local upload
-            if (banner.image && banner.image.startsWith('/uploads/')) {
-                const oldImagePath = path.join(__dirname, '../../public', banner.image);
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                }
-            }
-            banner.image = `/uploads/${req.file.filename}`;
+            const s3Obj = await uploadBannerToS3(req.file);
+            banner.image = s3Obj.url;
         } else if (req.body.image && req.body.image !== banner.image) {
             // If external image URL was provided
             banner.image = req.body.image;
@@ -309,14 +318,6 @@ router.delete('/:id', async (req, res) => {
             });
         }
 
-        // Delete image file if it's a local upload
-        if (banner.image && banner.image.startsWith('/uploads/')) {
-            const imagePath = path.join(__dirname, '../../public', banner.image);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
-            }
-        }
-
         await Banner.findByIdAndDelete(req.params.id);
 
         res.json({
@@ -363,7 +364,7 @@ router.put('/:id/toggle', async (req, res) => {
 });
 
 // POST /api/admin/banners/upload - Upload banner image separately
-router.post('/upload', upload.single('image'), async (req, res) => {
+router.post('/upload', authenticateAdmin, requireAdmin, upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({
@@ -372,14 +373,13 @@ router.post('/upload', upload.single('image'), async (req, res) => {
             });
         }
 
-        // Return the uploaded file URL
-        const imageUrl = `/uploads/${req.file.filename}`;
+        const s3Obj = await uploadBannerToS3(req.file);
 
         res.json({
             success: true,
             message: 'Banner image uploaded successfully',
-            url: imageUrl,
-            filename: req.file.filename,
+            url: s3Obj.url,
+            key: s3Obj.key,
             originalname: req.file.originalname,
             size: req.file.size
         });

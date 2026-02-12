@@ -15,6 +15,7 @@ import {
   createAdminBanner,
   deleteAdminBanner,
   fetchAdminBanners,
+  uploadAdminBannerImage,
   updateAdminBanner,
   type AdminBanner,
 } from '@/api/banners';
@@ -39,11 +40,12 @@ const BannersPage = () => {
   const [formData, setFormData] = useState({
     title: '',
     imageUrl: '',
-    link: '',
     position: 'home_hero',
     active: true,
     order: 0,
   });
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const loadBanners = async () => {
     setLoading(true);
@@ -104,11 +106,11 @@ const BannersPage = () => {
       setFormData({
         title: '',
         imageUrl: '',
-        link: '',
         position: 'home_hero',
         active: true,
         order: 0,
       });
+      setSelectedImageFile(null);
     } catch (error) {
       toast({
         title: 'Error',
@@ -123,11 +125,11 @@ const BannersPage = () => {
     setFormData({
       title: banner.title,
       imageUrl: banner.imageUrl,
-      link: banner.link,
       position: banner.position,
       active: banner.active,
       order: banner.order,
     });
+    setSelectedImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -152,12 +154,12 @@ const BannersPage = () => {
     setFormData({
       title: '',
       imageUrl: '',
-      link: '',
       position: 'home_hero',
       active: true,
       order: 0,
     });
     setEditingId(null);
+    setSelectedImageFile(null);
   };
 
   return (
@@ -177,11 +179,11 @@ const BannersPage = () => {
               Add Banner
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="w-[95vw] max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Edit Banner' : 'Add New Banner'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 w-full">
               <div className="space-y-2">
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -190,58 +192,49 @@ const BannersPage = () => {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Enter banner title"
                   required
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="imageUrl">Image URL</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="imageUrl"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="Enter image URL"
-                    required
-                  />
-                  <div>
-                    <input
-                      id="bannerImageFile"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        void handleImageUpload(file);
-                        e.currentTarget.value = '';
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isUploadingImage}
-                      onClick={() => {
-                        const el = document.getElementById('bannerImageFile') as HTMLInputElement | null;
-                        el?.click();
-                      }}
-                    >
-                      <ImageIcon className="mr-2 h-4 w-4" />
-                      {isUploadingImage ? 'Uploading...' : 'Upload'}
-                    </Button>
-                  </div>
-                </div>
-                {formData.imageUrl ? (
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <img src={formData.imageUrl} alt="Banner preview" className="w-full h-32 object-cover" />
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="link">Link URL</Label>
+                <Label htmlFor="image">Banner Image</Label>
                 <Input
-                  id="link"
-                  value={formData.link}
-                  onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                  placeholder="Enter destination URL"
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                    setSelectedImageFile(file);
+                  }}
+                  required={!editingId}
+                  className="w-full"
                 />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="text-sm text-muted-foreground min-w-0 break-all">
+                    {formData.imageUrl ? `Selected: ${String(formData.imageUrl)}` : 'No image uploaded yet'}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!selectedImageFile || uploadingImage}
+                    onClick={async () => {
+                      if (!selectedImageFile) return;
+                      try {
+                        setUploadingImage(true);
+                        const url = await uploadAdminBannerImage(selectedImageFile);
+                        setFormData((prev) => ({ ...prev, imageUrl: url }));
+                        toast({ title: 'Uploaded', description: 'Banner image uploaded successfully.' });
+                      } catch (error) {
+                        const err: any = error;
+                        const msg = err?.response?.data?.message || err?.message || 'Failed to upload banner image';
+                        toast({ title: 'Error', description: String(msg), variant: 'destructive' });
+                      } finally {
+                        setUploadingImage(false);
+                      }
+                    }}
+                  >
+                    {uploadingImage ? 'Uploading...' : 'Upload'}
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="position">Position</Label>
@@ -269,6 +262,7 @@ const BannersPage = () => {
                   value={formData.order}
                   onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
                   placeholder="Display order"
+                  className="w-full"
                 />
               </div>
               <div className="flex items-center space-x-2">
@@ -287,7 +281,7 @@ const BannersPage = () => {
                 >
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={!formData.imageUrl || uploadingImage}>
                   {editingId ? 'Update' : 'Create'}
                 </Button>
               </div>
@@ -364,9 +358,6 @@ const BannersPage = () => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">
-                      Link: {banner.link || 'No link'}
-                    </p>
                     <p className="text-sm text-muted-foreground">
                       Created: {new Date(banner.createdAt).toLocaleDateString()}
                     </p>
