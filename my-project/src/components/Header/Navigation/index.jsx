@@ -1,7 +1,6 @@
 // Navigation.js
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '@mui/material/Button';
-import { IoRocketSharp } from "react-icons/io5";
 import { NavLink } from 'react-router-dom';
 import { fetchCategories } from '../../../api/catalog';
 import './style.css';
@@ -221,9 +220,6 @@ const Navigation = () => {
             <NavLink to="/order-tracking" className="text-sm font-medium text-text-700 dark:text-text-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
               Track
             </NavLink>
-            <p className='text-sm font-semibold text-text-700 dark:text-text-300 flex items-center gap-2 mb-0 mt-0 bg-success-50 dark:bg-success-900/20 text-success-700 dark:text-success-300 px-3 py-2 rounded-lg border border-success-200 dark:border-success-800'>
-              <IoRocketSharp className='text-[16px]' /> Free Delivery
-            </p>
           </div>
         </div>
       </nav>
