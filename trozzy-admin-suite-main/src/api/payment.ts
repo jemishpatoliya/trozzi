@@ -25,8 +25,24 @@ export interface PaymentTransaction {
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded' | 'cancelled';
   transactionId?: string;
   upiId?: string;
+  paymentMode?: string;
+  payerVpa?: string;
   merchantTransactionId?: string;
   gatewayResponse?: any;
+  order?: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    total: number;
+    paymentMethod?: string;
+  } | null;
+  shipment?: {
+    id: string;
+    awbNumber: string;
+    courierName: string;
+    trackingUrl: string;
+    status: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
   completedAt?: string;

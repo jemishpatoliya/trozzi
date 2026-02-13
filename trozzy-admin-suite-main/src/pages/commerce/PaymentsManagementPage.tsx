@@ -54,6 +54,9 @@ const PaymentsManagementPage = () => {
     setSelectedPayment(payment);
   };
 
+  const isCod = (p: Payment) => String(p.paymentMethod || '').toLowerCase() === 'cod';
+  const isPhonePe = (p: Payment) => String(p.paymentMethod || '').toLowerCase() === 'phonepe';
+
   const handleRefresh = async () => {
     try {
       await loadPayments(statusFilter === 'all' ? undefined : statusFilter);
@@ -293,6 +296,24 @@ const PaymentsManagementPage = () => {
                       <div className="font-mono text-sm">{payment.transactionId}</div>
                     </div>
                   )}
+                  {isPhonePe(payment) && (payment.paymentMode || payment.payerVpa) && (
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">PhonePe</div>
+                      {payment.paymentMode ? (
+                        <div className="text-sm">Mode: {payment.paymentMode}</div>
+                      ) : null}
+                      {payment.payerVpa ? (
+                        <div className="text-sm">UPI ID: {payment.payerVpa}</div>
+                      ) : null}
+                    </div>
+                  )}
+                  {isCod(payment) && payment.shipment && (
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">Shiprocket</div>
+                      <div className="font-mono text-sm">AWB: {payment.shipment.awbNumber || '-'}</div>
+                      <div className="text-sm">{payment.shipment.courierName || ''}</div>
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <div className="text-sm text-muted-foreground">Customer</div>
                     <div className="flex items-center space-x-2">
@@ -375,6 +396,18 @@ const PaymentsManagementPage = () => {
                   <Label>Payment Method</Label>
                   <div className="capitalize mt-1">{selectedPayment.paymentMethod || '-'}</div>
                 </div>
+                {isPhonePe(selectedPayment) && (selectedPayment.paymentMode || selectedPayment.payerVpa) && (
+                  <>
+                    <div>
+                      <Label>Mode</Label>
+                      <div className="mt-1">{selectedPayment.paymentMode || '-'}</div>
+                    </div>
+                    <div>
+                      <Label>UPI ID</Label>
+                      <div className="mt-1 break-all">{selectedPayment.payerVpa || '-'}</div>
+                    </div>
+                  </>
+                )}
                 <div>
                   <Label>Date</Label>
                   <div className="mt-1">
@@ -430,6 +463,35 @@ const PaymentsManagementPage = () => {
                       </div>
                     </div>
                   </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {isCod(selectedPayment) && (selectedPayment as any).shipment && (
+                <div className="border-t pt-4">
+                  <Label>Shiprocket Information</Label>
+                  {(() => {
+                    const sh = (selectedPayment as any).shipment as any;
+                    return (
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                          <div className="text-sm text-muted-foreground">AWB</div>
+                          <div className="font-mono text-sm mt-1">{sh?.awbNumber || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">Courier</div>
+                          <div className="mt-1">{sh?.courierName || '-'}</div>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="text-sm text-muted-foreground">Tracking</div>
+                          {sh?.trackingUrl ? (
+                            <a className="text-sm text-blue-600 hover:underline break-all" href={sh.trackingUrl} target="_blank" rel="noreferrer">{sh.trackingUrl}</a>
+                          ) : (
+                            <div className="text-sm">-</div>
+                          )}
+                        </div>
+                      </div>
                     );
                   })()}
                 </div>

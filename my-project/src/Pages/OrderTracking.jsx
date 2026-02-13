@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FiPackage, FiTruck, FiCheck, FiClock, FiMapPin, FiCreditCard, FiCalendar, FiUser, FiArrowRight } from 'react-icons/fi';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { FiPackage, FiTruck, FiCheck, FiClock, FiMapPin, FiCreditCard, FiCalendar, FiUser, FiArrowRight, FiStar, FiX } from 'react-icons/fi';
 import { apiClient } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { io } from 'socket.io-client';
@@ -17,6 +17,15 @@ const OrderTracking = () => {
     const [loading, setLoading] = useState(true);
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const [reviewModalOpen, setReviewModalOpen] = useState(false);
+    const [reviewItem, setReviewItem] = useState(null);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewTitle, setReviewTitle] = useState('');
+    const [reviewComment, setReviewComment] = useState('');
+    const [reviewImages, setReviewImages] = useState([]);
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [reviewError, setReviewError] = useState('');
     const [counts, setCounts] = useState({
         totalOrders: 0,
         newCount: 0,
@@ -200,7 +209,7 @@ const OrderTracking = () => {
         if (found) {
             openOrder(found);
         }
-    }, [location.search, loading, orders]);
+    }, [location.search, loading, orders, openOrder]);
 
     const getStatusIndex = (flow, status) => {
         return flow.indexOf(status);
@@ -298,7 +307,7 @@ const OrderTracking = () => {
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
     };
 
-    const openOrder = async (orderSummary) => {
+    const openOrder = useCallback(async (orderSummary) => {
         setDetailsLoading(true);
         setError('');
         setShipmentTimeline(null);
@@ -321,6 +330,90 @@ const OrderTracking = () => {
             setError(message);
         } finally {
             setDetailsLoading(false);
+        }
+    }, []);
+
+    const openReviewModal = (item) => {
+        setReviewItem(item);
+        setReviewRating(5);
+        setReviewTitle('');
+        setReviewComment('');
+        setReviewImages([]);
+        setReviewError('');
+        setReviewModalOpen(true);
+    };
+
+    const closeReviewModal = () => {
+        setReviewModalOpen(false);
+        setReviewItem(null);
+        setReviewError('');
+    };
+
+    const uploadReviewImage = async (file) => {
+        const fd = new FormData();
+        fd.append('image', file);
+        const res = await apiClient.post('/upload/image?folder=reviews', fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const url = res?.data?.url;
+        if (!url) throw new Error('Upload failed');
+        return String(url);
+    };
+
+    const handleReviewImageChange = async (e) => {
+        const files = Array.from(e?.target?.files || []).slice(0, 5);
+        if (files.length === 0) return;
+
+        try {
+            setReviewError('');
+            const urls = [];
+            for (const f of files) {
+                // eslint-disable-next-line no-await-in-loop
+                const url = await uploadReviewImage(f);
+                urls.push(url);
+            }
+            setReviewImages((prev) => [...prev, ...urls].slice(0, 5));
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Failed to upload image';
+            setReviewError(String(msg));
+        } finally {
+            try {
+                if (e?.target) e.target.value = '';
+            } catch (_e2) {
+                // ignore
+            }
+        }
+    };
+
+    const submitReview = async () => {
+        if (!reviewItem?.productId) {
+            setReviewError('Missing product');
+            return;
+        }
+        if (!reviewTitle.trim()) {
+            setReviewError('Title is required');
+            return;
+        }
+        if (!reviewComment.trim()) {
+            setReviewError('Comment is required');
+            return;
+        }
+
+        setReviewSubmitting(true);
+        setReviewError('');
+        try {
+            await apiClient.post(`/products/${reviewItem.productId}/reviews`, {
+                rating: Number(reviewRating) || 5,
+                title: reviewTitle.trim(),
+                comment: reviewComment.trim(),
+                images: reviewImages,
+            });
+            closeReviewModal();
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.message || 'Failed to submit review';
+            setReviewError(String(msg));
+        } finally {
+            setReviewSubmitting(false);
         }
     };
 
@@ -556,6 +649,16 @@ const OrderTracking = () => {
                                                     <p className="text-sm text-text-600 dark:text-text-400">
                                                         Quantity: {product.quantity}
                                                     </p>
+                                                    {selectedOrder.status === 'delivered' ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openReviewModal(product)}
+                                                            className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:underline"
+                                                        >
+                                                            <FiStar />
+                                                            Write a Review
+                                                        </button>
+                                                    ) : null}
                                                 </div>
                                                 <p className="font-semibold text-text-900 dark:text-text-100">
                                                     {formatCurrency(product.price * product.quantity)}
@@ -692,6 +795,106 @@ const OrderTracking = () => {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {reviewModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="w-full max-w-lg rounded-xl bg-white dark:bg-surface-800 border border-border-200 dark:border-border-700 shadow-lg">
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border-200 dark:border-border-700">
+                                <div>
+                                    <div className="text-sm font-semibold text-text-900 dark:text-text-100">Write a Review</div>
+                                    <div className="text-xs text-text-600 dark:text-text-400">{reviewItem?.name || ''}</div>
+                                </div>
+                                <button type="button" onClick={closeReviewModal} className="p-2 rounded-md hover:bg-surface-100 dark:hover:bg-surface-700">
+                                    <FiX />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-4">
+                                {reviewError ? (
+                                    <div className="text-sm text-red-600">{reviewError}</div>
+                                ) : null}
+
+                                <div>
+                                    <div className="text-sm font-medium text-text-800 dark:text-text-200 mb-1">Rating</div>
+                                    <select
+                                        value={reviewRating}
+                                        onChange={(e) => setReviewRating(Number(e.target.value) || 5)}
+                                        className="w-full h-10 rounded-md border border-border-200 dark:border-border-700 bg-white dark:bg-surface-900 px-3 text-sm"
+                                    >
+                                        {[5, 4, 3, 2, 1].map((r) => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <div className="text-sm font-medium text-text-800 dark:text-text-200 mb-1">Title</div>
+                                    <input
+                                        value={reviewTitle}
+                                        onChange={(e) => setReviewTitle(e.target.value)}
+                                        className="w-full h-10 rounded-md border border-border-200 dark:border-border-700 bg-white dark:bg-surface-900 px-3 text-sm"
+                                        placeholder="e.g. Great quality"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="text-sm font-medium text-text-800 dark:text-text-200 mb-1">Comment</div>
+                                    <textarea
+                                        value={reviewComment}
+                                        onChange={(e) => setReviewComment(e.target.value)}
+                                        className="w-full min-h-[110px] rounded-md border border-border-200 dark:border-border-700 bg-white dark:bg-surface-900 px-3 py-2 text-sm"
+                                        placeholder="Write your experience..."
+                                    />
+                                </div>
+
+                                <div>
+                                    <div className="text-sm font-medium text-text-800 dark:text-text-200 mb-2">Photos (optional)</div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleReviewImageChange}
+                                        className="block w-full text-sm"
+                                    />
+                                    {reviewImages.length ? (
+                                        <div className="mt-3 grid grid-cols-5 gap-2">
+                                            {reviewImages.map((u, idx) => (
+                                                <div key={`${u}_${idx}`} className="relative">
+                                                    <img src={u} alt="review" className="w-full h-14 object-cover rounded-md border border-border-200 dark:border-border-700" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setReviewImages((prev) => prev.filter((_, i) => i !== idx))}
+                                                        className="absolute -top-2 -right-2 bg-white dark:bg-surface-900 border border-border-200 dark:border-border-700 rounded-full p-1"
+                                                    >
+                                                        <FiX size={12} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="px-5 py-4 border-t border-border-200 dark:border-border-700 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={closeReviewModal}
+                                    className="h-10 px-4 rounded-md border border-border-200 dark:border-border-700 text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={submitReview}
+                                    disabled={reviewSubmitting}
+                                    className="h-10 px-4 rounded-md bg-primary-600 text-white text-sm font-semibold disabled:opacity-60"
+                                >
+                                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                                </button>
                             </div>
                         </div>
                     </div>

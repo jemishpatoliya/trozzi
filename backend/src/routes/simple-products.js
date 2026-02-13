@@ -4,6 +4,9 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { authenticateAdmin, requireAdmin } = require('../middleware/adminAuth');
 const { CategoryModel } = require('../models/category');
+const { authenticateAny } = require('../middleware/authAny');
+const { ProductModel } = require('../models/product');
+const { Order } = require('../models/order');
 
 function parseIntQuery(value) {
     if (value === undefined || value === null) return undefined;
@@ -293,6 +296,91 @@ router.get('/slug/:slug', async (req, res) => {
     } catch (error) {
         console.error('Error fetching product by slug:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch product' });
+    }
+});
+
+router.post('/:productId/reviews', authenticateAny, async (req, res) => {
+    try {
+        if (!req.userId || !req.user) {
+            return res.status(401).json({ success: false, message: 'Access token required' });
+        }
+
+        const productId = String(req.params.productId || '').trim();
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).json({ success: false, message: 'Invalid product id' });
+        }
+
+        const rating = Number(req.body?.rating);
+        const title = String(req.body?.title || '').trim();
+        const comment = String(req.body?.comment || '').trim();
+        const imagesRaw = Array.isArray(req.body?.images) ? req.body.images : [];
+        const images = imagesRaw
+            .map((u) => String(u || '').trim())
+            .filter((u) => u.length > 0)
+            .slice(0, 5);
+
+        if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+            return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+        }
+        if (!title) return res.status(400).json({ success: false, message: 'Title is required' });
+        if (!comment) return res.status(400).json({ success: false, message: 'Comment is required' });
+
+        const userId = new mongoose.Types.ObjectId(String(req.userId));
+        const email = String(req.user?.email || '').trim().toLowerCase();
+        const name = String(req.user?.name || '').trim() || 'Customer';
+
+        const hasDelivered = await Order.exists({
+            user: userId,
+            status: 'delivered',
+            items: { $elemMatch: { productId: String(productId) } },
+        });
+        if (!hasDelivered) {
+            return res.status(403).json({ success: false, message: 'You can review only after delivery' });
+        }
+
+        const product = await ProductModel.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        const already = (Array.isArray(product.reviews) ? product.reviews : []).some((r) => String(r?.customerEmail || '').toLowerCase() === email);
+        if (already) {
+            return res.status(409).json({ success: false, message: 'You have already reviewed this product' });
+        }
+
+        const nowIso = new Date().toISOString();
+        product.reviews.push({
+            rating: Math.round(rating),
+            title,
+            comment,
+            customerName: name,
+            customerEmail: email,
+            images,
+            date: nowIso,
+            verifiedPurchase: true,
+            helpful: 0,
+            status: 'pending',
+        });
+
+        const approved = (product.reviews || []).filter((r) => String(r?.status || '') === 'approved');
+        const avg = approved.length
+            ? approved.reduce((sum, r) => sum + Number(r?.rating || 0), 0) / approved.length
+            : 0;
+        product.rating = Math.round(avg * 10) / 10;
+        await product.save();
+
+        const created = product.reviews[product.reviews.length - 1];
+        return res.status(201).json({
+            success: true,
+            message: 'Review submitted successfully',
+            data: {
+                id: String(created?._id || ''),
+                status: String(created?.status || 'pending'),
+            },
+        });
+    } catch (error) {
+        console.error('Error submitting product review:', error);
+        return res.status(500).json({ success: false, message: 'Failed to submit review' });
     }
 });
 

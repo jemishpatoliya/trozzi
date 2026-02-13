@@ -23,6 +23,7 @@ const ReviewSchema = new mongoose.Schema({
     comment: { type: String, required: true },
     customerName: { type: String, required: true },
     customerEmail: { type: String, required: true },
+    images: { type: [String], required: true, default: [] },
     date: { type: String, required: true },
     verifiedPurchase: { type: Boolean, required: true, default: false },
     helpful: { type: Number, required: true, default: 0 },

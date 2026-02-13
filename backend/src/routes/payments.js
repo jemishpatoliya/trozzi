@@ -462,6 +462,8 @@ function paymentDocToTransaction(p) {
     status: String(p.status || 'pending'),
     transactionId: String(p.transactionId || ''),
     merchantTransactionId: String(p.providerOrderId || ''),
+    paymentMode: String(p.paymentMode || ''),
+    payerVpa: String(p?.metadata?.payerVpa || ''),
     gatewayResponse: last,
     createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
     updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : new Date().toISOString(),
@@ -496,12 +498,119 @@ router.get('/transactions', async (req, res) => {
       ];
     }
 
+    const { Shipment } = require('../models/shipment');
+    const { Order } = require('../models/order');
+
     const docs = await Payment.find(q)
       .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
-    return res.json({ success: true, data: docs.map(paymentDocToTransaction) });
+    const orderIds = docs.map((d) => String(d?.order || '')).filter(Boolean);
+    const orders = orderIds.length
+      ? await Order.find({ _id: { $in: orderIds } }).lean()
+      : [];
+    const orderById = new Map(orders.map((o) => [String(o._id), o]));
+
+    const shipments = orderIds.length
+      ? await Shipment.find({ order: { $in: orderIds } }).lean()
+      : [];
+    const shipmentByOrderId = new Map(shipments.map((s) => [String(s.order), s]));
+
+    const enrichedPayments = docs.map((p) => {
+      const base = paymentDocToTransaction(p);
+      const order = base.orderId ? orderById.get(base.orderId) : null;
+      const shipment = base.orderId ? shipmentByOrderId.get(base.orderId) : null;
+      return {
+        ...base,
+        order: order ? {
+          id: String(order._id),
+          orderNumber: String(order.orderNumber || ''),
+          status: String(order.status || ''),
+          total: Number(order.total ?? 0),
+          paymentMethod: String(order.paymentMethod || ''),
+        } : null,
+        shipment: shipment ? {
+          id: String(shipment._id),
+          awbNumber: String(shipment.awbNumber || ''),
+          courierName: String(shipment.courierName || ''),
+          trackingUrl: String(shipment.trackingUrl || ''),
+          status: String(shipment.status || ''),
+        } : null,
+      };
+    });
+
+    // COD orders are not stored in payments collection, so include them as pseudo transactions
+    const codMatch = { paymentMethod: { $in: ['cod', 'COD'] } };
+    if (search) {
+      codMatch.$or = [
+        { orderNumber: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const codOrders = await Order.find(codMatch)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(200)
+      .lean();
+
+    const codOrderIds = codOrders.map((o) => String(o._id));
+    const codShipments = codOrderIds.length
+      ? await Shipment.find({ order: { $in: codOrderIds } }).lean()
+      : [];
+    const codShipmentByOrderId = new Map(codShipments.map((s) => [String(s.order), s]));
+
+    const codStatusToPaymentStatus = (orderStatus) => {
+      const s = String(orderStatus || '').toLowerCase();
+      if (s === 'delivered') return 'completed';
+      if (s === 'cancelled' || s === 'returned') return 'failed';
+      return 'pending';
+    };
+
+    const codTransactions = codOrders.map((o) => {
+      const shipment = codShipmentByOrderId.get(String(o._id)) || null;
+      return {
+        id: `cod_${String(o._id)}`,
+        orderId: String(o._id),
+        userId: o.user ? String(o.user) : '',
+        amount: Number(o.total ?? 0),
+        currency: String(o.currency || 'INR'),
+        paymentMethod: 'cod',
+        status: codStatusToPaymentStatus(o.status),
+        transactionId: '',
+        merchantTransactionId: String(o.orderNumber || ''),
+        paymentMode: 'COD',
+        payerVpa: '',
+        gatewayResponse: null,
+        createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: o.updatedAt ? new Date(o.updatedAt).toISOString() : new Date().toISOString(),
+        completedAt: o.status === 'delivered' ? (o.statusTimestamps?.delivered || undefined) : undefined,
+        refundedAt: undefined,
+        failureReason: undefined,
+        order: {
+          id: String(o._id),
+          orderNumber: String(o.orderNumber || ''),
+          status: String(o.status || ''),
+          total: Number(o.total ?? 0),
+          paymentMethod: String(o.paymentMethod || ''),
+        },
+        shipment: shipment ? {
+          id: String(shipment._id),
+          awbNumber: String(shipment.awbNumber || ''),
+          courierName: String(shipment.courierName || ''),
+          trackingUrl: String(shipment.trackingUrl || ''),
+          status: String(shipment.status || ''),
+        } : null,
+      };
+    });
+
+    const combined = enrichedPayments.concat(codTransactions);
+    const filtered = status
+      ? combined.filter((x) => String(x.status || '') === status)
+      : combined;
+    filtered.sort((a, b) => (String(b.createdAt || '')).localeCompare(String(a.createdAt || '')));
+
+    return res.json({ success: true, data: filtered });
   } catch (e) {
     console.error('Payments transactions error:', e);
     return res.status(500).json({ success: false, message: 'Failed to load transactions' });
