@@ -48,7 +48,7 @@ function mapProduct(req: Request, p: any) {
   return {
     id: String(p._id),
     slug: p.slug,
-    visibility: p.visibility,
+    visibility: (p.visibility ?? p?.management?.basic?.visibility ?? "public"),
     name: p.name,
     sku: p.sku,
     originalPrice: Number(p?.originalPrice ?? p?.management?.pricing?.originalPrice ?? 0) || 0,
@@ -118,7 +118,14 @@ router.get("/", async (req: Request, res: Response) => {
   const filter: any = {};
   if (mode === "public") {
     filter.status = "active";
-    filter.visibility = "public";
+    filter.$or = [
+      { visibility: "public" },
+      { visibility: { $exists: false } },
+      { visibility: null },
+      { "management.basic.visibility": "public" },
+      { "management.basic.visibility": { $exists: false } },
+      { "management.basic.visibility": null },
+    ];
   }
 
   const category = req.query.category ? String(req.query.category) : "";
@@ -293,7 +300,14 @@ router.get("/slug/:slug", async (req: Request, res: Response) => {
   const filter: any = { slug: req.params.slug };
   if (mode === "public") {
     filter.status = "active";
-    filter.visibility = "public";
+    filter.$or = [
+      { visibility: "public" },
+      { visibility: { $exists: false } },
+      { visibility: null },
+      { "management.basic.visibility": "public" },
+      { "management.basic.visibility": { $exists: false } },
+      { "management.basic.visibility": null },
+    ];
   }
 
   const p = await ProductModel.findOne(filter).lean();
@@ -309,7 +323,14 @@ router.get("/:id", async (req: Request, res: Response) => {
   const filter: any = { _id: req.params.id };
   if (mode === "public") {
     filter.status = "active";
-    filter.visibility = "public";
+    filter.$or = [
+      { visibility: "public" },
+      { visibility: { $exists: false } },
+      { visibility: null },
+      { "management.basic.visibility": "public" },
+      { "management.basic.visibility": { $exists: false } },
+      { "management.basic.visibility": null },
+    ];
   }
 
   const p = await ProductModel.findOne(filter).lean();

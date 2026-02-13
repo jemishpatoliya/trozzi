@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Password is required'],
+        required: false,
         minlength: [6, 'Password must be at least 6 characters long'],
         select: false // Don't include password in queries by default
     },
@@ -33,6 +33,26 @@ const userSchema = new mongoose.Schema({
         type: String,
         trim: true,
         maxlength: [15, 'Phone number cannot exceed 15 characters']
+    },
+    phoneVerified: {
+        type: Boolean,
+        default: false,
+    },
+    otpHash: {
+        type: String,
+        select: false,
+        default: null,
+    },
+    otpExpiresAt: {
+        type: Date,
+        select: false,
+        default: null,
+    },
+    otpPurpose: {
+        type: String,
+        enum: ['register', 'login'],
+        default: undefined,
+        select: false,
     },
     avatarUrl: {
         type: String,
@@ -92,6 +112,7 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
+    if (!this.password) return next();
 
     try {
         const salt = await bcrypt.genSalt(12);
@@ -104,6 +125,7 @@ userSchema.pre('save', async function (next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
+    if (!this.password) return false;
     return bcrypt.compare(candidatePassword, this.password);
 };
 

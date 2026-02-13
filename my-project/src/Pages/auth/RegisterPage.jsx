@@ -6,16 +6,13 @@ import { useContentSettings } from '../../context/ContentSettingsContext';
 const RegisterPage = () => {
     const { settings } = useContentSettings();
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
+        name: '',
         email: '',
-        password: '',
-        confirmPassword: '',
         phone: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { register } = useAuth();
+    const { registerSendOtp } = useAuth();
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -30,18 +27,20 @@ const RegisterPage = () => {
         setLoading(true);
         setError('');
 
-        // Validate passwords match
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
-            setLoading(false);
-            return;
-        }
-
-        const { confirmPassword, ...registerData } = formData;
-        const result = await register(registerData);
+        const result = await registerSendOtp({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+        });
 
         if (result.success) {
-            navigate('/login');
+            navigate('/verify-otp', {
+                state: {
+                    phone: result?.data?.phone || formData.phone,
+                    purpose: 'register',
+                    redirect: '/profile',
+                },
+            });
         } else {
             setError(result.error);
         }
@@ -80,37 +79,20 @@ const RegisterPage = () => {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label htmlFor="firstName" className="text-sm font-semibold text-gray-700">
-                                    First name
-                                </label>
-                                <input
-                                    id="firstName"
-                                    name="firstName"
-                                    type="text"
-                                    required
-                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                    placeholder="First name"
-                                    value={formData.firstName}
-                                    onChange={handleChange}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label htmlFor="lastName" className="text-sm font-semibold text-gray-700">
-                                    Last name
-                                </label>
-                                <input
-                                    id="lastName"
-                                    name="lastName"
-                                    type="text"
-                                    required
-                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                    placeholder="Last name"
-                                    value={formData.lastName}
-                                    onChange={handleChange}
-                                />
-                            </div>
+                        <div className="space-y-1.5">
+                            <label htmlFor="name" className="text-sm font-semibold text-gray-700">
+                                Name
+                            </label>
+                            <input
+                                id="name"
+                                name="name"
+                                type="text"
+                                required
+                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                                placeholder="Full name"
+                                value={formData.name}
+                                onChange={handleChange}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -132,47 +114,17 @@ const RegisterPage = () => {
 
                         <div className="space-y-1.5">
                             <label htmlFor="phone" className="text-sm font-semibold text-gray-700">
-                                Phone (optional)
+                                Mobile number
                             </label>
                             <input
                                 id="phone"
                                 name="phone"
                                 type="tel"
+                                inputMode="numeric"
+                                required
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="Phone number"
+                                placeholder="Enter mobile number"
                                 value={formData.phone}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label htmlFor="password" className="text-sm font-semibold text-gray-700">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                required
-                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="Create a password"
-                                value={formData.password}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label htmlFor="confirmPassword" className="text-sm font-semibold text-gray-700">
-                                Confirm password
-                            </label>
-                            <input
-                                id="confirmPassword"
-                                name="confirmPassword"
-                                type="password"
-                                required
-                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="Confirm password"
-                                value={formData.confirmPassword}
                                 onChange={handleChange}
                             />
                         </div>

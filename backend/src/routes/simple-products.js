@@ -99,7 +99,7 @@ function mapProduct(p) {
         _id: String(p._id),
         id: String(p._id),
         slug: p.slug,
-        visibility: p.visibility,
+        visibility: (p.visibility ?? (management && management.basic ? management.basic.visibility : undefined) ?? 'public'),
         name: p.name,
         sku: p.sku,
         price: p.price,
@@ -127,6 +127,13 @@ function mapProduct(p) {
             : (Array.isArray(incomingColorVariants) && incomingColorVariants.length ? incomingColorVariants : (storedVariants && storedVariants.length ? storedVariants : generatedColorVariants)),
         management: p.management,
     };
+}
+
+function mapStatusToCatalogStatus(status) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'active') return 'active';
+    if (s === 'draft') return 'draft';
+    return 'inactive';
 }
 
 // GET /api/products/catalog (admin)
@@ -161,6 +168,14 @@ router.get('/', async (req, res) => {
         if (mode !== 'admin') {
             // public mode: only active products
             filter.status = { $in: ['active', 'published'] };
+            filter.$or = [
+                { visibility: 'public' },
+                { visibility: { $exists: false } },
+                { visibility: null },
+                { 'management.basic.visibility': 'public' },
+                { 'management.basic.visibility': { $exists: false } },
+                { 'management.basic.visibility': null },
+            ];
         }
 
         const category = req.query?.category ? String(req.query.category) : '';
@@ -287,7 +302,14 @@ router.get('/slug/:slug', async (req, res) => {
         const filter = { slug: String(req.params.slug) };
         if (mode !== 'admin') {
             filter.status = { $in: ['active', 'published'] };
-            filter.visibility = 'public';
+            filter.$or = [
+                { visibility: 'public' },
+                { visibility: { $exists: false } },
+                { visibility: null },
+                { 'management.basic.visibility': 'public' },
+                { 'management.basic.visibility': { $exists: false } },
+                { 'management.basic.visibility': null },
+            ];
         }
 
         const doc = await db.collection('products').findOne(filter);
@@ -534,6 +556,8 @@ router.put('/:id', authenticateAdmin, requireAdmin, async (req, res) => {
         const now = new Date();
         const base = values?.basic ?? {};
         await validateSubCategoryOrThrow(base);
+        const pricing = values?.pricing ?? {};
+        const inventory = values?.inventory ?? {};
         const media = values?.media ?? {};
         const shipping = values?.shipping ?? {};
         const dimensions = shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
@@ -550,11 +574,28 @@ router.put('/:id', authenticateAdmin, requireAdmin, async (req, res) => {
         const categoryIds = Array.isArray(base?.categoryIds) ? base.categoryIds : [];
         const category = String(categoryIds[0] ?? '');
 
+        const nextStatus = mapStatusToCatalogStatus(base?.status);
+        const nextVisibility = String(base?.visibility || 'public');
+        const nextName = String(base?.name || '').trim();
+        const nextSlug = String(base?.slug || '').trim();
+        const nextSku = String(inventory?.sku || '').trim();
+        const nextPrice = Number(pricing?.sellingPrice ?? NaN);
+        const nextStock = Number(inventory?.stockQuantity ?? NaN);
+        const nextDescription = typeof base?.shortDescription === 'string' ? base.shortDescription : '';
+
         await db.collection('products').updateOne(
             { _id: new ObjectId(req.params.id) },
             {
                 $set: {
                     management: values,
+                    status: nextStatus,
+                    visibility: nextVisibility,
+                    ...(nextName ? { name: nextName } : {}),
+                    ...(nextSlug ? { slug: nextSlug } : {}),
+                    ...(nextSku ? { sku: nextSku } : {}),
+                    ...(Number.isFinite(nextPrice) ? { price: nextPrice } : {}),
+                    ...(Number.isFinite(nextStock) ? { stock: nextStock } : {}),
+                    description: nextDescription,
                     image: primaryImageUrl,
                     galleryImages,
                     category,
@@ -607,7 +648,14 @@ router.get('/:id', async (req, res) => {
         const filter = { _id: new ObjectId(req.params.id) };
         if (mode !== 'admin') {
             filter.status = { $in: ['active', 'published'] };
-            filter.visibility = 'public';
+            filter.$or = [
+                { visibility: 'public' },
+                { visibility: { $exists: false } },
+                { visibility: null },
+                { 'management.basic.visibility': 'public' },
+                { 'management.basic.visibility': { $exists: false } },
+                { 'management.basic.visibility': null },
+            ];
         }
 
         const doc = await db.collection('products').findOne(filter);

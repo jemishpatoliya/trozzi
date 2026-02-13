@@ -55,13 +55,28 @@ export async function fetchProductDetails(productId) {
         return aa.length > 0 ? aa : bb;
     };
 
+    const pickPrice = (catalogPrice, detailsPrice) => {
+        const c = Number(catalogPrice);
+        const d = Number(detailsPrice);
+
+        const cOk = Number.isFinite(c) && c > 1;
+        const dOk = Number.isFinite(d) && d > 1;
+
+        // If catalog price is obviously wrong (ex: 1) but details has valid price, prefer details.
+        if (!cOk && dOk) return d;
+        if (cOk) return c;
+        if (dOk) return d;
+        return Number.isFinite(c) ? c : (Number.isFinite(d) ? d : 0);
+    };
+
     return {
         ...details,
         id: product.id ?? details?.id,
         name: product.name ?? details?.name,
         description: product.description ?? details?.description,
         descriptionHtml: pickFirstNonEmptyString(product.descriptionHtml, details?.descriptionHtml),
-        price: product.price ?? details?.price,
+        price: pickPrice(product.price, details?.price),
+        originalPrice: pickPrice(product.originalPrice, details?.originalPrice),
         image: pickFirstNonEmptyString(product.image, details?.image),
         galleryImages: pickNonEmptyArray(product.galleryImages, details?.galleryImages),
         sizes: product.sizes ?? details?.sizes,

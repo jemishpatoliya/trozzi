@@ -6,12 +6,11 @@ import { useContentSettings } from '../../context/ContentSettingsContext';
 const LoginPage = () => {
     const { settings } = useContentSettings();
     const [formData, setFormData] = useState({
-        email: '',
-        password: '',
+        phone: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const { loginSendOtp } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -27,11 +26,17 @@ const LoginPage = () => {
         setLoading(true);
         setError('');
 
-        const result = await login(formData.email, formData.password);
+        const result = await loginSendOtp({ phone: formData.phone });
 
         if (result.success) {
             const redirectTo = searchParams.get('redirect') || '/';
-            navigate(redirectTo);
+            navigate('/verify-otp', {
+                state: {
+                    phone: result?.data?.phone || formData.phone,
+                    purpose: 'login',
+                    redirect: redirectTo,
+                },
+            });
         } else {
             setError(result.error);
         }
@@ -71,35 +76,18 @@ const LoginPage = () => {
                         )}
 
                         <div className="space-y-1.5">
-                            <label htmlFor="email" className="text-sm font-semibold text-gray-700">
-                                Email
+                            <label htmlFor="phone" className="text-sm font-semibold text-gray-700">
+                                Mobile number
                             </label>
                             <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
+                                id="phone"
+                                name="phone"
+                                type="tel"
+                                inputMode="numeric"
                                 required
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="you@example.com"
-                                value={formData.email}
-                                onChange={handleChange}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label htmlFor="password" className="text-sm font-semibold text-gray-700">
-                                Password
-                            </label>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="Enter your password"
-                                value={formData.password}
+                                placeholder="Enter mobile number"
+                                value={formData.phone}
                                 onChange={handleChange}
                             />
                         </div>

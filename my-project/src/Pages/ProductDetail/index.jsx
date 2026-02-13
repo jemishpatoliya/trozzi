@@ -166,6 +166,50 @@ const ProductDetail = () => {
         )
         : null;
 
+    const pricing = (() => {
+        const pickBestPrice = (...values) => {
+            const nums = values.map((v) => Number(v)).filter((n) => Number.isFinite(n));
+            const good = nums.find((n) => n > 1);
+            if (good !== undefined) return good;
+            return nums.length ? nums[0] : 0;
+        };
+
+        const price = pickBestPrice(
+            selectedVariant?.price,
+            product?.price,
+            product?.management?.pricing?.sellingPrice,
+        );
+
+        const original = pickBestPrice(
+            product?.originalPrice,
+            product?.management?.pricing?.originalPrice,
+            product?.management?.pricing?.mrp,
+        );
+        const displayMrp = original > 0 ? original : price;
+
+        const saleEnabled = Boolean(product?.saleEnabled);
+        const saleDiscount = Number(product?.saleDiscount ?? product?.discount ?? 0) || 0;
+        const saleStart = product?.saleStartDate ? new Date(product.saleStartDate) : null;
+        const saleEnd = product?.saleEndDate ? new Date(product.saleEndDate) : null;
+        const now = new Date();
+
+        const isSaleActive =
+            saleEnabled &&
+            saleDiscount > 0 &&
+            (!saleStart || Number.isNaN(saleStart.getTime()) || saleStart <= now) &&
+            (!saleEnd || Number.isNaN(saleEnd.getTime()) || saleEnd >= now);
+
+        const displaySelling = isSaleActive ? price - (price * saleDiscount) / 100 : price;
+
+        return {
+            price,
+            displayMrp,
+            displaySelling,
+            isSaleActive,
+            saleDiscount,
+        };
+    })();
+
     const baseImages = [product?.image, ...((product?.galleryImages ?? []) || [])].filter(Boolean);
     const selectedImages = variants.length > 0
         ? (hasUserSelectedColor ? (Array.isArray(selectedVariant?.images) ? selectedVariant.images.filter(Boolean) : []) : baseImages)
@@ -240,7 +284,7 @@ const ProductDetail = () => {
                     ? (selectedImages?.[selectedImage] || selectedImages?.[0] || '')
                     : (baseImages?.[0] || ''))
                 : (selectedImages?.[selectedImage] || selectedImages?.[0] || product?.image || product?.galleryImages?.[0] || '');
-            const cartPrice = selectedVariant?.price ?? product?.price;
+            const cartPrice = pricing.displaySelling;
             const cartSku = selectedVariant?.sku ?? product?.sku;
 
             await addToCart(productDocId, quantity, {
@@ -381,13 +425,13 @@ const ProductDetail = () => {
 
                             {/* Price */}
                             <div className="flex items-center gap-4 mb-6">
-                                <span className="text-3xl font-bold text-gray-900">{formatPrice(product.price)}</span>
-                                {Number(product?.originalPrice ?? 0) > Number(product?.price ?? 0) && (
-                                    <span className="text-xl text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
+                                <span className="text-3xl font-bold text-gray-900">{formatPrice(pricing.displaySelling)}</span>
+                                {Number(pricing.displayMrp ?? 0) > Number(pricing.displaySelling ?? 0) && (
+                                    <span className="text-xl text-gray-400 line-through">{formatPrice(pricing.displayMrp)}</span>
                                 )}
-                                {product.saleEnabled && (
+                                {pricing.isSaleActive && (
                                     <span className="bg-red-500 text-white px-2 py-1 rounded-full text-sm font-semibold">
-                                        -{product.saleDiscount}%
+                                        -{pricing.saleDiscount}%
                                     </span>
                                 )}
                             </div>

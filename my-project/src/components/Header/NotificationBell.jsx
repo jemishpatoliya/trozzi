@@ -55,6 +55,7 @@ const NotificationBell = () => {
 
   const handleMarkAllRead = async () => {
     await markAllRead();
+    handleClose();
   };
 
   return (

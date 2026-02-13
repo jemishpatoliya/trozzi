@@ -93,6 +93,62 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const registerSendOtp = async ({ name, email, phone }) => {
+        try {
+            const response = await apiClient.post('/auth/register/send-otp', {
+                name,
+                email,
+                phone,
+            });
+            return { success: true, data: response.data?.data };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to send OTP',
+            };
+        }
+    };
+
+    const loginSendOtp = async ({ phone }) => {
+        try {
+            const response = await apiClient.post('/auth/login/send-otp', {
+                phone,
+            });
+            return { success: true, data: response.data?.data };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'Failed to send OTP',
+            };
+        }
+    };
+
+    const verifyOtp = async ({ phone, otp, purpose }) => {
+        try {
+            const response = await apiClient.post('/auth/verify-otp', {
+                phone,
+                otp,
+                purpose,
+            });
+
+            const { data } = response.data;
+            const { token: newToken, user: userData } = data;
+
+            localStorage.setItem('token', newToken);
+            localStorage.setItem('user', JSON.stringify(userData));
+
+            setToken(newToken);
+            setUser(userData);
+
+            return { success: true, data };
+        } catch (error) {
+            return {
+                success: false,
+                error: error.response?.data?.message || 'OTP verification failed',
+            };
+        }
+    };
+
     const register = async (userData) => {
         try {
             await apiClient.post('/auth/register', userData);
@@ -135,6 +191,9 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        registerSendOtp,
+        loginSendOtp,
+        verifyOtp,
         logout,
         updateUser,
         isAuthenticated: !!user,

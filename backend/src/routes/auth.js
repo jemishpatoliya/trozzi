@@ -7,6 +7,23 @@ const auth = require('../middleware/auth');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
 const { sendMail } = require('../services/mailer');
 
+function normalizePhone(phone) {
+    const raw = String(phone || '');
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length === 10) return digits;
+    if (digits.length > 10) return digits.slice(-10);
+    return digits;
+}
+
+function generateOtp() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function otpHash(otp) {
+    return crypto.createHash('sha256').update(String(otp)).digest('hex');
+}
+
 function pickUserForClient(userDoc, settings) {
     const u = userDoc && typeof userDoc.toObject === 'function' ? userDoc.toObject() : userDoc;
     if (!u) return u;
@@ -98,6 +115,205 @@ router.post('/login', [
             success: false,
             message: 'Login failed'
         });
+    }
+});
+
+// POST /api/auth/register/send-otp - Register start via mobile OTP
+router.post('/register/send-otp', [
+    body('name').notEmpty().withMessage('Name is required').isString().isLength({ min: 2, max: 100 }),
+    body('email').notEmpty().withMessage('Please provide a valid email address').isEmail().normalizeEmail(),
+    body('phone').notEmpty().withMessage('Phone is required').isString().isLength({ min: 10, max: 20 }),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array().map((error) => error.msg),
+        });
+    }
+
+    try {
+        const name = String(req.body?.name || '').trim();
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const phone = normalizePhone(req.body?.phone);
+
+        if (!phone || phone.length < 10) {
+            return res.status(400).json({ success: false, message: 'Invalid phone number' });
+        }
+
+        const existingEmail = await UserModel.findOne({ email });
+        if (existingEmail) {
+            return res.status(409).json({ success: false, message: 'User with this email already exists' });
+        }
+
+        const existingPhone = await UserModel.findOne({ phone });
+        if (existingPhone) {
+            return res.status(409).json({ success: false, message: 'User with this phone number already exists' });
+        }
+
+        const otp = generateOtp();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        const parts = name.split(/\s+/).filter(Boolean);
+        const firstName = parts[0] || name;
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'User';
+
+        const user = new UserModel({
+            firstName,
+            lastName,
+            email,
+            phone,
+            phoneVerified: false,
+            otpHash: otpHash(otp),
+            otpExpiresAt: expiresAt,
+            otpPurpose: 'register',
+            active: true,
+            emailVerified: true,
+        });
+
+        await user.save();
+
+        console.log(`📲 OTP (register) for ${phone}: ${otp}`);
+
+        return res.json({
+            success: true,
+            message: 'OTP sent',
+            data: {
+                phone,
+                purpose: 'register',
+                expiresAt: expiresAt.toISOString(),
+                ...(String(process.env.NODE_ENV || '').toLowerCase() !== 'production' ? { otp } : {}),
+            },
+        });
+    } catch (error) {
+        console.error('Register send-otp error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    }
+});
+
+// POST /api/auth/login/send-otp - Login via mobile OTP
+router.post('/login/send-otp', [
+    body('phone').notEmpty().withMessage('Phone is required').isString().isLength({ min: 10, max: 20 }),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array().map((error) => error.msg),
+        });
+    }
+
+    try {
+        const phone = normalizePhone(req.body?.phone);
+        if (!phone || phone.length < 10) {
+            return res.status(400).json({ success: false, message: 'Invalid phone number' });
+        }
+
+        const user = await UserModel.findOne({ phone }).select('+otpHash +otpExpiresAt +otpPurpose');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found for this phone number' });
+        }
+
+        if (!user.active) {
+            return res.status(401).json({ success: false, message: 'Account is deactivated' });
+        }
+
+        const otp = generateOtp();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        user.otpHash = otpHash(otp);
+        user.otpExpiresAt = expiresAt;
+        user.otpPurpose = 'login';
+        await user.save();
+
+        console.log(`📲 OTP (login) for ${phone}: ${otp}`);
+
+        return res.json({
+            success: true,
+            message: 'OTP sent',
+            data: {
+                phone,
+                purpose: 'login',
+                expiresAt: expiresAt.toISOString(),
+                ...(String(process.env.NODE_ENV || '').toLowerCase() !== 'production' ? { otp } : {}),
+            },
+        });
+    } catch (error) {
+        console.error('Login send-otp error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    }
+});
+
+// POST /api/auth/verify-otp - Verify OTP for register/login and issue token
+router.post('/verify-otp', [
+    body('phone').notEmpty().withMessage('Phone is required').isString(),
+    body('otp').notEmpty().withMessage('OTP is required').isString().isLength({ min: 4, max: 8 }),
+    body('purpose').optional().isIn(['register', 'login']),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array().map((error) => error.msg),
+        });
+    }
+
+    try {
+        const phone = normalizePhone(req.body?.phone);
+        const otp = String(req.body?.otp || '').trim();
+        const purpose = req.body?.purpose ? String(req.body.purpose) : null;
+
+        const user = await UserModel.findOne({ phone }).select('+otpHash +otpExpiresAt +otpPurpose');
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Account not found' });
+        }
+
+        if (!user.active) {
+            return res.status(401).json({ success: false, message: 'Account is deactivated' });
+        }
+
+        if (!user.otpHash || !user.otpExpiresAt || !user.otpPurpose) {
+            return res.status(400).json({ success: false, message: 'OTP not requested or already used' });
+        }
+
+        if (purpose && user.otpPurpose !== purpose) {
+            return res.status(400).json({ success: false, message: 'OTP purpose mismatch' });
+        }
+
+        if (new Date(user.otpExpiresAt).getTime() < Date.now()) {
+            return res.status(400).json({ success: false, message: 'OTP expired' });
+        }
+
+        const ok = otpHash(otp) === String(user.otpHash);
+        if (!ok) {
+            return res.status(400).json({ success: false, message: 'Invalid OTP' });
+        }
+
+        user.phoneVerified = true;
+        user.otpHash = null;
+        user.otpExpiresAt = null;
+        user.otpPurpose = undefined;
+        user.lastLogin = new Date();
+        user.lastActiveAt = new Date();
+        await user.save();
+
+        const token = user.generateToken();
+        user.password = undefined;
+
+        return res.json({
+            success: true,
+            message: 'OTP verified',
+            data: {
+                user,
+                token,
+            },
+        });
+    } catch (error) {
+        console.error('Verify OTP error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to verify OTP' });
     }
 });
 
