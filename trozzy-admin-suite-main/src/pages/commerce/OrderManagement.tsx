@@ -53,6 +53,18 @@ interface Order {
 }
 
 const OrderManagement: React.FC = () => {
+  const formatMoney = (amount: number) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(Number(amount ?? 0) || 0);
+    } catch (_e) {
+      return `₹${(Number(amount ?? 0) || 0).toFixed(2)}`;
+    }
+  };
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,7 +536,7 @@ const OrderManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        ${order.totalAmount.toFixed(2)}
+                        {formatMoney(order.totalAmount)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -677,11 +689,11 @@ const OrderManagement: React.FC = () => {
                           {product.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Qty: {product.quantity} × ${product.price.toFixed(2)}
+                          Qty: {product.quantity} × {formatMoney(product.price)}
                         </div>
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        ${(product.price * product.quantity).toFixed(2)}
+                        {formatMoney(product.price * product.quantity)}
                       </div>
                     </div>
                   ))}
@@ -692,7 +704,7 @@ const OrderManagement: React.FC = () => {
                       Total Amount
                     </span>
                     <span className="text-xl font-bold text-primary-600 dark:text-primary-400">
-                      ${selectedOrder.totalAmount.toFixed(2)}
+                      {formatMoney(selectedOrder.totalAmount)}
                     </span>
                   </div>
                 </div>

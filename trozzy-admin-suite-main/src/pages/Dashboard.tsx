@@ -263,9 +263,9 @@ const Dashboard = () => {
         currency: currencyCode,
       });
     } catch (_err) {
-      return new Intl.NumberFormat('en-US', {
+      return new Intl.NumberFormat('en-IN', {
         style: 'currency',
-        currency: 'USD',
+        currency: 'INR',
       });
     }
   }, [currencyCode]);

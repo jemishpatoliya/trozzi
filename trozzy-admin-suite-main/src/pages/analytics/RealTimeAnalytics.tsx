@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Activity, Users, ShoppingCart, DollarSign, Globe, Clock, Pause, Play } from 'lucide-react';
+import { Activity, Users, ShoppingCart, IndianRupee, Globe, Clock, Pause, Play } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -36,6 +36,17 @@ type RealtimePayload = {
 
 const RealTimeAnalytics = () => {
   const { toast } = useToast();
+  const formatMoney = (amount: number) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0,
+      }).format(Number(amount ?? 0) || 0);
+    } catch (_e) {
+      return `₹${Math.round(Number(amount ?? 0) || 0)}`;
+    }
+  };
   const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,11 +171,11 @@ const RealTimeAnalytics = () => {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-success" />
+                <IndianRupee className="h-6 w-6 text-success" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Revenue/min</p>
-                <p className="text-2xl font-bold">{isLoading ? '...' : `$${liveData.revenuePerMinute.toFixed(0)}`}</p>
+                <p className="text-2xl font-bold">{isLoading ? '...' : formatMoney(liveData.revenuePerMinute)}</p>
               </div>
             </div>
           </CardContent>

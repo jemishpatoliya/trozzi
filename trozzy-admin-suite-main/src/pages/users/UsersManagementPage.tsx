@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Plus, Edit2, Trash2, Search, Filter, Users, Mail, Phone, Calendar, DollarSign, Eye } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Filter, Users, Mail, Phone, Calendar, IndianRupee, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';

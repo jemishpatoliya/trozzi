@@ -184,16 +184,32 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     }
     setIsAdding(true);
     try {
-      await addToCart(productId, quantity, {
-        name: product?.name,
-        image: currentImages?.[0],
-        price: currentPrice,
-        brand: product?.brand,
-        sku: currentSku,
-        color: hasColorVariants ? currentVariant?.colorName : selectedSimpleColor,
-        size: selectedSize,
-      });
-      navigate('/checkout');
+      const buyNowItem = {
+        _id: productId,
+        product: {
+          _id: productId,
+          name: product?.name || 'Product',
+          price: currentPrice ?? product?.price ?? 0,
+          image: currentImages?.[0] || '',
+          brand: product?.brand || '',
+          sku: currentSku || product?.sku || '',
+          size: selectedSize || '',
+          color: hasColorVariants ? (currentVariant?.colorName || '') : (selectedSimpleColor || ''),
+        },
+        price: currentPrice ?? product?.price ?? 0,
+        quantity: Number(quantity ?? 1) || 1,
+        size: selectedSize || '',
+        color: hasColorVariants ? (currentVariant?.colorName || '') : (selectedSimpleColor || ''),
+        image: currentImages?.[0] || '',
+      };
+
+      try {
+        sessionStorage.setItem('trozzy_buy_now', JSON.stringify({ items: [buyNowItem] }));
+      } catch (_e) {
+        // ignore
+      }
+
+      navigate('/checkout?mode=buynow');
     } finally {
       setTimeout(() => setIsAdding(false), 1000);
     }
@@ -304,7 +320,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             <button
               type="button"
               onClick={() => setIsSizeGuideOpen(true)}
-              className="text-[14px] font-[500] text-blue-600 hover:underline"
+              className="h-9 px-3 inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white text-[13px] font-[600] text-[#2874F0] hover:bg-[#EAF2FF] hover:border-[#2874F0]/40 focus:outline-none focus:ring-2 focus:ring-[#2874F0]/30 transition-colors"
             >
               View
             </button>
@@ -401,7 +417,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           variant="contained"
           disabled={isAdding || !productId}
           onClick={handleAddToCart}
-          className="!bg-[#FF9F00] !text-gray-900 !px-6 !py-3 !rounded-md hover:!bg-[#fb8c00] transition-all duration-300 flex items-center gap-2"
+          className="!bg-[#FF9F00] !text-gray-900 !px-6 !py-3 !rounded-md hover:!bg-[#fb8c00] transition-all duration-300 flex items-center gap-2 shadow-md"
         >
           <FaCartShopping className="text-[20px]" /> {isAdding ? 'Adding...' : 'Add To Cart'}
         </Button>
@@ -410,7 +426,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           variant="contained"
           disabled={isAdding || !productId}
           onClick={handleBuyNow}
-          className="!bg-[#2874F0] !text-white !px-6 !py-3 !rounded-md hover:!bg-[#1f5fc6] transition-all duration-300"
+          className="!bg-[#2874F0] !text-white !px-6 !py-3 !rounded-md hover:!bg-[#1f5fc6] transition-all duration-300 shadow-md"
         >
           {isAdding ? 'Please wait...' : 'Buy Now'}
         </Button>
@@ -443,7 +459,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             type="button"
             disabled={isAdding || !productId}
             onClick={handleAddToCart}
-            className="flex-1 h-11 rounded-lg border border-green-600 text-green-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 h-11 rounded-lg bg-[#FF9F00] text-gray-900 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
           >
             {isAdding ? 'Please wait...' : 'Add to Cart'}
           </button>
@@ -451,7 +467,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             type="button"
             disabled={isAdding || !productId}
             onClick={handleBuyNow}
-            className="flex-1 h-11 rounded-lg bg-black text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 h-11 rounded-lg bg-[#2874F0] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
           >
             {isAdding ? 'Please wait...' : 'Buy Now'}
           </button>

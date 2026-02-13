@@ -15,7 +15,7 @@ import {
   Eye, 
   CreditCard, 
   Smartphone, 
-  DollarSign, 
+  IndianRupee, 
   TrendingUp, 
   TrendingDown, 
   RotateCcw, 
@@ -123,7 +123,7 @@ const PaymentManagement = () => {
       case 'phonepe':
         return <Smartphone className="h-4 w-4" />;
       case 'paytm':
-        return <DollarSign className="h-4 w-4" />;
+        return <IndianRupee className="h-4 w-4" />;
       case 'googlepay':
         return <CreditCard className="h-4 w-4" />;
       case 'upi':

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Search, Filter, CreditCard, Calendar, User, DollarSign, ExternalLink, RefreshCw, Download } from 'lucide-react';
+import { Search, Filter, CreditCard, Calendar, User, IndianRupee, ExternalLink, RefreshCw, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { paymentAPI, type PaymentTransaction } from '@/api/payment';
 
@@ -155,7 +155,7 @@ const PaymentsManagementPage = () => {
                   )}
                 </p>
               </div>
-              <DollarSign className="h-8 w-8 text-muted-foreground" />
+              <IndianRupee className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>

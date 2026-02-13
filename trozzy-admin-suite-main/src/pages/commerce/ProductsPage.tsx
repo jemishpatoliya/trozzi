@@ -20,6 +20,17 @@ import {
 const ProductsPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const formatMoney = (amount: number) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(Number(amount ?? 0) || 0);
+    } catch (_e) {
+      return `₹${(Number(amount ?? 0) || 0).toFixed(2)}`;
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -112,11 +123,11 @@ const ProductsPage = () => {
         <div>
           {product.saleEnabled && product.saleDiscount > 0 ? (
             <>
-              <span className="line-through text-muted-foreground mr-2">${product.price.toFixed(2)}</span>
-              <span className="text-success font-medium">${(product.price * (1 - product.saleDiscount / 100)).toFixed(2)}</span>
+              <span className="line-through text-muted-foreground mr-2">{formatMoney(product.price)}</span>
+              <span className="text-success font-medium">{formatMoney(product.price * (1 - product.saleDiscount / 100))}</span>
             </>
           ) : (
-            `$${product.price.toFixed(2)}`
+            formatMoney(product.price)
           )}
         </div>
       ),

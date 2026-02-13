@@ -50,6 +50,17 @@ type AnalyticsOverviewPayload = {
 
 const AnalyticsOverview = () => {
   const { toast } = useToast();
+  const formatMoney = (amount: number) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(Number(amount ?? 0) || 0);
+    } catch (_e) {
+      return `₹${(Number(amount ?? 0) || 0).toFixed(2)}`;
+    }
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsOverviewPayload['data'] | null>(null);
@@ -310,7 +321,7 @@ const AnalyticsOverview = () => {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                   }}
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                  formatter={(value: number) => [formatMoney(Number(value ?? 0)), 'Revenue']}
                 />
                 <Line
                   type="monotone"

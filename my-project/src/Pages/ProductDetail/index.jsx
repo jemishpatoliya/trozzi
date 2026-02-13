@@ -511,7 +511,7 @@ const ProductDetail = () => {
                                 <button
                                     onClick={handleAddToCart}
                                     disabled={isAddingToCart || Number(product.stock ?? 0) <= 0}
-                                    className="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                                    className="flex-1 bg-[#FF9F00] text-gray-900 py-3 rounded-lg hover:bg-[#fb8c00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-md"
                                 >
                                     {isAddingToCart ? (
                                         <>

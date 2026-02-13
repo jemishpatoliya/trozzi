@@ -90,6 +90,18 @@ type OrderStatusCounts = {
 
 const OrdersPage = () => {
   const { toast } = useToast();
+  const formatMoney = (amount: number) => {
+    try {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2,
+      }).format(Number(amount ?? 0) || 0);
+    } catch (_e) {
+      return `₹${(Number(amount ?? 0) || 0).toFixed(2)}`;
+    }
+  };
+
   const [orders, setOrdersState] = useState<Order[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -246,17 +258,17 @@ const OrdersPage = () => {
     {
       key: 'total',
       header: 'Total',
-      render: (order: Order) => `$${order.total.toFixed(2)}`,
+      render: (order: Order) => formatMoney(order.total),
     },
     {
       key: 'shipping',
       header: 'Shipping',
-      render: (order: Order) => `₹${Number(order.shipping ?? 0).toFixed(2)}`,
+      render: (order: Order) => formatMoney(Number(order.shipping ?? 0)),
     },
     {
       key: 'codCharge',
       header: 'COD',
-      render: (order: Order) => `₹${Number(order.codCharge ?? 0).toFixed(2)}`,
+      render: (order: Order) => formatMoney(Number(order.codCharge ?? 0)),
     },
     {
       key: 'items',
@@ -616,15 +628,15 @@ const OrdersPage = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="font-medium">${(selectedOrderDetails?.total ?? selectedOrder.total).toFixed(2)}</p>
+                  <p className="font-medium">{formatMoney(Number(selectedOrderDetails?.total ?? selectedOrder.total))}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Shipping</p>
-                  <p className="font-medium">₹{Number((selectedOrderDetails as any)?.shipping ?? (selectedOrder as any)?.shipping ?? 0).toFixed(2)}</p>
+                  <p className="font-medium">{formatMoney(Number((selectedOrderDetails as any)?.shipping ?? (selectedOrder as any)?.shipping ?? 0))}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">COD Charge</p>
-                  <p className="font-medium">₹{Number((selectedOrderDetails as any)?.codCharge ?? (selectedOrder as any)?.codCharge ?? 0).toFixed(2)}</p>
+                  <p className="font-medium">{formatMoney(Number((selectedOrderDetails as any)?.codCharge ?? (selectedOrder as any)?.codCharge ?? 0))}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Payment Method</p>
@@ -677,7 +689,7 @@ const OrdersPage = () => {
                         <div className="flex-1">
                           <div className="text-sm font-medium">{it.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            Qty: {it.quantity} × ${Number(it.price ?? 0).toFixed(2)}
+                            Qty: {it.quantity} × {formatMoney(Number(it.price ?? 0))}
                           </div>
                           {(it.selectedSize || it.selectedColor) ? (
                             <div className="text-xs text-muted-foreground">
@@ -688,7 +700,7 @@ const OrdersPage = () => {
                           ) : null}
                         </div>
                         <div className="text-sm font-medium">
-                          ${(Number(it.price ?? 0) * Number(it.quantity ?? 0)).toFixed(2)}
+                          {formatMoney((Number(it.price ?? 0) || 0) * (Number(it.quantity ?? 0) || 0))}
                         </div>
                       </div>
                     ))}

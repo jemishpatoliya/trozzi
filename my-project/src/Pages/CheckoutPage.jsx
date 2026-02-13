@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/client';
@@ -9,7 +9,33 @@ import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
 const CheckoutPage = () => {
     const { items, fetchCart } = useCart();
     const { user } = useAuth();
+    const location = useLocation();
     const navigate = useNavigate();
+
+    const buyNowItems = useMemo(() => {
+        try {
+            const raw = sessionStorage.getItem('trozzy_buy_now');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            const list = Array.isArray(parsed?.items) ? parsed.items : [];
+            return list.filter((it) => {
+                if (!it || typeof it !== 'object') return false;
+                const pid = it?.product?._id || it?.product || it?._id || it?.productId;
+                return Boolean(pid);
+            });
+        } catch (_e) {
+            return [];
+        }
+    }, []);
+
+    const isBuyNowMode = useMemo(() => {
+        try {
+            const sp = new URLSearchParams(location.search || '');
+            return sp.get('mode') === 'buynow' && buyNowItems.length > 0;
+        } catch (_e) {
+            return buyNowItems.length > 0;
+        }
+    }, [location.search, buyNowItems.length]);
 
     const userKey = useMemo(() => {
         const uid = user?._id || user?.id || user?.userId;
@@ -18,13 +44,15 @@ const CheckoutPage = () => {
 
     const storageKey = useMemo(() => `trozzy_addresses_${userKey}`, [userKey]);
 
-    const normalizedItems = Array.isArray(items)
+    const normalizedCartItems = Array.isArray(items)
         ? items.filter((it) => {
             if (!it || typeof it !== 'object') return false;
             const pid = it?.product?._id || it?.product || it?._id || it?.productId;
             return Boolean(pid);
         })
         : [];
+
+    const normalizedItems = isBuyNowMode ? buyNowItems : normalizedCartItems;
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -246,6 +274,10 @@ const CheckoutPage = () => {
         setLoading(true);
         try {
             try { await fetchCart(); } catch (_e) {}
+
+            if (isBuyNowMode) {
+                try { sessionStorage.removeItem('trozzy_buy_now'); } catch (_e2) {}
+            }
 
             const resp = await apiClient.post('/payments/create-order', {
                 amount: amountRupees,
