@@ -40,6 +40,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const { itemCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
   const { settings } = useContentSettings();
+
   const location = useLocation();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -191,7 +192,8 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
         <div className="container mx-auto px-3 sm:px-4">
           <div className="py-2 md:py-0">
             <div className="relative">
-              <div className="h-10 md:h-16 flex items-center gap-2 md:gap-4 relative">
+              <div className="h-28 md:h-36 flex items-center gap-2 md:gap-4 relative">
+
                 {/* Mobile Menu Button */}
                 <button
                   onClick={toggleMobileMenu}
@@ -208,9 +210,12 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                   className="flex items-center flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
                   aria-label="Home"
                 >
-                  <span className="font-extrabold tracking-[0.18em] text-[18px] md:text-[22px] text-gray-900">
-                    TROZZI
-                  </span>
+                  <img
+                    src={settings?.brandLogoUrl || "/logo.png"}
+                    alt="TROZZI"
+                    className="h-20 md:h-32 w-auto object-contain"
+                    loading="eager"
+                  />
                 </Link>
 
                 {/* Desktop Search */}

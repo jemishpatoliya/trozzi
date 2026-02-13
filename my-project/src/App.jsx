@@ -181,6 +181,7 @@ const Profile = lazy(() => import('./Pages/Profile'));
 const Orders = lazy(() => import('./Pages/Orders'));
 const AdminDashboard = lazy(() => import('./Pages/AdminDashboard'));
 const AdminReviews = lazy(() => import('./Pages/AdminReviews'));
+const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
@@ -546,6 +547,14 @@ function App() {
                                                     }
                                                 />
                                                 <Route
+                                                    path="/admin/settings"
+                                                    element={
+                                                        <AdminRoute>
+                                                            <AdminSettings />
+                                                        </AdminRoute>
+                                                    }
+                                                />
+                                                <Route
                                                     path="/admin/products"
                                                     element={
                                                         <AdminRoute>
@@ -571,14 +580,6 @@ function App() {
                                                 />
                                                 <Route
                                                     path="/admin/analytics"
-                                                    element={
-                                                        <AdminRoute>
-                                                            <Navigate to="/admin" replace />
-                                                        </AdminRoute>
-                                                    }
-                                                />
-                                                <Route
-                                                    path="/admin/settings"
                                                     element={
                                                         <AdminRoute>
                                                             <Navigate to="/admin" replace />

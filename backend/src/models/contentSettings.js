@@ -5,6 +5,11 @@ const SINGLETON_ID = 'content_settings';
 const ContentSettingsSchema = new mongoose.Schema(
   {
     _id: { type: String, default: SINGLETON_ID },
+    brandLogoUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     defaultAvatarUrl: {
       type: String,
       trim: true,

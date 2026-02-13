@@ -36,6 +36,10 @@ router.put('/', authenticateAdmin, requireAdmin, async (req, res) => {
 
     const update = {};
 
+    if (body.brandLogoUrl !== undefined) {
+      update.brandLogoUrl = sanitizeString(body.brandLogoUrl, 2048);
+    }
+
     if (body.defaultAvatarUrl !== undefined) {
       update.defaultAvatarUrl = sanitizeString(body.defaultAvatarUrl, 2048);
     }

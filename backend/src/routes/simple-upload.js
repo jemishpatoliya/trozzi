@@ -75,6 +75,70 @@ const upload = multer({
     }
 });
 
+router.post('/admin-image', authenticateAdmin, requireAdmin, upload.single('image'), async (req, res) => {
+    try {
+        if (!AWS_REGION || !AWS_S3_BUCKET) {
+            return res.status(500).json({
+                success: false,
+                message: 'Missing AWS configuration (AWS_REGION, AWS_S3_BUCKET)'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No image file provided'
+            });
+        }
+
+        const ext = (req.file.originalname || '').split('.').pop() || 'bin';
+        const random = crypto.randomBytes(12).toString('hex');
+        const folder = String(req.query?.folder ?? '').trim();
+        const folderSafe = folder && /^[a-zA-Z0-9_-]+$/.test(folder) ? folder : 'misc';
+        const key = `uploads/${folderSafe}/${Date.now()}-${random}.${ext}`;
+
+        await s3.send(
+            new PutObjectCommand({
+                Bucket: AWS_S3_BUCKET,
+                Key: key,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype,
+            })
+        );
+
+        const imageUrl = `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
+
+        const saved = await Upload.create({
+            key,
+            url: imageUrl,
+            bucket: AWS_S3_BUCKET,
+            region: AWS_REGION,
+            contentType: req.file.mimetype,
+            size: req.file.size,
+            originalName: req.file.originalname,
+        });
+
+        res.json({
+            success: true,
+            message: 'Image uploaded successfully',
+            id: String(saved._id),
+            key: saved.key,
+            url: saved.url,
+            bucket: saved.bucket,
+            region: saved.region,
+            originalname: saved.originalName,
+            size: saved.size,
+            contentType: saved.contentType,
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to upload image: ' + error.message
+        });
+    }
+});
+
 // POST /api/upload/image - Upload image
 router.post('/image', upload.single('image'), async (req, res) => {
     try {

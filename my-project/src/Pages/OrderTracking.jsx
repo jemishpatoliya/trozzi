@@ -424,7 +424,7 @@ const OrderTracking = () => {
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent mx-auto mb-4"></div>
                     <p className="text-text-600 dark:text-text-400">Loading your orders...</p>
                 </div>
-            </div>
+            </div>   
         );
     }
 

@@ -3,7 +3,7 @@ import ProductCard from "../product/ProductCard";
 
 import { fetchProducts } from "../../api/catalog";
 
-const FeaturedSlider = () => {
+const FeaturedSlider = ({ hideAddToCart = false }) => {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ const FeaturedSlider = () => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-4 lg:gap-6">
           {items.map((item) => (
-            <ProductCard key={item.id || item._id} product={item} />
+            <ProductCard key={item.id || item._id} product={item} hideAddToCart={hideAddToCart} />
           ))}
         </div>
       </div>

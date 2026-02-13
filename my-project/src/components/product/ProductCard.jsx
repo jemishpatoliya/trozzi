@@ -32,7 +32,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useWishlist } from "../../context/WishlistContext";
 import { normalizeProductForColorVariants } from "../../utils/colorVariants";
 
-const ProductCard = ({ product, view = "grid" }) => {
+const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -235,6 +235,7 @@ const ProductCard = ({ product, view = "grid" }) => {
       role="button"
       tabIndex={0}
       onClick={handleProductClick}
+
       onKeyDown={(e) => {
         if (e.key === "Enter") handleProductClick();
       }}
@@ -245,6 +246,7 @@ const ProductCard = ({ product, view = "grid" }) => {
       }
     >
       <div className={isList ? "transition-transform duration-300 flex flex-row h-full" : "transition-transform duration-300 flex flex-col h-full"}>
+
         {/* Image Section */}
         <div
           className={
@@ -328,7 +330,13 @@ const ProductCard = ({ product, view = "grid" }) => {
         </div>
 
         {/* Content Section */}
-        <div className={isList ? "p-3 space-y-2 flex flex-col flex-1 min-w-0" : "p-2 sm:p-3 space-y-1 sm:space-y-2 flex flex-col flex-1 min-h-[160px]"}>
+        <div
+          className={
+            isList
+              ? "p-3 space-y-2 flex flex-col flex-1 min-w-0"
+              : `p-2 sm:p-3 space-y-1 sm:space-y-2 flex flex-col flex-1 ${hideAddToCart ? "min-h-0" : "min-h-[160px]"}`
+          }
+        >
           {/* Product Title */}
           <h3 className="font-semibold text-[12px] sm:text-[15px] text-[#1A237E] line-clamp-2 leading-snug">
             {normalized.name}
@@ -336,22 +344,16 @@ const ProductCard = ({ product, view = "grid" }) => {
 
           {/* Price Section */}
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-[15px] sm:text-[20px] font-extrabold text-gray-900">
-              {formatPrice(displaySelling)}
-            </span>
+            <span className="text-[15px] sm:text-[20px] font-extrabold text-gray-900">{formatPrice(displaySelling)}</span>
             {displayMrp > displaySelling ? (
-              <span className="text-[11px] sm:text-sm text-gray-400 line-through">
-                {formatPrice(displayMrp)}
-              </span>
+              <span className="text-[11px] sm:text-sm text-gray-400 line-through">{formatPrice(displayMrp)}</span>
             ) : null}
             {normalized.discountPercent > 0 ? (
-              <span className="text-[11px] sm:text-sm text-green-600 font-semibold">
-                {normalized.discountPercent}% off
-              </span>
+              <span className="text-[11px] sm:text-sm text-green-600 font-semibold">{normalized.discountPercent}% off</span>
             ) : null}
           </div>
 
-          <div className="mt-1 min-h-[22px]">
+          <div className={hideAddToCart ? "mt-1" : "mt-1 min-h-[22px]"}>
             {shouldShowOffers ? (
               <div className="inline-flex items-center rounded-md border border-green-300 bg-green-50 text-green-700 px-2 py-1 text-[10px] sm:text-[12px] font-semibold">
                 ₹{Math.max(1, Math.round(displaySelling * 0.055))} with 2 Special Offers
@@ -359,7 +361,7 @@ const ProductCard = ({ product, view = "grid" }) => {
             ) : null}
           </div>
 
-          <div className="mt-1 min-h-[18px]">
+          <div className={hideAddToCart ? "mt-1" : "mt-1 min-h-[18px]"}>
             {shouldShowFreeDelivery ? (
               <div className="flex items-center gap-2 text-[12px] text-gray-600">
                 <span className="inline-flex items-center gap-1">
@@ -370,11 +372,9 @@ const ProductCard = ({ product, view = "grid" }) => {
             ) : null}
           </div>
 
-          {normalized.stock <= 0 ? (
-            <div className="text-xs font-semibold text-red-600">Out of stock</div>
-          ) : null}
+          {normalized.stock <= 0 ? <div className="text-xs font-semibold text-red-600">Out of stock</div> : null}
 
-          <div className="mt-auto">
+          <div className={hideAddToCart ? undefined : "mt-auto"}>
             <div className="flex items-center justify-between pt-2">
               {shouldShowRating ? (
                 <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[11px] sm:text-[12px] font-semibold">
@@ -382,7 +382,9 @@ const ProductCard = ({ product, view = "grid" }) => {
                   <FaStar className="h-3 w-3 fill-current" />
                   <span className="text-white/90">({Number(normalized.reviews || 0)})</span>
                 </div>
-              ) : <span />}
+              ) : (
+                <span />
+              )}
 
               {shouldShowTrusted ? (
                 <div className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
@@ -392,26 +394,26 @@ const ProductCard = ({ product, view = "grid" }) => {
               ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={isAddingToCart || normalized.stock <= 0}
-              className={
-                "mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] sm:text-[13px] font-semibold bg-white text-[#2874F0] border border-[#2874F0] hover:bg-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              }
-            >
-              {justAdded ? (
-                <>
-                  <FaCheck />
-                  Added
-                </>
-              ) : (
-                <>
-                  <FaShoppingCart />
-                  {isAddingToCart ? "Adding..." : "Add to Cart"}
-                </>
-              )}
-            </button>
+            {!hideAddToCart ? (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={isAddingToCart || normalized.stock <= 0}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] sm:text-[13px] font-semibold bg-white text-[#2874F0] border border-[#2874F0] hover:bg-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {justAdded ? (
+                  <>
+                    <FaCheck />
+                    Added
+                  </>
+                ) : (
+                  <>
+                    <FaShoppingCart />
+                    {isAddingToCart ? "Adding..." : "Add to Cart"}
+                  </>
+                )}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

@@ -11,6 +11,10 @@ const Footer = () => {
         pathname === '/checkout' ||
         pathname === '/payment' ||
         pathname === '/summary' ||
+        pathname === '/login' ||
+        pathname === '/register' ||
+        pathname === '/forgot-password' ||
+        pathname === '/reset-password' ||
         pathname.startsWith('/ProductListing')
     );
     return (

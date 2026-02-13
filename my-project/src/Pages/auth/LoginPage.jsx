@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useContentSettings } from '../../context/ContentSettingsContext';
 
 const LoginPage = () => {
+    const { settings } = useContentSettings();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
@@ -42,8 +44,13 @@ const LoginPage = () => {
             <div className="w-full max-w-md">
                 <div className="rounded-2xl bg-white border border-gray-100 shadow-[0_10px_30px_rgba(0,0,0,0.08)] p-6 sm:p-8">
                     <div className="text-center">
-                        <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-orange-50 text-orange-600 font-extrabold text-lg">
-                            T
+                        <div className="inline-flex items-center justify-center h-40 w-40 rounded-2xl bg-white">
+                            <img
+                                src={settings?.brandLogoUrl || "/logo.png"}
+                                alt="TROZZI"
+                                className="h-36 w-36 object-contain"
+                                loading="eager"
+                            />
                         </div>
                         <h2 className="mt-4 text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                             Sign in
@@ -116,7 +123,7 @@ const LoginPage = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 text-white py-3 text-sm font-semibold shadow-sm disabled:opacity-50"
+                            className="w-full py-3 text-sm font-semibold disabled:opacity-50"
                         >
                             {loading ? 'Signing in...' : 'Sign in'}
                         </button>

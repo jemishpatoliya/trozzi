@@ -4,6 +4,7 @@ import { apiClient } from '../api/client';
 const ContentSettingsContext = createContext(null);
 
 const DEFAULTS = {
+  brandLogoUrl: '',
   defaultAvatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
   bioMaxLength: 500,
   showOrderHistory: true,

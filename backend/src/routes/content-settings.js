@@ -10,6 +10,7 @@ router.get('/', async (_req, res) => {
     res.json({
       success: true,
       data: {
+        brandLogoUrl: settings.brandLogoUrl,
         defaultAvatarUrl: settings.defaultAvatarUrl,
         bioMaxLength: settings.bioMaxLength,
         showOrderHistory: settings.showOrderHistory,

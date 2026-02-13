@@ -3,7 +3,7 @@ import ProductCard from "./ProductCard";
 
 import { fetchCategories, fetchProducts } from "../../api/catalog";
 
-const PopularProducts = () => {
+const PopularProducts = ({ hideAddToCart = false }) => {
   const [activeCategoryId, setActiveCategoryId] = useState("");
   const [products, setProducts] = useState([]);
 
@@ -65,7 +65,7 @@ const PopularProducts = () => {
 
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
           {products.map((product) => (
-            <ProductCard key={product.id || product._id} product={product} />
+            <ProductCard key={product.id || product._id} product={product} hideAddToCart={hideAddToCart} />
           ))}
         </div>
       </div>
