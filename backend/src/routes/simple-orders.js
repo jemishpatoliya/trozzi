@@ -353,6 +353,7 @@ function toOrderRow(doc) {
   const itemsArr = Array.isArray(doc.items) ? doc.items : [];
   const itemsCount = itemsArr.reduce((sum, i) => sum + Number(i?.quantity ?? 0), 0);
   const shipment = doc.shipment || {};
+  const payment = doc.payment || {};
   return {
     id: String(doc._id),
     orderNumber: doc.orderNumber || '',
@@ -362,7 +363,10 @@ function toOrderRow(doc) {
     shipping: Number(doc.shipping ?? 0) || 0,
     items: itemsCount,
     date: doc.createdAtIso || (doc.createdAt ? new Date(doc.createdAt).toISOString() : ''),
-    paymentMethod: String(doc.paymentMethod || doc.payment?.paymentMethod || doc.payment?.provider || 'unknown'),
+    paymentMethod: String(doc.paymentMethod || payment?.paymentMethod || payment?.provider || 'unknown'),
+    paymentMode: String(payment?.paymentMode || ''),
+    payerVpa: String(payment?.metadata?.payerVpa || ''),
+    transactionId: String(payment?.transactionId || ''),
     codCharge: Number(doc.codCharge ?? 0) || 0,
     status: normalizeStatus(doc.status),
     trackingNumber: String(shipment.awbNumber || ''),
@@ -468,6 +472,17 @@ async function getOrderStatusCounts(db, matchStage) {
   return { counts, totalOrders };
 }
 
+function visibleOrdersMatch() {
+  // Hide online-payment initiated orders that never got paid.
+  // Keep COD orders visible even if status is still "new".
+  return {
+    $or: [
+      { paymentMethod: { $in: ['cod', 'COD'] } },
+      { status: { $ne: 'new' } },
+    ],
+  };
+}
+
 // GET /api/orders (used by admin UI)
 router.get('/', async (req, res) => {
   try {
@@ -487,20 +502,35 @@ router.get('/', async (req, res) => {
     const page = Math.max(1, Number(req.query?.page ?? 1) || 1);
     const limit = Math.min(200, Math.max(1, Number(req.query?.limit ?? 50) || 50));
 
-    const filter = {};
+    const filter = { $and: [visibleOrdersMatch()] };
     if (status && status !== 'all') {
-      filter.status = status;
+      filter.$and.push({ status });
     }
     if (search) {
-      filter.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { 'customer.name': { $regex: search, $options: 'i' } },
-        { 'customer.email': { $regex: search, $options: 'i' } },
-      ];
+      filter.$and.push({
+        $or: [
+          { orderNumber: { $regex: search, $options: 'i' } },
+          { 'customer.name': { $regex: search, $options: 'i' } },
+          { 'customer.email': { $regex: search, $options: 'i' } },
+        ],
+      });
     }
 
     const pipeline = [
       { $match: filter },
+      {
+        $lookup: {
+          from: 'payments',
+          let: { oid: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$order', '$$oid'] } } },
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: 1 },
+          ],
+          as: 'payment',
+        },
+      },
+      { $unwind: { path: '$payment', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: 'shipments',
@@ -1192,7 +1222,9 @@ router.get('/my/stats', async (req, res) => {
     const uid = new mongoose.Types.ObjectId(auth.userId);
     const email = auth.email;
 
-    const result = await getOrderStatusCounts(db, { $or: [{ user: uid }, { 'customer.email': email }] });
+    const result = await getOrderStatusCounts(db, {
+      $and: [{ $or: [{ user: uid }, { 'customer.email': email }] }, visibleOrdersMatch()],
+    });
     const payload = toStatsPayloadFromCounts(result.counts);
     payload.totalOrders = Number(result.totalOrders ?? 0) || 0;
 
@@ -1226,7 +1258,27 @@ router.get('/my', async (req, res) => {
     const email = auth.email;
 
     const pipeline = [
-      { $match: { $or: [{ user: uid }, { 'customer.email': email }] } },
+      {
+        $match: {
+          $and: [
+            { $or: [{ user: uid }, { 'customer.email': email }] },
+            visibleOrdersMatch(),
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'payments',
+          let: { oid: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$order', '$$oid'] } } },
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: 1 },
+          ],
+          as: 'payment',
+        },
+      },
+      { $unwind: { path: '$payment', preserveNullAndEmptyArrays: true } },
       {
         $lookup: {
           from: 'shipments',
@@ -1250,10 +1302,88 @@ router.get('/my', async (req, res) => {
         createdAtIso: doc.createdAtIso || (doc.createdAt ? new Date(doc.createdAt).toISOString() : ''),
         itemsDetail: Array.isArray(doc.items) ? doc.items.map((it) => normalizeOrderItemSnapshot(req, it)) : [],
         orderStatus: normalizeStatus(doc.status),
+        payment: doc.payment ? {
+          provider: String(doc.payment.provider || ''),
+          paymentMethod: String(doc.payment.paymentMethod || doc.payment.provider || ''),
+          paymentMode: String(doc.payment.paymentMode || ''),
+          transactionId: String(doc.payment.transactionId || ''),
+          payerVpa: String(doc.payment.metadata?.payerVpa || ''),
+          status: String(doc.payment.status || ''),
+        } : null,
       })),
     });
   } catch (error) {
     console.error('Error loading my orders:', error);
+    res.status(500).json({ success: false, message: 'Failed to load orders' });
+  }
+});
+
+// GET /api/orders (admin only) - list all orders
+router.get('/', async (req, res) => {
+  try {
+    const auth = await authenticateAny(req, res);
+    if (!auth) return;
+    if (auth.type !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied: Admin token required' });
+    }
+
+    const db = mongoose.connection.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database not ready' });
+    }
+
+    const pipeline = [
+      {
+        $match: visibleOrdersMatch(),
+      },
+      {
+        $lookup: {
+          from: 'payments',
+          let: { oid: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$order', '$$oid'] } } },
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $limit: 1 },
+          ],
+          as: 'payment',
+        },
+      },
+      { $unwind: { path: '$payment', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'shipments',
+          localField: '_id',
+          foreignField: 'order',
+          as: 'shipment',
+        },
+      },
+      { $unwind: { path: '$shipment', preserveNullAndEmptyArrays: true } },
+      { $sort: { createdAt: -1, _id: -1 } },
+      { $limit: 200 },
+    ];
+
+    const docs = await db.collection('orders').aggregate(pipeline).toArray();
+
+    res.json({
+      success: true,
+      data: docs.map((doc) => ({
+        ...toOrderRow(doc),
+        total: Number(doc.total ?? 0) || 0,
+        createdAtIso: doc.createdAtIso || (doc.createdAt ? new Date(doc.createdAt).toISOString() : ''),
+        itemsDetail: Array.isArray(doc.items) ? doc.items.map((it) => normalizeOrderItemSnapshot(req, it)) : [],
+        orderStatus: normalizeStatus(doc.status),
+        payment: doc.payment ? {
+          provider: String(doc.payment.provider || ''),
+          paymentMethod: String(doc.payment.paymentMethod || doc.payment.provider || ''),
+          paymentMode: String(doc.payment.paymentMode || ''),
+          transactionId: String(doc.payment.transactionId || ''),
+          payerVpa: String(doc.payment.metadata?.payerVpa || ''),
+          status: String(doc.payment.status || ''),
+        } : null,
+      })),
+    });
+  } catch (error) {
+    console.error('Error loading orders:', error);
     res.status(500).json({ success: false, message: 'Failed to load orders' });
   }
 });
@@ -1289,6 +1419,27 @@ router.get('/:id', async (req, res) => {
 
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    let payment = null;
+    try {
+      const payments = await db.collection('payments')
+        .find({ order: _id })
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(1)
+        .toArray();
+      if (payments && payments[0]) {
+        payment = {
+          provider: String(payments[0].provider || ''),
+          paymentMethod: String(payments[0].paymentMethod || payments[0].provider || ''),
+          paymentMode: String(payments[0].paymentMode || ''),
+          transactionId: String(payments[0].transactionId || ''),
+          payerVpa: String(payments[0]?.metadata?.payerVpa || ''),
+          status: String(payments[0].status || ''),
+        };
+      }
+    } catch (_e) {
+      payment = null;
     }
 
     const itemsArr = Array.isArray(doc.items) ? doc.items : [];
@@ -1366,6 +1517,7 @@ router.get('/:id', async (req, res) => {
           estimatedDelivery: shipment.estimatedDelivery,
           eventHistory: shipment.eventHistory || [],
         } : null,
+        payment,
         refundRequest,
         statusHistory: Array.isArray(doc?.statusHistory) ? doc.statusHistory : [],
         statusTimestamps: doc?.statusTimestamps && typeof doc.statusTimestamps === 'object' ? doc.statusTimestamps : {},

@@ -1,12 +1,75 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
+import { apiClient } from '../api/client';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const SummaryPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
+
+    const [paymentStatus, setPaymentStatus] = useState('unknown');
+    const [paymentMessage, setPaymentMessage] = useState('');
+    const [checking, setChecking] = useState(false);
+
+    const getLastMerchantOrderId = () => {
+        try {
+            const sp = new URLSearchParams(window.location.search || '');
+            const candidates = [
+                sp.get('merchantOrderId'),
+                sp.get('merchantTransactionId'),
+                sp.get('merchant_order_id'),
+                sp.get('merchant_transaction_id'),
+                sp.get('transactionId'),
+            ].filter(Boolean);
+            if (candidates[0]) return String(candidates[0]);
+        } catch (_e) {
+            // ignore
+        }
+
+        try {
+            const id = localStorage.getItem('lastPaymentProviderOrderId');
+            return id ? String(id) : '';
+        } catch (_e) {
+            return '';
+        }
+    };
+
+    const refreshPhonePeStatus = async () => {
+        const merchantOrderId = getLastMerchantOrderId();
+        if (!merchantOrderId) {
+            setPaymentStatus('unknown');
+            setPaymentMessage('Payment status not available. Please try again from checkout.');
+            return;
+        }
+
+        setChecking(true);
+        try {
+            const resp = await apiClient.get(`/payments/phonepe/status/${encodeURIComponent(merchantOrderId)}`);
+            const providerState = String(resp?.data?.data?.state || resp?.data?.data?.status || resp?.data?.data?.data?.state || '').toUpperCase();
+
+            if (providerState === 'COMPLETED' || providerState === 'SUCCESS') {
+                setPaymentStatus('completed');
+                setPaymentMessage('Payment successful.');
+                return;
+            }
+            if (providerState === 'FAILED') {
+                setPaymentStatus('failed');
+                setPaymentMessage('Payment failed or was cancelled. Order is not placed.');
+                return;
+            }
+
+            setPaymentStatus('pending');
+            setPaymentMessage('Payment is pending. If you have paid, please wait and retry.');
+        } catch (e) {
+            const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to check payment status';
+            setPaymentStatus('unknown');
+            setPaymentMessage(String(msg));
+        } finally {
+            setChecking(false);
+        }
+    };
 
     const data = useMemo(() => {
         const state = (location && location.state) ? location.state : {};
@@ -38,6 +101,11 @@ const SummaryPage = () => {
             paymentMethod: String(state.paymentMethod ?? '') || '',
         };
     }, [location]);
+
+    useEffect(() => {
+        void refreshPhonePeStatus();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#F1F3F6] overflow-x-hidden">
@@ -84,13 +152,39 @@ const SummaryPage = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 lg:gap-8 min-w-0">
                     <div className="lg:col-span-2 min-w-0 space-y-3">
                         <div className="bg-white rounded-lg border border-gray-200 p-4">
-                            <div className="text-sm font-semibold text-gray-900">Order placed</div>
-                            {data.orderId ? (
-                                <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{data.orderId}</span></div>
-                            ) : null}
-                            {data.paymentMethod ? (
-                                <div className="text-xs text-gray-500 mt-1">Payment: {data.paymentMethod.toUpperCase()}</div>
-                            ) : null}
+                            {paymentStatus === 'completed' ? (
+                                <>
+                                    <div className="text-sm font-semibold text-gray-900">Order placed</div>
+                                    {data.orderId ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{data.orderId}</span></div>
+                                    ) : null}
+                                    {data.paymentMethod ? (
+                                        <div className="text-xs text-gray-500 mt-1">Payment: {data.paymentMethod.toUpperCase()}</div>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="text-sm font-semibold text-gray-900">Payment not completed</div>
+                                    <div className="text-xs text-gray-600 mt-1">{paymentMessage || 'Please complete payment to place your order.'}</div>
+                                    <div className="mt-3 flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={refreshPhonePeStatus}
+                                            disabled={checking}
+                                            className="h-9 px-3 inline-flex items-center justify-center rounded-md bg-[#5A0B5A] text-white text-xs font-semibold disabled:opacity-60"
+                                        >
+                                            {checking ? 'Checking...' : 'Retry Status'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/checkout')}
+                                            className="h-9 px-3 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-900 text-xs font-semibold"
+                                        >
+                                            Back to Checkout
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         {data.address ? (
@@ -146,12 +240,21 @@ const SummaryPage = () => {
                         </div>
 
                         <div className="flex gap-3">
-                            <Link
-                                to="/orders"
-                                className="flex-1 h-11 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
-                            >
-                                View Orders
-                            </Link>
+                            {paymentStatus === 'completed' ? (
+                                <Link
+                                    to="/orders"
+                                    className="flex-1 h-11 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
+                                >
+                                    View Orders
+                                </Link>
+                            ) : (
+                                <Link
+                                    to="/cart"
+                                    className="flex-1 h-11 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-semibold"
+                                >
+                                    Back to Cart
+                                </Link>
+                            )}
                             <Link
                                 to="/"
                                 className="flex-1 h-11 inline-flex items-center justify-center rounded-lg bg-[#5A0B5A] text-white text-sm font-semibold"

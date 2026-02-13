@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { apiClient } from '../api/client';
 import {
     FiCreditCard,
     FiSmartphone,
@@ -88,6 +89,75 @@ const PaymentGateway = ({
             description: 'Pay using any UPI app'
         }
     ];
+
+    const startPhonePeRedirectPayment = async () => {
+        const state = (location && location.state) ? location.state : {};
+
+        const normalizedItems = Array.isArray(state.items)
+            ? state.items
+                .map((it) => {
+                    const p = it?.product || {};
+                    const productId = it?.productId || p?._id || it?.product || it?._id;
+                    const name = it?.name || p?.name;
+                    const price = Number(it?.price ?? p?.price ?? 0) || 0;
+                    const quantity = Number(it?.quantity ?? 0) || 0;
+                    if (!productId || !name || !price || !quantity) return null;
+                    return {
+                        productId: String(productId),
+                        name: String(name),
+                        price,
+                        quantity,
+                        size: it?.size || it?.selectedSize,
+                        color: it?.color || it?.selectedColor,
+                    };
+                })
+                .filter(Boolean)
+            : [];
+
+        const orderData = {
+            currency: 'INR',
+            subtotal: Number(state.subtotal ?? 0) || 0,
+            shipping: Number(state.shipping ?? 0) || 0,
+            tax: Number(state.tax ?? 0) || 0,
+            codCharge: Number(state.codCharge ?? 0) || 0,
+            total: Number(state.total ?? resolved.amount ?? 0) || 0,
+            paymentMethod: 'phonepe',
+            items: normalizedItems,
+            customer: state.customer ?? resolved.customerInfo ?? null,
+            address: state.address ?? null,
+        };
+
+        const amountRupees = Math.round(Number(resolved.amount ?? orderData.total ?? 0) || 0);
+        if (!amountRupees || amountRupees <= 0) {
+            throw new Error('Invalid amount');
+        }
+
+        const returnUrl = `${window.location.origin}/summary`;
+
+        const resp = await apiClient.post('/payments/create-order', {
+            amount: amountRupees,
+            currency: 'INR',
+            provider: 'phonepe',
+            orderData,
+            returnUrl,
+        });
+
+        const data = resp?.data;
+        const nextUrl = data?.nextAction?.url;
+        if (!nextUrl) {
+            throw new Error(data?.message || data?.error || 'PhonePe initiation failed');
+        }
+
+        try {
+            localStorage.setItem('lastPaymentProviderOrderId', String(data?.providerOrderId || ''));
+            localStorage.setItem('lastPaymentId', String(data?.paymentId || ''));
+            localStorage.setItem('lastOrderId', String(data?.orderId || ''));
+        } catch (_e) {
+            // ignore
+        }
+
+        window.location.assign(String(nextUrl));
+    };
 
     const processPhonePePayment = async (paymentData) => {
         try {
@@ -189,6 +259,11 @@ const PaymentGateway = ({
         setPaymentError('');
 
         try {
+            if (selectedMethod === 'phonepe') {
+                await startPhonePeRedirectPayment();
+                return;
+            }
+
             let response;
             switch (selectedMethod) {
                 case 'phonepe':
@@ -239,7 +314,8 @@ const PaymentGateway = ({
         } catch (error) {
             console.error('Payment error:', error);
             setPaymentStatus('failed');
-            setPaymentError(error.message || 'Payment failed');
+            const msg = error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Payment failed';
+            setPaymentError(String(msg));
         } finally {
             setIsProcessing(false);
         }

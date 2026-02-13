@@ -125,12 +125,6 @@ const CheckoutPage = () => {
     const SHIPPING_AMOUNT = roundMoney(computeShipping(normalizedItems));
     const subtotalAmount = roundMoney(computeSubtotal(normalizedItems));
     const taxAmount = roundMoney(subtotalAmount * TAX_RATE);
-    const cartProducts = Array.isArray(normalizedItems) ? normalizedItems.map((i) => i?.product).filter(Boolean) : [];
-    const isCodAllowedForAll = cartProducts.length > 0 && cartProducts.every((p) => {
-        const direct = p?.codAvailable;
-        const fromManagement = p?.management?.shipping?.codAvailable;
-        return Boolean(direct ?? fromManagement);
-    });
     const codChargeTotal = Array.isArray(normalizedItems) ? roundMoney(normalizedItems.reduce((sum, item) => {
         const p = item?.product;
         const codEnabled = typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(p?.management?.shipping?.codAvailable);
@@ -144,8 +138,6 @@ const CheckoutPage = () => {
         subtotalAmount + SHIPPING_AMOUNT + taxAmount + (formData.paymentMethod === 'cod' ? codChargeTotal : 0)
     );
     const payableAmount = roundRupees(rawPayableAmount);
-
-    const formatCurrency = (value) => `₹${roundRupees(value)}`;
 
     const customerName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
 
@@ -191,6 +183,30 @@ const CheckoutPage = () => {
             return;
         }
 
+        const orderItems = normalizedItems
+            .map((it) => {
+                const p = it?.product || {};
+                const productId = p?._id || it?.productId || it?.product || it?._id;
+                const name = p?.name || it?.name;
+                const price = Number(it?.price ?? p?.price ?? 0) || 0;
+                const quantity = Number(it?.quantity ?? 0) || 0;
+                if (!productId || !name || !price || !quantity) return null;
+                return {
+                    productId: String(productId),
+                    name: String(name),
+                    price,
+                    quantity,
+                    size: it?.selectedSize || it?.size,
+                    color: it?.selectedColor || it?.color,
+                };
+            })
+            .filter(Boolean);
+
+        if (!orderItems.length) {
+            setError('Invalid order items. Please go back and try again.');
+            return;
+        }
+
         const customer = {
             name: selected?.name || customerName,
             email: formData.email,
@@ -206,20 +222,72 @@ const CheckoutPage = () => {
             country: selected?.country || 'India',
         };
 
-        try { await fetchCart(); } catch (_e) {}
+        const orderData = {
+            currency: 'INR',
+            subtotal: subtotalAmount,
+            shipping: SHIPPING_AMOUNT,
+            tax: taxAmount,
+            codCharge: 0,
+            total: payableAmount,
+            paymentMethod: 'phonepe',
+            items: orderItems,
+            customer,
+            address,
+        };
 
-        navigate('/payment', {
-            state: {
-                items: normalizedItems,
-                subtotal: subtotalAmount,
-                shipping: SHIPPING_AMOUNT,
-                tax: taxAmount,
-                total: payableAmount,
-                amount: payableAmount,
-                customer,
-                address,
+        const amountRupees = Math.round(Number(payableAmount ?? orderData.total ?? 0) || 0);
+        if (!amountRupees || amountRupees <= 0) {
+            setError('Invalid amount');
+            return;
+        }
+
+        const returnUrl = `${window.location.origin}/summary`;
+
+        setLoading(true);
+        try {
+            try { await fetchCart(); } catch (_e) {}
+
+            const resp = await apiClient.post('/payments/create-order', {
+                amount: amountRupees,
+                currency: 'INR',
+                provider: 'phonepe',
+                orderData,
+                returnUrl,
+            });
+
+            const data = resp?.data;
+            const nextUrl = data?.nextAction?.url;
+            if (!nextUrl) {
+                throw new Error(data?.message || data?.error || 'PhonePe initiation failed');
             }
-        });
+
+            try {
+                localStorage.setItem('lastPaymentProviderOrderId', String(data?.providerOrderId || ''));
+                localStorage.setItem('lastPaymentId', String(data?.paymentId || ''));
+                localStorage.setItem('lastOrderId', String(data?.orderId || ''));
+            } catch (_e) {
+                // ignore
+            }
+
+            window.location.assign(String(nextUrl));
+        } catch (e) {
+            const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to initiate PhonePe payment';
+            setError(String(msg));
+            navigate('/payment', {
+                state: {
+                    items: normalizedItems,
+                    subtotal: subtotalAmount,
+                    shipping: SHIPPING_AMOUNT,
+                    tax: taxAmount,
+                    total: payableAmount,
+                    amount: payableAmount,
+                    customer,
+                    address,
+                }
+            });
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -439,6 +507,15 @@ const CheckoutPage = () => {
                                     <span className="font-extrabold">₹{payableAmount.toFixed(0)}</span>
                                 </div>
                             </div>
+
+                            <button
+                                type="button"
+                                onClick={goToPayment}
+                                disabled={loading || !selectedAddressId || isAddingNew}
+                                className="mt-5 w-full h-11 inline-flex items-center justify-center rounded-xl bg-[#C97BCB] disabled:bg-[#E7C6E7] text-white text-sm font-extrabold shadow-sm"
+                            >
+                                Continue to Payment
+                            </button>
                         </div>
                     </div>
                 </div>

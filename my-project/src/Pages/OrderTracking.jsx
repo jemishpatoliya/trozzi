@@ -237,6 +237,8 @@ const OrderTracking = () => {
         const rawStatus = String(raw?.status || 'new').toLowerCase();
         const status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
 
+        const payment = raw?.payment && typeof raw.payment === 'object' ? raw.payment : null;
+
         return {
             id: raw?.id,
             orderNumber: raw?.orderNumber || raw?.id,
@@ -244,7 +246,10 @@ const OrderTracking = () => {
             status,
             items: Array.isArray(raw?.items) ? raw.items : [],
             totalAmount: Number(raw?.total ?? 0),
-            paymentMethod: raw?.paymentMethod || 'Online',
+            paymentMethod: raw?.paymentMethod || payment?.paymentMethod || payment?.provider || 'Online',
+            paymentMode: payment?.paymentMode || '',
+            payerVpa: payment?.payerVpa || '',
+            transactionId: payment?.transactionId || '',
             shippingAddress: {
                 name: raw?.customer?.name || '',
                 street: raw?.address?.line1 || '',
@@ -608,6 +613,15 @@ const OrderTracking = () => {
                                                 {selectedOrder.paymentMethod}
                                             </span>
                                         </div>
+                                        {selectedOrder.paymentMode ? (
+                                            <div className="text-sm text-text-600 dark:text-text-400">Mode: {selectedOrder.paymentMode}</div>
+                                        ) : null}
+                                        {selectedOrder.payerVpa ? (
+                                            <div className="text-sm text-text-600 dark:text-text-400">UPI ID: {selectedOrder.payerVpa}</div>
+                                        ) : null}
+                                        {selectedOrder.transactionId ? (
+                                            <div className="text-xs text-text-600 dark:text-text-400 break-all">Txn: {selectedOrder.transactionId}</div>
+                                        ) : null}
                                         <div className="text-sm text-text-600 dark:text-text-400">
                                             Payment processed successfully
                                         </div>

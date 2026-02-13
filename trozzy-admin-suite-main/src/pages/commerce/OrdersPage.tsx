@@ -23,6 +23,9 @@ interface Order {
   items: number;
   date: string;
   paymentMethod: string;
+  paymentMode?: string;
+  payerVpa?: string;
+  transactionId?: string;
   status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 }
 
@@ -57,6 +60,14 @@ type OrderDetail = {
     country?: string;
   };
   createdAtIso?: string;
+  payment?: {
+    provider?: string;
+    paymentMethod?: string;
+    paymentMode?: string;
+    transactionId?: string;
+    payerVpa?: string;
+    status?: string;
+  } | null;
   refundRequest?: {
     id: string;
     status: string;
@@ -617,7 +628,18 @@ const OrdersPage = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Payment Method</p>
-                  <p className="font-medium">{selectedOrder.paymentMethod}</p>
+                  <div className="font-medium">
+                    <div>{selectedOrderDetails?.payment?.paymentMethod || selectedOrder.paymentMethod}</div>
+                    {(selectedOrderDetails?.payment?.paymentMode || selectedOrder.paymentMode) ? (
+                      <div className="text-xs text-muted-foreground">Mode: {selectedOrderDetails?.payment?.paymentMode || selectedOrder.paymentMode}</div>
+                    ) : null}
+                    {(selectedOrderDetails?.payment?.payerVpa || selectedOrder.payerVpa) ? (
+                      <div className="text-xs text-muted-foreground">UPI ID: {selectedOrderDetails?.payment?.payerVpa || selectedOrder.payerVpa}</div>
+                    ) : null}
+                    {(selectedOrderDetails?.payment?.transactionId || selectedOrder.transactionId) ? (
+                      <div className="text-xs text-muted-foreground">Txn: {selectedOrderDetails?.payment?.transactionId || selectedOrder.transactionId}</div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
 

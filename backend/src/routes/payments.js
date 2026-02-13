@@ -241,6 +241,17 @@ function extractPhonePeDetails(body) {
 
   const paymentMode = String(firstDetail.paymentMode || payload.paymentMode || '');
   const transactionId = String(firstDetail.transactionId || firstDetail.transaction_id || payload.transactionId || '');
+  const payerVpa = String(
+    firstDetail.vpa ||
+      firstDetail.payerVpa ||
+      firstDetail.payer_vpa ||
+      firstDetail.upiId ||
+      firstDetail.upi_id ||
+      payload.vpa ||
+      payload.payerVpa ||
+      payload.upiId ||
+      '',
+  ).trim();
   const amount = Number(firstDetail.amount ?? payload.amount ?? 0) || 0;
   const timestamp = Number(firstDetail.timestamp ?? payload.timestamp ?? 0) || 0;
 
@@ -251,6 +262,7 @@ function extractPhonePeDetails(body) {
     orderId,
     paymentMode,
     transactionId,
+    payerVpa,
     amount,
     timestamp,
     raw: root,
@@ -899,6 +911,7 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
       providerStatus: details.state,
       transactionId: details.transactionId || payment.transactionId,
       paymentMode: details.paymentMode || payment.paymentMode,
+      metadata: { ...(payment.metadata || {}), payerVpa: details.payerVpa || (payment.metadata && payment.metadata.payerVpa) || '' },
       updatedAt: new Date(),
     };
 
@@ -1177,13 +1190,17 @@ router.post('/create-order', authenticateToken, async (req, res) => {
       });
       orderObjectId = orderDoc._id;
 
-      // In-app + email notifications for order placed
-      try {
-        const io = req.app.get('io');
-        const user = await UserModel.findById(req.userId);
-        domainEvents.emit('order:placed', { user, order: orderDoc, io });
-      } catch (e) {
-        console.error('Order placed notification emit error:', e);
+      // Emit order placed notifications only for COD orders created immediately.
+      // For online payments (PhonePe etc.), notify on payment completion.
+      const pm = String(orderDoc?.paymentMethod || '').trim().toLowerCase();
+      if (pm === 'cod') {
+        try {
+          const io = req.app.get('io');
+          const user = await UserModel.findById(req.userId);
+          domainEvents.emit('order:placed', { user, order: orderDoc, io });
+        } catch (e) {
+          console.error('Order placed notification emit error:', e);
+        }
       }
     }
 
