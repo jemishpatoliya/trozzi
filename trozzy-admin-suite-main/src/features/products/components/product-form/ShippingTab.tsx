@@ -20,6 +20,7 @@ export function ShippingTab() {
   const { control } = useFormContext<ProductManagementFormValues>();
 
   const weight = useWatch({ control, name: "shipping.weightKg" }) ?? 0;
+  const weightGm = Math.round(Number(weight || 0) * 1000);
   const dimensions = useWatch({ control, name: "shipping.dimensionsCm" }) ?? {
     length: 0,
     width: 0,
@@ -45,14 +46,19 @@ export function ShippingTab() {
               name="shipping.weightKg"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Weight (kg)</FormLabel>
+                  <FormLabel>Weight (gm)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       min={0}
-                      step={0.01}
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      step={1}
+                      value={Number.isFinite(weightGm) ? weightGm : 0}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const gm = raw === "" ? 0 : Number(raw);
+                        const kg = Number.isFinite(gm) ? gm / 1000 : 0;
+                        field.onChange(kg);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
