@@ -56,11 +56,27 @@ function fileKey(file: File) {
   return `${file.name}::${file.size}::${file.type}::${file.lastModified}`;
 }
 
+function resolveApiOrigin() {
+  const envAny = (import.meta as any)?.env || {};
+  const raw = String(envAny.VITE_API_URL || envAny.VITE_API_BASE_URL || "").trim();
+  if (!raw) return "";
+  return raw.replace(/\/+$/, "").replace(/\/api\/?$/, "");
+}
+
+function resolveEndpoint(endpoint?: string) {
+  const ep = String(endpoint || "/api/upload/image");
+  const origin = resolveApiOrigin();
+  if (!origin) return ep;
+  if (/^https?:\/\//i.test(ep)) return ep;
+  if (ep.startsWith("/")) return `${origin}${ep}`;
+  return ep;
+}
+
 async function uploadOnce(file: File, opts: UploadOptions): Promise<string> {
   const fd = new FormData();
   fd.append(opts.fieldName ?? "image", file);
 
-  const res = await fetch(opts.endpoint ?? "/api/upload/image", {
+  const res = await fetch(resolveEndpoint(opts.endpoint), {
     method: "POST",
     body: fd,
     signal: opts.signal,
@@ -88,6 +104,13 @@ async function uploadOnce(file: File, opts: UploadOptions): Promise<string> {
       // ignore
     }
     throw new HttpError(res.status, msg, payload, retryAfterMs);
+  }
+
+  const contentType = String(res.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) {
+    const text = await res.text();
+    const snippet = text.slice(0, 120);
+    throw new Error(`Upload failed: non-JSON response. ${snippet}`);
   }
 
   const data = await res.json();
