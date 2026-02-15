@@ -191,87 +191,86 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
       <div className="header bg-white">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="py-2 md:py-0">
-            <div className="relative">
-              <div className="h-28 md:h-36 flex items-center gap-2 md:gap-4 relative">
+            <div className="flex items-center gap-2 md:gap-4">
+              {/* Mobile Menu Button */}
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden w-9 h-9 flex items-center justify-center text-[22px] text-gray-800 active:scale-[0.98] transition-transform"
+                type="button"
+                aria-label="Menu"
+              >
+                {isMobileMenuOpen ? <FiX /> : <FiMenu />}
+              </button>
 
-                {/* Mobile Menu Button */}
-                <button
-                  onClick={toggleMobileMenu}
-                  className="md:hidden w-9 h-9 flex items-center justify-center text-[22px] text-gray-800 active:scale-[0.98] transition-transform"
-                  type="button"
-                  aria-label="Menu"
-                >
-                  {isMobileMenuOpen ? <FiX /> : <FiMenu />}
-                </button>
+              {/* Brand */}
+              <Link
+                to="/"
+                className="flex items-center flex-shrink-0"
+                aria-label="Home"
+              >
+                <img
+                  src={settings?.brandLogoUrl || "/logo.png"}
+                  alt="TROZZI"
+                  className="h-20 md:h-32 w-auto object-contain"
+                  loading="eager"
+                />
+              </Link>
 
-                {/* Brand */}
-                <Link
-                  to="/"
-                  className="flex items-center flex-shrink-0 absolute left-1/2 -translate-x-1/2 md:static md:translate-x-0"
-                  aria-label="Home"
-                >
-                  <img
-                    src={settings?.brandLogoUrl || "/logo.png"}
-                    alt="TROZZI"
-                    className="h-20 md:h-32 w-auto object-contain"
-                    loading="eager"
-                  />
-                </Link>
-
-                {/* Desktop Search */}
-                <div className="hidden md:block absolute left-1/2 -translate-x-1/2 w-full max-w-2xl px-4">
+              {/* Desktop Search */}
+              <div className="hidden md:flex flex-1 min-w-0 justify-center px-4">
+                <div className="w-full max-w-2xl">
                   <GlobalSearch />
                 </div>
+              </div>
 
-                {/* Actions */}
-                <div className="ml-auto flex items-center gap-1 md:gap-2">
-                  <Tooltip title="Search" arrow>
+              {/* Actions */}
+              <div className="ml-auto flex items-center gap-1 md:gap-2">
+                <Tooltip title="Search" arrow>
+                  <IconButton
+                    aria-label="search"
+                    onClick={toggleMobileSearch}
+                    className="!w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
+                  >
+                    {isMobileSearchOpen ? (
+                      <FiX className="text-lg text-gray-700" />
+                    ) : (
+                      <FiSearch className="text-lg text-gray-700" />
+                    )}
+                  </IconButton>
+                </Tooltip>
+
+                <div className="hidden md:block">
+                  <UserMenu />
+                </div>
+
+                <div className="hidden md:block">
+                  <NotificationBell />
+                </div>
+
+                <Tooltip title="Cart" arrow>
+                  <IconButton
+                    aria-label="cart"
+                    onClick={toggleCart}
+                    className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
+                  >
+                    <StyledBadge badgeContent={itemCount} color="secondary">
+                      <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                    </StyledBadge>
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Wishlist" arrow>
+                  <Link to="/wishlist" className="hidden md:inline-flex">
                     <IconButton
-                      aria-label="search"
-                      onClick={toggleMobileSearch}
-                      className="!w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
-                    >
-                      {isMobileSearchOpen ? (
-                        <FiX className="text-lg text-gray-700" />
-                      ) : (
-                        <FiSearch className="text-lg text-gray-700" />
-                      )}
-                    </IconButton>
-                  </Tooltip>
-
-                  <div className="hidden md:block">
-                    <UserMenu />
-                  </div>
-
-                  <div className="hidden md:block">
-                    <NotificationBell />
-                  </div>
-
-                  <Tooltip title="Cart" arrow>
-                    <IconButton
-                      aria-label="cart"
-                      onClick={toggleCart}
+                      aria-label="wishlist"
                       className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
                     >
-                      <StyledBadge badgeContent={itemCount} color="secondary">
-                        <FiShoppingCart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                      <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
+                        <FiHeart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
                       </StyledBadge>
                     </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Wishlist" arrow>
-                    <Link to="/wishlist" className="hidden md:inline-flex">
-                      <IconButton
-                        aria-label="wishlist"
-                        className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-orange-50 transition-colors rounded-xl"
-                      >
-                        <StyledBadge badgeContent={wishlistBadgeCount} color="secondary">
-                          <FiHeart className="text-lg sm:text-xl md:text-2xl text-gray-700" />
-                        </StyledBadge>
-                      </IconButton>
-                    </Link>
-                  </Tooltip>
-                </div>
+                  </Link>
+                </Tooltip>
               </div>
 
               {isMobileSearchOpen && (
