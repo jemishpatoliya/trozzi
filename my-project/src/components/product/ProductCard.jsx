@@ -242,11 +242,10 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
       className={
         isList
           ? "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 flex h-[280px]"
-          : "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99] h-full"
+          : "group cursor-pointer overflow-hidden rounded-lg bg-white border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]"
       }
     >
-      <div className={isList ? "transition-transform duration-300 flex flex-row h-full" : "transition-transform duration-300 flex flex-col h-full"}>
-
+      <div className={isList ? "transition-transform duration-300 flex flex-row h-full" : "transition-transform duration-300 flex flex-col"}>
         {/* Image Section */}
         <div
           className={
@@ -334,7 +333,7 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
           className={
             isList
               ? "p-3 space-y-2 flex flex-col flex-1 min-w-0"
-              : `p-2 sm:p-3 space-y-1 sm:space-y-2 flex flex-col flex-1 ${hideAddToCart ? "min-h-0" : "min-h-[160px]"}`
+              : "p-2 sm:p-3 space-y-1 sm:space-y-2 flex flex-col flex-1"
           }
         >
           {/* Product Title */}
@@ -353,7 +352,7 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
             ) : null}
           </div>
 
-          <div className={hideAddToCart ? "mt-1" : "mt-1 min-h-[22px]"}>
+          <div className="mt-1">
             {shouldShowOffers ? (
               <div className="inline-flex items-center rounded-md border border-green-300 bg-green-50 text-green-700 px-2 py-1 text-[10px] sm:text-[12px] font-semibold">
                 ₹{Math.max(1, Math.round(displaySelling * 0.055))} with 2 Special Offers
@@ -361,7 +360,7 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
             ) : null}
           </div>
 
-          <div className={hideAddToCart ? "mt-1" : "mt-1 min-h-[18px]"}>
+          <div className="mt-1">
             {shouldShowFreeDelivery ? (
               <div className="flex items-center gap-2 text-[12px] text-gray-600">
                 <span className="inline-flex items-center gap-1">
@@ -374,47 +373,45 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
 
           {normalized.stock <= 0 ? <div className="text-xs font-semibold text-red-600">Out of stock</div> : null}
 
-          <div className={hideAddToCart ? undefined : "mt-auto"}>
-            <div className="flex items-center justify-between pt-2">
-              {shouldShowRating ? (
-                <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[11px] sm:text-[12px] font-semibold">
-                  <span>{safeRating.toFixed(1)}</span>
-                  <FaStar className="h-3 w-3 fill-current" />
-                  <span className="text-white/90">({Number(normalized.reviews || 0)})</span>
-                </div>
-              ) : (
-                <span />
-              )}
+          <div className="flex items-center justify-between pt-2">
+            {shouldShowRating ? (
+              <div className="inline-flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded-md text-[11px] sm:text-[12px] font-semibold">
+                <span>{safeRating.toFixed(1)}</span>
+                <FaStar className="h-3 w-3 fill-current" />
+                <span className="text-white/90">({Number(normalized.reviews || 0)})</span>
+              </div>
+            ) : (
+              <span />
+            )}
 
-              {shouldShowTrusted ? (
-                <div className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
-                  <FaCheckCircle className="text-[14px]" />
-                  Trusted
-                </div>
-              ) : null}
-            </div>
-
-            {!hideAddToCart ? (
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={isAddingToCart || normalized.stock <= 0}
-                className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] sm:text-[13px] font-semibold bg-[#FF9F00] text-gray-900 hover:bg-[#fb8c00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-              >
-                {justAdded ? (
-                  <>
-                    <FaCheck />
-                    Added
-                  </>
-                ) : (
-                  <>
-                    <FaShoppingCart />
-                    {isAddingToCart ? "Adding..." : "Add to Cart"}
-                  </>
-                )}
-              </button>
+            {shouldShowTrusted ? (
+              <div className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
+                <FaCheckCircle className="text-[14px]" />
+                Trusted
+              </div>
             ) : null}
           </div>
+
+          {!hideAddToCart ? (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={isAddingToCart || normalized.stock <= 0}
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[12px] sm:text-[13px] font-semibold bg-[#FF9F00] text-gray-900 hover:bg-[#fb8c00] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            >
+              {justAdded ? (
+                <>
+                  <FaCheck />
+                  Added
+                </>
+              ) : (
+                <>
+                  <FaShoppingCart />
+                  {isAddingToCart ? "Adding..." : "Add to Cart"}
+                </>
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

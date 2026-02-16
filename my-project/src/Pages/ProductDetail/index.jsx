@@ -377,12 +377,12 @@ const ProductDetail = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Product Images */}
                         <div>
-                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-4">
+                            <div className="aspect-square bg-white rounded-lg overflow-hidden mb-4">
                                 {selectedImages.length > 0 ? (
                                     <img
                                         src={selectedImages[selectedImage] || selectedImages[0]}
                                         alt={product.name}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-contain"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
@@ -398,7 +398,7 @@ const ProductDetail = () => {
                                         className={`aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 ${selectedImage === index ? 'border-blue-600' : 'border-transparent'
                                             }`}
                                     >
-                                        <img src={img} alt={`${product.name} ${index + 1}`} className="w-full h-full object-cover" />
+                                        <img src={img} alt={`${product.name} ${index + 1}`} className="w-full h-full object-contain" />
                                     </button>
                                 ))}
                             </div>

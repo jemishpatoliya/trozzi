@@ -6,11 +6,12 @@ import { useContentSettings } from '../../context/ContentSettingsContext';
 const LoginPage = () => {
     const { settings } = useContentSettings();
     const [formData, setFormData] = useState({
-        phone: '',
+        identifier: '',
+        password: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { loginSendOtp } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
@@ -26,17 +27,11 @@ const LoginPage = () => {
         setLoading(true);
         setError('');
 
-        const result = await loginSendOtp({ phone: formData.phone });
+        const result = await login({ identifier: formData.identifier, password: formData.password });
 
         if (result.success) {
             const redirectTo = searchParams.get('redirect') || '/';
-            navigate('/verify-otp', {
-                state: {
-                    phone: result?.data?.phone || formData.phone,
-                    purpose: 'login',
-                    redirect: redirectTo,
-                },
-            });
+            navigate(redirectTo);
         } else {
             setError(result.error);
         }
@@ -76,18 +71,34 @@ const LoginPage = () => {
                         )}
 
                         <div className="space-y-1.5">
-                            <label htmlFor="phone" className="text-sm font-semibold text-gray-700">
-                                Mobile number
+                            <label htmlFor="identifier" className="text-sm font-semibold text-gray-700">
+                                Email or mobile
                             </label>
                             <input
-                                id="phone"
-                                name="phone"
-                                type="tel"
-                                inputMode="numeric"
+                                id="identifier"
+                                name="identifier"
+                                type="text"
                                 required
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
-                                placeholder="Enter mobile number"
-                                value={formData.phone}
+                                placeholder="you@example.com or 9876543210"
+                                value={formData.identifier}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                                Password
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autoComplete="current-password"
+                                required
+                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                                placeholder="Enter password"
+                                value={formData.password}
                                 onChange={handleChange}
                             />
                         </div>

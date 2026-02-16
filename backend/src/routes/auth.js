@@ -2,10 +2,70 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
+const axios = require('axios');
 const { UserModel } = require('../models/user');
 const auth = require('../middleware/auth');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
 const { sendMail } = require('../services/mailer');
+
+async function sendOtpViaMsg91({ phone, otp, purpose }) {
+    const authkey = String(process.env.MSG91_AUTH_KEY || '').trim();
+    const templateId = String(process.env.MSG91_OTP_TEMPLATE_ID || '').trim();
+    const sender = String(process.env.MSG91_SENDER || 'TROZZY').trim();
+    const route = String(process.env.MSG91_ROUTE || '4').trim();
+    const country = String(process.env.MSG91_COUNTRY || '91').trim();
+
+    if (!authkey || !templateId) {
+        throw new Error('MSG91 is not configured (MSG91_AUTH_KEY, MSG91_OTP_TEMPLATE_ID)');
+    }
+
+    const payload = {
+        authkey,
+        sender,
+        route,
+        country,
+        sms: [String(phone)],
+        template_id: templateId,
+        variables: {
+            otp: String(otp),
+            purpose: String(purpose || ''),
+        },
+        response: 'json',
+    };
+
+    const res = await axios.post('https://control.msg91.com/api/v5/flow/', payload);
+    if (res.data?.type !== 'success') {
+        throw new Error(res.data?.message || 'MSG91 OTP send failed');
+    }
+    return { success: true, messageId: res.data?.messageid };
+}
+
+async function verifyMsg91WidgetAccessToken(accessToken) {
+    const authkey = String(process.env.MSG91_AUTH_KEY || '').trim();
+    if (!authkey) throw new Error('MSG91_AUTH_KEY missing');
+
+    const token = String(accessToken || '').trim();
+    if (!token) throw new Error('accessToken is required');
+
+    const res = await axios.post(
+        'https://control.msg91.com/api/v5/widget/verifyAccessToken',
+        { accessToken: token },
+        {
+            headers: {
+                authkey,
+                'Content-Type': 'application/json',
+            },
+        },
+    );
+
+    const data = res.data;
+    const ok = data?.type === 'success' || data?.success === true;
+    if (!ok) {
+        throw new Error(data?.message || 'MSG91 accessToken verification failed');
+    }
+
+    return data;
+}
 
 function normalizePhone(phone) {
     const raw = String(phone || '');
@@ -40,11 +100,10 @@ function pickUserForClient(userDoc, settings) {
 
 // POST /api/auth/login - Login user
 router.post('/login', [
-    body('email')
+    body('identifier')
         .notEmpty()
-        .withMessage('Please provide a valid email address')
-        .isEmail()
-        .normalizeEmail(),
+        .withMessage('Email or phone is required')
+        .isString(),
     body('password')
         .notEmpty()
         .withMessage('Password is required')
@@ -60,10 +119,16 @@ router.post('/login', [
         });
     }
     try {
-        const { email, password } = req.body;
+        const identifierRaw = String(req.body?.identifier || '').trim();
+        const password = String(req.body?.password || '');
+        const identifierLower = identifierRaw.toLowerCase();
+
+        const isEmail = identifierLower.includes('@');
+        const phone = isEmail ? '' : normalizePhone(identifierRaw);
+        const email = isEmail ? identifierLower : '';
 
         // Find user and include password
-        const user = await UserModel.findOne({ email }).select('+password');
+        const user = await UserModel.findOne(isEmail ? { email } : { phone }).select('+password');
 
         if (!user) {
             return res.status(401).json({
@@ -101,11 +166,14 @@ router.post('/login', [
         // Remove password from response
         user.password = undefined;
 
+        const settings = await getOrCreateContentSettings();
+        const userPayload = pickUserForClient(user, settings);
+
         res.json({
             success: true,
             message: 'Login successful',
             data: {
-                user,
+                user: userPayload,
                 token
             }
         });
@@ -117,6 +185,18 @@ router.post('/login', [
         });
     }
 });
+
+function otpGone(_req, res) {
+    return res.status(410).json({
+        success: false,
+        message: 'OTP-based authentication has been disabled. Please use password login/register.',
+    });
+}
+
+router.post('/register/send-otp', otpGone);
+router.post('/login/send-otp', otpGone);
+router.post('/verify-otp', otpGone);
+router.post('/widget/verify-access-token', otpGone);
 
 // POST /api/auth/register/send-otp - Register start via mobile OTP
 router.post('/register/send-otp', [
@@ -174,7 +254,15 @@ router.post('/register/send-otp', [
 
         await user.save();
 
-        console.log(`📲 OTP (register) for ${phone}: ${otp}`);
+        try {
+            await sendOtpViaMsg91({ phone, otp, purpose: 'register' });
+        } catch (e) {
+            console.error('MSG91 send-otp (register) error:', e?.message || e);
+            if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+                return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+            }
+            console.log(`📲 OTP (register) for ${phone}: ${otp}`);
+        }
 
         return res.json({
             success: true,
@@ -228,7 +316,15 @@ router.post('/login/send-otp', [
         user.otpPurpose = 'login';
         await user.save();
 
-        console.log(`📲 OTP (login) for ${phone}: ${otp}`);
+        try {
+            await sendOtpViaMsg91({ phone, otp, purpose: 'login' });
+        } catch (e) {
+            console.error('MSG91 send-otp (login) error:', e?.message || e);
+            if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+                return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+            }
+            console.log(`📲 OTP (login) for ${phone}: ${otp}`);
+        }
 
         return res.json({
             success: true,
@@ -317,6 +413,125 @@ router.post('/verify-otp', [
     }
 });
 
+// POST /api/auth/widget/verify-access-token - Verify MSG91 Widget accessToken and issue token
+router.post('/widget/verify-access-token', [
+    body('accessToken').notEmpty().withMessage('accessToken is required').isString(),
+    body('purpose').optional().isIn(['register', 'login']),
+    body('phone').optional().isString(),
+    body('email').optional().isString(),
+    body('name').optional().isString(),
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: errors.array().map((error) => error.msg),
+        });
+    }
+
+    try {
+        const purpose = req.body?.purpose ? String(req.body.purpose) : 'login';
+        const accessToken = String(req.body?.accessToken || '').trim();
+        const msg91 = await verifyMsg91WidgetAccessToken(accessToken);
+
+        const verifiedPhoneRaw =
+            msg91?.data?.mobile ||
+            msg91?.data?.phone ||
+            msg91?.mobile ||
+            msg91?.phone ||
+            msg91?.identifier;
+
+        const verifiedEmailRaw = msg91?.data?.email || msg91?.email;
+        const phone = normalizePhone(verifiedPhoneRaw || req.body?.phone);
+        const email = String(verifiedEmailRaw || req.body?.email || '').trim().toLowerCase();
+
+        if (purpose === 'login') {
+            if (!phone) {
+                return res.status(400).json({ success: false, message: 'Verified phone number missing' });
+            }
+
+            const user = await UserModel.findOne({ phone });
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Account not found for this phone number' });
+            }
+
+            if (!user.active) {
+                return res.status(401).json({ success: false, message: 'Account is deactivated' });
+            }
+
+            user.phoneVerified = true;
+            user.lastLogin = new Date();
+            user.lastActiveAt = new Date();
+            await user.save();
+
+            const token = user.generateToken();
+            user.password = undefined;
+
+            return res.json({
+                success: true,
+                message: 'Login successful',
+                data: {
+                    user,
+                    token,
+                },
+            });
+        }
+
+        if (!phone) {
+            return res.status(400).json({ success: false, message: 'Verified phone number missing' });
+        }
+
+        const name = String(req.body?.name || '').trim();
+        if (!name) {
+            return res.status(400).json({ success: false, message: 'Name is required' });
+        }
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+
+        const existingEmail = await UserModel.findOne({ email });
+        if (existingEmail) {
+            return res.status(409).json({ success: false, message: 'User with this email already exists' });
+        }
+
+        const existingPhone = await UserModel.findOne({ phone });
+        if (existingPhone) {
+            return res.status(409).json({ success: false, message: 'User with this phone number already exists' });
+        }
+
+        const parts = name.split(/\s+/).filter(Boolean);
+        const firstName = parts[0] || name;
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'User';
+
+        const user = new UserModel({
+            firstName,
+            lastName,
+            email,
+            phone,
+            phoneVerified: true,
+            active: true,
+            emailVerified: true,
+        });
+
+        await user.save();
+        const token = user.generateToken();
+        user.password = undefined;
+
+        return res.json({
+            success: true,
+            message: 'Registration successful',
+            data: {
+                user,
+                token,
+            },
+        });
+    } catch (error) {
+        console.error('Widget verify-access-token error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to verify access token' });
+    }
+});
+
 // POST /api/auth/register - Register new user
 router.post('/register', [
     body('firstName')
@@ -346,10 +561,7 @@ router.post('/register', [
         .isString()
         .isLength({ min: 10, max: 15 })
         .withMessage('Phone number must be between 10 and 15 characters'),
-    body('role')
-        .optional()
-        .isIn(['admin', 'moderator', 'user'])
-        .withMessage('Role must be admin, moderator, or user')
+    body('role').optional().isString()
 ], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -360,37 +572,53 @@ router.post('/register', [
         });
     }
     try {
-        const { firstName, lastName, email, password, phone, role = 'user' } = req.body;
+        const firstName = String(req.body?.firstName || '').trim();
+        const lastName = String(req.body?.lastName || '').trim();
+        const email = String(req.body?.email || '').trim().toLowerCase();
+        const password = String(req.body?.password || '');
+        const phone = req.body?.phone ? normalizePhone(req.body.phone) : '';
 
         // Check if user already exists
-        const existingUserModel = await UserModel.findOne({ email });
-
-        if (existingUserModel) {
-            return res.status(409).json({
-                success: false,
-                message: 'UserModel with this email already exists'
-            });
+        const existingByEmail = await UserModel.findOne({ email });
+        if (existingByEmail) {
+            return res.status(409).json({ success: false, message: 'User with this email already exists' });
         }
 
-        // Create new user
+        if (phone) {
+            const existingByPhone = await UserModel.findOne({ phone });
+            if (existingByPhone) {
+                return res.status(409).json({ success: false, message: 'User with this phone number already exists' });
+            }
+        }
+
+        // Create new user (NEVER accept role from client)
         const user = new UserModel({
             firstName,
             lastName,
             email,
             password,
             phone,
-            role
+            role: 'user',
+            active: true,
+            emailVerified: true,
+            phoneVerified: Boolean(phone),
         });
 
         await user.save();
 
-        // Remove password from response
+        const token = user.generateToken();
         user.password = undefined;
+
+        const settings = await getOrCreateContentSettings();
+        const userPayload = pickUserForClient(user, settings);
 
         res.status(201).json({
             success: true,
-            message: 'UserModel registered successfully',
-            data: user
+            message: 'Registration successful',
+            data: {
+                user: userPayload,
+                token,
+            },
         });
     } catch (error) {
         console.error('Registration error:', error);

@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import InnerImageZoom from 'react-inner-image-zoom';
-import 'react-inner-image-zoom/lib/styles.min.css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import SwiperCore from 'swiper';
 import 'swiper/css';
@@ -50,13 +48,13 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
                         {finalImages.length > 0 ? finalImages.map((src, idx) => (
                             <SwiperSlide key={src + idx}>
                                 <div
-                                    className={`item rounded-md overflow-hidden cursor-pointer group  ${SlideIndex === idx ? 'opacity-1' : 'opacity-30'}`}
+                                    className={`item h-[130px] rounded-md overflow-hidden cursor-pointer bg-white flex items-center justify-center ${SlideIndex === idx ? 'opacity-1' : 'opacity-30'}`}
                                     onClick={() => goto(idx)}
                                 >
                                     <img
                                         src={src}
                                         alt={product?.name ?? 'Product image'}
-                                        className='w-full transition-all ease-in duration-300 group-hover:scale-105'
+                                        className='w-full h-full object-contain bg-white'
                                     />
                                 </div>
                             </SwiperSlide>
@@ -71,20 +69,23 @@ const ProductZoom = ({ product, selectedColorVariant, useVariantImages = true })
                 </div>
 
                 {/* Main Zoom Image */}
-                <div className='zoomContainer w-full md:w-[85%] h-[320px] sm:h-[380px] md:h-[500px] overflow-hidden rounded-md'>
+                <div className='zoomContainer w-full md:w-[85%] h-[320px] sm:h-[380px] md:h-[500px] overflow-hidden rounded-md bg-white'>
                     <Swiper
                         ref={zoomSliderBig}
                         slidesPerView={1}
                         spaceBetween={0}
                         navigation={false}
+                        className="h-full"
                     >
                         {finalImages.length > 0 ? finalImages.map((src, idx) => (
-                            <SwiperSlide key={src + idx}>
-                                <InnerImageZoom
-                                    zoomType='hover'
-                                    zoomScale={1.5}
-                                    src={src}
-                                />
+                            <SwiperSlide key={src + idx} className="h-full">
+                                <div className="w-full h-full flex items-center justify-center bg-white">
+                                    <img
+                                        src={src}
+                                        alt={product?.name ?? 'Product image'}
+                                        className="max-w-full max-h-full w-auto h-auto object-contain"
+                                    />
+                                </div>
                             </SwiperSlide>
                         )) : (
                             <SwiperSlide key="no-images-main">

@@ -89,7 +89,7 @@ export function MediaManager({ images, thumbnailId, onChange, className }: Props
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp,.svg,.ico,.tif,.tiff"
         multiple
         className="hidden"
         onChange={(e) => {

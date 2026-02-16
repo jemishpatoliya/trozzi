@@ -5,7 +5,7 @@ import { useContentSettings } from '../../context/ContentSettingsContext';
 
 const OtpVerificationPage = () => {
     const { settings } = useContentSettings();
-    const { verifyOtp } = useAuth();
+    const { widgetVerifyOtp, verifyWidgetAccessToken } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -16,6 +16,8 @@ const OtpVerificationPage = () => {
             phone: String(state.phone || searchParams.get('phone') || '').trim(),
             purpose: String(state.purpose || searchParams.get('purpose') || '').trim() || 'login',
             redirect: String(state.redirect || searchParams.get('redirect') || '').trim(),
+            name: String(state.name || searchParams.get('name') || '').trim(),
+            email: String(state.email || searchParams.get('email') || '').trim(),
         };
     }, [location?.state, searchParams]);
 
@@ -28,10 +30,34 @@ const OtpVerificationPage = () => {
         setLoading(true);
         setError('');
 
-        const result = await verifyOtp({
-            phone: initial.phone,
-            otp,
+        const widgetRes = await widgetVerifyOtp({ otp });
+        if (!widgetRes.success) {
+            setError(widgetRes.error);
+            setLoading(false);
+            return;
+        }
+
+        const accessToken =
+            widgetRes?.accessToken ||
+            widgetRes?.data?.accessToken ||
+            widgetRes?.data?.access_token ||
+            widgetRes?.data?.data?.accessToken ||
+            widgetRes?.data?.data?.access_token ||
+            widgetRes?.data?.token ||
+            widgetRes?.data?.data?.token;
+
+        if (!accessToken) {
+            setError('OTP verified but access token missing. Please try again.');
+            setLoading(false);
+            return;
+        }
+
+        const result = await verifyWidgetAccessToken({
+            accessToken,
             purpose: initial.purpose,
+            phone: initial.phone,
+            name: initial.name,
+            email: initial.email,
         });
 
         if (result.success) {

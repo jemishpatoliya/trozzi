@@ -9,10 +9,11 @@ const RegisterPage = () => {
         name: '',
         email: '',
         phone: '',
+        password: '',
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const { registerSendOtp } = useAuth();
+    const { register } = useAuth();
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -27,20 +28,20 @@ const RegisterPage = () => {
         setLoading(true);
         setError('');
 
-        const result = await registerSendOtp({
-            name: formData.name,
+        const parts = String(formData.name || '').trim().split(/\s+/).filter(Boolean);
+        const firstName = parts[0] || '';
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'User';
+
+        const result = await register({
+            firstName,
+            lastName,
             email: formData.email,
             phone: formData.phone,
+            password: formData.password,
         });
 
         if (result.success) {
-            navigate('/verify-otp', {
-                state: {
-                    phone: result?.data?.phone || formData.phone,
-                    purpose: 'register',
-                    redirect: '/profile',
-                },
-            });
+            navigate('/profile');
         } else {
             setError(result.error);
         }
@@ -125,6 +126,23 @@ const RegisterPage = () => {
                                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
                                 placeholder="Enter mobile number"
                                 value={formData.phone}
+                                onChange={handleChange}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                                Password
+                            </label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autoComplete="new-password"
+                                required
+                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400"
+                                placeholder="Create password"
+                                value={formData.password}
                                 onChange={handleChange}
                             />
                         </div>

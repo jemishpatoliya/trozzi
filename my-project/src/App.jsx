@@ -165,7 +165,6 @@ const CheckoutPage = lazy(() => import('./Pages/CheckoutPage'));
 const WishlistPage = lazy(() => import('./Pages/WishlistPage'));
 const LoginPage = lazy(() => import('./Pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./Pages/auth/RegisterPage'));
-const OtpVerificationPage = lazy(() => import('./Pages/auth/OtpVerificationPage'));
 const ForgotPasswordPage = lazy(() => import('./Pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./Pages/auth/ResetPasswordPage'));
 const PrivacyPolicy = lazy(() => import('./Pages/PrivacyPolicy'));
@@ -234,7 +233,6 @@ const MobileBottomNav = () => {
         pathname === '/cart' ||
         pathname === '/login' ||
         pathname === '/register' ||
-        pathname === '/verify-otp' ||
         pathname === '/forgot-password' ||
         pathname === '/reset-password'
     );
@@ -455,14 +453,6 @@ function App() {
                                                     element={
                                                         <PublicRoute>
                                                             <RegisterPage />
-                                                        </PublicRoute>
-                                                    }
-                                                />
-                                                <Route
-                                                    path="/verify-otp"
-                                                    element={
-                                                        <PublicRoute>
-                                                            <OtpVerificationPage />
                                                         </PublicRoute>
                                                     }
                                                 />
