@@ -31,9 +31,17 @@ const FeaturedSlider = ({ title, hideAddToCart = false }) => {
         <h2 className="text-[16px] sm:text-[22px] md:text-[26px] font-bold text-gray-900 mb-1.5 sm:mb-4 text-center">{title}</h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-          {items.map((item) => (
-            <ProductCard key={item.id || item._id} product={item} hideAddToCart={hideAddToCart} />
-          ))}
+          {items.map((item) => {
+            const stableId = item?.id || item?._id;
+            const normalizedItem = stableId && !item?.id ? { ...item, id: stableId } : item;
+            return (
+              <ProductCard
+                key={stableId}
+                product={normalizedItem}
+                hideAddToCart={hideAddToCart}
+              />
+            );
+          })}
         </div>
       </div>
     </section>

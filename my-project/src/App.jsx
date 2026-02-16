@@ -140,7 +140,7 @@
 //         </AuthProvider>
 // App.js - Fixed Layout with Homecatslider on all pages
 import React, { createContext, lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, NavLink } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, NavLink, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
@@ -307,6 +307,11 @@ const MobileBottomNav = () => {
     );
 };
 
+const ProductDetailsRoute = () => {
+    const { id } = useParams();
+    return <Productsdetailsh key={id} />;
+};
+
 function App() {
     // Basic MyContext functionality for backward compatibility
     const [isCartPanelOpen, setIsCartPanelOpen] = React.useState(false);
@@ -429,7 +434,7 @@ function App() {
                                                 <Route path="/" element={<Home />} />
                                                 <Route path="/ProductListing" element={<ProductListing />} />
                                                 <Route path="/ProductListing/:category" element={<ProductListing />} />
-                                                <Route path="/product/:id" element={<Productsdetailsh />} />
+                                                <Route path="/product/:id" element={<ProductDetailsRoute />} />
                                                 <Route path="/policies" element={<Policies />} />
                                                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                                                 <Route path="/terms-of-service" element={<TermsOfService />} />
