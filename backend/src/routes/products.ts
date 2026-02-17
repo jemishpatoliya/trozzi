@@ -68,6 +68,7 @@ function mapProduct(req: Request, p: any) {
     sizes: p.sizes,
     colors: p.colors,
     sizeGuideKey: p.sizeGuideKey,
+    sizeGuideImageUrl: toAbsoluteUrl(req, p?.management?.attributes?.sizeGuideImageUrl),
     sizeGuide: Array.isArray(p?.management?.attributes?.sets)
       ? (p.management.attributes.sets
           .filter((s: any) => typeof s?.name === "string" && s.name.toLowerCase().includes("size guide"))

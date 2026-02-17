@@ -52,6 +52,7 @@ export const productManagementSchema = z.object({
         stockOverride: z.number().int().optional(),
       }),
     ),
+    sizeGuideImageUrl: z.string().trim().optional(),
   }),
   seo: z.object({
     metaTitle: z.string().trim().max(60),

@@ -329,36 +329,49 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           <Dialog open={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} maxWidth="sm" fullWidth>
             <DialogTitle>Size Guide</DialogTitle>
             <DialogContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      {sizeGuideColumns.map((c, i) => (
-                        <th
-                          key={c.key}
-                          className={`text-left text-sm font-semibold text-gray-700 border-b py-2 ${i === 0 ? 'pr-3' : ''}`}
-                        >
-                          {c.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sizeGuideRows.map((row, idx) => (
-                      <tr key={`${idx}-${String(row?.size ?? 'row')}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+              {String(product?.sizeGuideImageUrl || '').trim() ? (
+                <div className="mb-4">
+                  <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 flex items-center justify-center">
+                    <img
+                      src={String(product?.sizeGuideImageUrl)}
+                      alt="Size guide"
+                      className="max-h-[320px] w-auto object-contain"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr>
                         {sizeGuideColumns.map((c, i) => (
-                          <td
-                            key={`${idx}-${c.key}`}
-                            className={`${i === 0 ? 'text-sm text-gray-800 py-2 pr-3 align-top font-medium whitespace-nowrap' : 'text-sm text-gray-700 py-2 align-top'}`}
+                          <th
+                            key={c.key}
+                            className={`text-left text-sm font-semibold text-gray-700 border-b py-2 ${i === 0 ? 'pr-3' : ''}`}
                           >
-                            {String(row?.[c.key] ?? '') || (i === 0 ? '-' : '')}
-                          </td>
+                            {c.label}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {sizeGuideRows.map((row, idx) => (
+                        <tr key={`${idx}-${String(row?.size ?? 'row')}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                          {sizeGuideColumns.map((c, i) => (
+                            <td
+                              key={`${idx}-${c.key}`}
+                              className={`${i === 0 ? 'text-sm text-gray-800 py-2 pr-3 align-top font-medium whitespace-nowrap' : 'text-sm text-gray-700 py-2 align-top'}`}
+                            >
+                              {String(row?.[c.key] ?? '') || (i === 0 ? '-' : '')}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         </div>

@@ -87,6 +87,7 @@ export async function fetchProductDetails(productId) {
         stock: product.stock ?? details?.stock,
         sizeGuide: product.sizeGuide ?? details?.sizeGuide,
         sizeGuideKey: product.sizeGuideKey ?? details?.sizeGuideKey,
+        sizeGuideImageUrl: product.sizeGuideImageUrl ?? details?.sizeGuideImageUrl,
         metaTitle: product.metaTitle ?? details?.metaTitle,
         metaDescription: product.metaDescription ?? details?.metaDescription,
         weight: product.weight ?? details?.weight,

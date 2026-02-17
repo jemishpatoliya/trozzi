@@ -8,6 +8,23 @@ const { authenticateAny } = require('../middleware/authAny');
 const { ProductModel } = require('../models/product');
 const { Order } = require('../models/order');
 
+const AWS_REGION = process.env.AWS_REGION;
+const AWS_S3_BUCKET = process.env.AWS_S3_BUCKET;
+
+function toAbsoluteUrl(req, url) {
+    const value = String(url ?? '').trim();
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith('/')) {
+        const proto = req.headers['x-forwarded-proto'] || req.protocol;
+        return `${proto}://${req.get('host')}${value}`;
+    }
+    if (/^uploads\//i.test(value) && AWS_REGION && AWS_S3_BUCKET) {
+        return `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${value}`;
+    }
+    return value;
+}
+
 function parseIntQuery(value) {
     if (value === undefined || value === null) return undefined;
     const n = Number.parseInt(String(value), 10);
@@ -66,7 +83,7 @@ function pickAttributeValues(management, needle) {
         .filter((v) => v.length > 0);
 }
 
-function mapProduct(p) {
+function mapProduct(req, p) {
     const management = p && p.management ? p.management : null;
     const shipping = management && management.shipping ? management.shipping : null;
     const descriptionHtml = management && management.basic && typeof management.basic.descriptionHtml === 'string'
@@ -122,6 +139,7 @@ function mapProduct(p) {
         colors: Array.isArray(p.colors) && p.colors.length ? p.colors : derivedColors,
         sizeGuide,
         sizeGuideKey,
+        sizeGuideImageUrl: toAbsoluteUrl(req, management && management.attributes ? management.attributes.sizeGuideImageUrl : ''),
         colorVariants: Array.isArray(preferredVariants) && preferredVariants.length
             ? preferredVariants
             : (Array.isArray(incomingColorVariants) && incomingColorVariants.length ? incomingColorVariants : (storedVariants && storedVariants.length ? storedVariants : generatedColorVariants)),
@@ -266,7 +284,7 @@ router.get('/', async (req, res) => {
         }
 
         const docs = await db.collection('products').find(filter).sort(sortSpec).toArray();
-        res.json(docs.map(mapProduct));
+        res.json(docs.map((p) => mapProduct(req, p)));
     } catch (error) {
         console.error('Error fetching products:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch products' });
@@ -314,7 +332,7 @@ router.get('/slug/:slug', async (req, res) => {
 
         const doc = await db.collection('products').findOne(filter);
         if (!doc) return res.status(404).json({ success: false, message: 'Product not found' });
-        res.json(mapProduct(doc));
+        res.json(mapProduct(req, doc));
     } catch (error) {
         console.error('Error fetching product by slug:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch product' });
@@ -660,7 +678,7 @@ router.get('/:id', async (req, res) => {
 
         const doc = await db.collection('products').findOne(filter);
         if (!doc) return res.status(404).json({ success: false, message: 'Product not found' });
-        res.json(mapProduct(doc));
+        res.json(mapProduct(req, doc));
     } catch (error) {
         console.error('Error fetching product:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch product' });
