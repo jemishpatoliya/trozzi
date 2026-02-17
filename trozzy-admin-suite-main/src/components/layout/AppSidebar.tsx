@@ -15,7 +15,6 @@ import {
   CreditCard,
   Users,
   FolderTree,
-  Ruler,
   Image,
   Bell,
   ScrollText,
@@ -112,7 +111,6 @@ const menuGroups: MenuGroup[] = [
     label: 'Users & Content',
     items: [
       { title: 'Users', url: '/users', icon: Users },
-      { title: 'Size Guides', url: '/size-guides', icon: Ruler },
       { title: 'Media Library', url: '/media', icon: Image },
       { title: 'Notifications', url: '/notifications', icon: Bell },
       { title: 'Audit Logs', url: '/audit-logs', icon: ScrollText },

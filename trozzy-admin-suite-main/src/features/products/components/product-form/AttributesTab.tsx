@@ -36,29 +36,15 @@ import type { ProductManagementFormValues } from "@/features/products/types";
 type SizeGuideIndexResponse = { keys: string[] };
 type SizeGuideDoc = { category: string; columns: Array<{ key: string; label: string }>; rows: Array<Record<string, string>> };
 
-async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const token = localStorage.getItem("token");
-  const res = await fetch(input, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
+const resolveApiBaseUrl = () => {
+  const envAny = (import.meta as any)?.env || {};
+  const raw = String(envAny.VITE_API_URL || envAny.VITE_API_BASE_URL || "").trim();
+  const fallback = "http://localhost:5050/api";
+  const base = raw || fallback;
+  return base.replace(/\/+$/, "");
+};
 
-  if (!res.ok) {
-    let msg = `Request failed (${res.status})`;
-    try {
-      const data = await res.json();
-      msg = data?.message ?? msg;
-    } catch {
-    }
-    throw new Error(msg);
-  }
-
-  return (await res.json()) as T;
-}
+const API_BASE_URL = resolveApiBaseUrl();
 
 export function AttributesTab() {
   const { control, getValues, setValue } = useFormContext<ProductManagementFormValues>();
@@ -70,28 +56,9 @@ export function AttributesTab() {
 
   // Local state for the color picker inputs (keyed by set index)
   const [colorInputs, setColorInputs] = useState<Record<number, { hex: string; name: string }>>({});
+  const [sizeGuideImageUploading, setSizeGuideImageUploading] = useState(false);
 
-  const [sizeGuideKeys, setSizeGuideKeys] = useState<string[]>([]);
-  const [sizeGuideLoadError, setSizeGuideLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      try {
-        const data = await requestJson<SizeGuideIndexResponse>("/api/size-guides");
-        if (!cancelled) setSizeGuideKeys(Array.isArray(data?.keys) ? data.keys : []);
-      } catch (e: any) {
-        if (!cancelled) {
-          setSizeGuideKeys([]);
-          setSizeGuideLoadError(String(e?.message || e));
-        }
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const sizeGuideImageUrl = useWatch({ control, name: "attributes.sizeGuideImageUrl" }) ?? "";
 
   const quickAddValues = (index: number, newVals: string[]) => {
     const current = getValues(`attributes.sets.${index}.values`) || [];
@@ -117,49 +84,43 @@ export function AttributesTab() {
     return n.includes("size") && n.includes("guide");
   };
 
-  const sizeGuideSetIndex = useMemo(() => sets.findIndex((s: any) => isSizeGuideAttribute(String(s?.name ?? ""))), [sets]);
-  const sizeSetIndex = useMemo(() => sets.findIndex((s: any) => String(s?.name ?? "").toLowerCase() === "size"), [sets]);
-
-  const selectedSizeGuideKey = useMemo(() => {
-    if (sizeGuideSetIndex < 0) return "";
-    const vals = getValues(`attributes.sets.${sizeGuideSetIndex}.values`) || [];
-    return vals && vals.length ? String(vals[0] || "") : "";
-  }, [getValues, sizeGuideSetIndex, sets]);
-
-  const setSelectedSizeGuideKey = (key: string) => {
-    if (sizeGuideSetIndex < 0) return;
-    const v = String(key || "").trim();
-    setValue(`attributes.sets.${sizeGuideSetIndex}.values`, v ? [v] : [], { shouldDirty: true, shouldValidate: true });
-  };
-
-  const applyGuideSizes = async () => {
-    if (!selectedSizeGuideKey) {
-      toast({ title: "Select Size Guide", description: "Please select a size guide key first.", variant: "destructive" });
-      return;
-    }
-    if (sizeSetIndex < 0) {
-      toast({ title: "Size option missing", description: "Add a 'Size' option first.", variant: "destructive" });
-      return;
-    }
-
+  const uploadSizeGuideImage = async (file: File) => {
+    setSizeGuideImageUploading(true);
     try {
-      const guide = await requestJson<SizeGuideDoc>(`/api/size-guides/${encodeURIComponent(selectedSizeGuideKey)}`);
-      const rows = Array.isArray(guide?.rows) ? guide.rows : [];
-      const sizes = rows
-        .map((r) => String(r?.size ?? "").trim())
-        .filter((s) => s.length > 0);
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Please sign in to upload an image.");
 
-      if (sizes.length === 0) {
-        toast({ title: "No sizes in guide", description: "Add 'size' values in the guide rows and save.", variant: "destructive" });
-        return;
+      const form = new FormData();
+      form.append("image", file);
+
+      const res = await fetch(`${API_BASE_URL}/upload/admin-image?folder=size-guides`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = `Upload failed (${res.status})`;
+        try {
+          const text = await res.text();
+          if (text) msg = text.slice(0, 200);
+        } catch {
+        }
+        throw new Error(msg);
       }
 
-      const current = getValues(`attributes.sets.${sizeSetIndex}.values`) || [];
-      const merged = Array.from(new Set([...(current || []), ...sizes]));
-      setValue(`attributes.sets.${sizeSetIndex}.values`, merged, { shouldDirty: true, shouldValidate: true });
-      toast({ title: "Sizes applied", description: `Added ${sizes.length} sizes from '${selectedSizeGuideKey}'.` });
+      const data: any = await res.json();
+      const url = String(data?.url || "").trim();
+      if (!url) throw new Error(String(data?.message || "Upload failed"));
+
+      setValue("attributes.sizeGuideImageUrl", url, { shouldDirty: true, shouldValidate: true });
+      toast({ title: "Uploaded", description: "Size guide image uploaded." });
     } catch (e: any) {
-      toast({ title: "Failed to apply sizes", description: String(e?.message || e), variant: "destructive" });
+      toast({ title: "Upload failed", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setSizeGuideImageUploading(false);
     }
   };
 
@@ -283,34 +244,38 @@ export function AttributesTab() {
                       {isGuide && (
                         <div className="grid gap-2 md:grid-cols-3">
                           <div className="md:col-span-2 space-y-2">
-                            <Select value={selectedSizeGuideKey || undefined} onValueChange={(v) => setSelectedSizeGuideKey(v)}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select size guide (e.g. cap)" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(sizeGuideKeys || []).map((k) => (
-                                  <SelectItem key={k} value={k}>{k}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Input
-                              value={selectedSizeGuideKey}
-                              onChange={(e) => setSelectedSizeGuideKey(e.target.value)}
-                              placeholder="Or type new guide key (e.g. cap)"
-                              list={`size-guide-keys-${idx}`}
-                            />
-                            <datalist id={`size-guide-keys-${idx}`}>
-                              {(sizeGuideKeys || []).map((k) => (
-                                <option key={k} value={k} />
-                              ))}
-                            </datalist>
-                            {sizeGuideLoadError ? (
-                              <div className="text-xs text-destructive">{sizeGuideLoadError}</div>
-                            ) : null}
+                            <div className="rounded-lg border bg-background p-3 space-y-2">
+                              <Label className="text-xs">Size Guide Image</Label>
+                              {sizeGuideImageUrl ? (
+                                <div className="space-y-2">
+                                  <div className="rounded-md bg-muted/40 p-2 flex items-center justify-center">
+                                    <img src={sizeGuideImageUrl} alt="Size guide" className="max-h-40 w-auto object-contain" />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      disabled={sizeGuideImageUploading}
+                                      onClick={() => setValue("attributes.sizeGuideImageUrl", "", { shouldDirty: true, shouldValidate: true })}
+                                    >
+                                      Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  disabled={sizeGuideImageUploading}
+                                  onChange={(e) => {
+                                    const f = e.currentTarget.files?.[0];
+                                    if (f) void uploadSizeGuideImage(f);
+                                    e.currentTarget.value = "";
+                                  }}
+                                />
+                              )}
+                            </div>
                           </div>
-                          <Button type="button" variant="outline" onClick={applyGuideSizes}>
-                            Apply Sizes
-                          </Button>
                         </div>
                       )}
                       <TagInput

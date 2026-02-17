@@ -25,7 +25,6 @@ import ContentPage from "./pages/content/ContentPage";
 import CategoriesPage from "./pages/content/CategoriesPage";
 import SubCategoriesPage from "./pages/content/SubCategoriesPage";
 import BannersPage from "./pages/content/BannersPage";
-import SizeGuidesPage from "./pages/content/SizeGuidesPage";
 import MediaLibraryPage from "./pages/content/MediaLibraryPage";
 import NotificationsPage from "./pages/content/NotificationsPage";
 import AuditLogsPage from "./pages/content/AuditLogsPage";
@@ -95,7 +94,6 @@ const App = () => (
             <Route path="/content" element={<ContentPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/categories/:categoryId/subcategories" element={<SubCategoriesPage />} />
-            <Route path="/size-guides" element={<SizeGuidesPage />} />
             <Route path="/media" element={<MediaLibraryPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/audit-logs" element={<AuditLogsPage />} />

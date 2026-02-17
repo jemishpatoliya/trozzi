@@ -74,6 +74,7 @@ export interface ProductManagementFormValues {
   attributes: {
     sets: AttributeSet[];
     variants: ProductVariantOverride[];
+    sizeGuideImageUrl?: string;
   };
   seo: {
     metaTitle: string;

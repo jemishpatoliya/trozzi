@@ -20,9 +20,23 @@ const cloneRows = (rows: GuideRow[]): GuideRow[] => rows.map((r) => ({ ...r }));
 
 const LAST_SELECTED_GUIDE_KEY = 'trozzy_size_guides_selected_key';
 
+const resolveApiOrigin = () => {
+  const envAny = (import.meta as any)?.env || {};
+  const raw = String(envAny.VITE_API_URL || envAny.VITE_API_BASE_URL || '').trim();
+  const fallback = 'http://localhost:5050';
+  const base = raw || fallback;
+  return base.replace(/\/$/, '').replace(/\/api$/, '');
+};
+
+const API_ORIGIN = resolveApiOrigin();
+
 async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');
-  const res = await fetch(input, {
+  const url = typeof input === 'string'
+    ? (input.startsWith('http') ? input : `${API_ORIGIN}${input.startsWith('/') ? '' : '/'}${input}`)
+    : input;
+
+  const res = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -34,11 +48,23 @@ async function requestJson<T>(input: RequestInfo, init?: RequestInit): Promise<T
   if (!res.ok) {
     let msg = `Request failed (${res.status})`;
     try {
-      const data = await res.json();
-      msg = data?.message ?? msg;
+      const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        msg = data?.message ?? msg;
+      } else {
+        const text = await res.text();
+        if (text) msg = text.slice(0, 200);
+      }
     } catch {
     }
     throw new Error(msg);
+  }
+
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(text ? `Invalid JSON response: ${text.slice(0, 120)}` : 'Invalid JSON response');
   }
 
   return (await res.json()) as T;

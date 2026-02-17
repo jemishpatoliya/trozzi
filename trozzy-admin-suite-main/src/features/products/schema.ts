@@ -75,6 +75,7 @@ export const productManagementSchema = z
           stockOverride: z.number().int().optional(),
         }),
       ),
+      sizeGuideImageUrl: z.string().trim().optional(),
     }),
     seo: z.object({
       metaTitle: z.string().trim().max(60, "Recommended: up to 60 chars"),
@@ -194,6 +195,7 @@ export const productManagementDefaults: ProductManagementFormValues = {
       { id: "attr-material", name: "Material", values: [], useForVariants: false },
     ],
     variants: [],
+    sizeGuideImageUrl: "",
   },
   seo: {
     metaTitle: "",
