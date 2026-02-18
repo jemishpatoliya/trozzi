@@ -607,6 +607,44 @@ router.post('/:id/cancel', async (req, res) => {
       },
     );
 
+    // Best-effort: cancel Shiprocket order if shipment exists.
+    try {
+      const { Shipment } = require('../models/shipment');
+      const shipment = await Shipment.findOne({ order: _id });
+      const shiprocketOrderId = String(shipment?.shiprocketOrderId || '').trim();
+      if (shipment && shiprocketOrderId) {
+        const { cancelShiprocketOrders } = require('../services/shiprocket.service');
+        const raw = await cancelShiprocketOrders({ ids: [shiprocketOrderId] });
+        await Shipment.updateOne(
+          { _id: shipment._id },
+          {
+            $set: {
+              status: 'cancelled',
+              cancelledAt: new Date(),
+              lastError: '',
+              nextRetryAfter: null,
+              updatedAt: new Date(),
+            },
+            $push: { eventHistory: { status: 'cancelled', at: new Date(), raw } },
+          },
+        );
+      }
+    } catch (e) {
+      console.error('Shiprocket cancel on user cancel failed:', e?.raw || e);
+      try {
+        const { Shipment } = require('../models/shipment');
+        await Shipment.updateOne(
+          { order: _id },
+          {
+            $set: { lastError: String(e?.message || 'Shiprocket cancel failed'), lastRetryAt: new Date(), updatedAt: new Date() },
+            $push: { eventHistory: { status: 'failed', at: new Date(), raw: { error: e?.message, details: e?.raw } } },
+          },
+        );
+      } catch (_e2) {
+        // ignore
+      }
+    }
+
     let refundRequestDoc = null;
     try {
       const isPhonePePrepaid = String(order?.paymentMethod || '').toLowerCase() === 'phonepe';
@@ -1805,6 +1843,114 @@ router.put('/:id/tracking', async (req, res) => {
 });
 
 // GET /api/orders/:id/shipment-timeline (admin or owning user)
+// GET /api/orders/by-number/:orderNumber/shipment-timeline (admin or owning user)
+router.get('/by-number/:orderNumber/shipment-timeline', async (req, res) => {
+  try {
+    const auth = await authenticateAny(req, res);
+    if (!auth) return;
+
+    const db = mongoose.connection.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database not ready' });
+    }
+
+    const orderNumber = String(req.params.orderNumber || '').trim();
+    if (!orderNumber) {
+      return res.status(400).json({ success: false, message: 'Invalid orderNumber' });
+    }
+
+    let doc;
+    if (auth.type === 'admin') {
+      doc = await db.collection('orders').findOne({ orderNumber });
+    } else {
+      doc = await db.collection('orders').findOne({
+        orderNumber,
+        $or: [{ user: new mongoose.Types.ObjectId(auth.userId) }, { 'customer.email': auth.email }],
+      });
+    }
+
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const { Shipment } = require('../models/shipment');
+    const shipment = await Shipment.findOne({ order: doc._id }).lean();
+
+    const toIsoMaybe = (v) => {
+      if (!v) return '';
+      if (v instanceof Date) return v.toISOString();
+      const s = String(v);
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+      return s;
+    };
+
+    const timeline = [];
+    const history = Array.isArray(shipment?.eventHistory) ? shipment.eventHistory : [];
+    for (const h of history) {
+      const raw = h?.raw;
+      timeline.push({
+        at: toIsoMaybe(h?.at),
+        status: String(h?.status || ''),
+        location: '',
+        activity: '',
+        source: 'shiprocket',
+        raw,
+      });
+
+      const scans = Array.isArray(raw?.scans) ? raw.scans : [];
+      for (const s of scans) {
+        timeline.push({
+          at: toIsoMaybe(s?.date),
+          status: String(s?.status || ''),
+          location: String(s?.location || ''),
+          activity: String(s?.activity || ''),
+          source: 'shiprocket_scan',
+          raw: s,
+        });
+      }
+    }
+
+    timeline.sort((a, b) => {
+      const da = new Date(a.at);
+      const dbb = new Date(b.at);
+      const ta = Number.isNaN(da.getTime()) ? 0 : da.getTime();
+      const tb = Number.isNaN(dbb.getTime()) ? 0 : dbb.getTime();
+      return tb - ta;
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        orderId: String(doc._id),
+        orderNumber: String(doc.orderNumber || ''),
+        shipment: shipment
+          ? {
+              id: String(shipment._id),
+              awbNumber: String(shipment.awbNumber || ''),
+              courierName: String(shipment.courierName || ''),
+              trackingUrl: String(shipment.trackingUrl || ''),
+              status: String(shipment.status || ''),
+              shiprocketOrderId: String(shipment.shiprocketOrderId || ''),
+              shiprocketShipmentId: String(shipment.shiprocketShipmentId || ''),
+              courierId: Number(shipment.courierId || 0) || 0,
+              lastError: String(shipment.lastError || ''),
+              retryCount: Number(shipment.retryCount || 0) || 0,
+              nextRetryAfter: shipment.nextRetryAfter ? new Date(shipment.nextRetryAfter).toISOString() : null,
+              estimatedDelivery: shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toISOString() : null,
+              updatedAt: shipment.updatedAt ? new Date(shipment.updatedAt).toISOString() : null,
+            }
+          : null,
+        timeline,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching shipment timeline by orderNumber:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch shipment timeline' });
+  }
+});
+
+// GET /api/orders/:id/shipment-timeline (admin or owning user)
 router.get('/:id/shipment-timeline', async (req, res) => {
   try {
     const auth = await authenticateAny(req, res);
@@ -1898,6 +2044,9 @@ router.get('/:id/shipment-timeline', async (req, res) => {
           shiprocketOrderId: String(shipment.shiprocketOrderId || ''),
           shiprocketShipmentId: String(shipment.shiprocketShipmentId || ''),
           courierId: Number(shipment.courierId || 0) || 0,
+          lastError: String(shipment.lastError || ''),
+          retryCount: Number(shipment.retryCount || 0) || 0,
+          nextRetryAfter: shipment.nextRetryAfter ? new Date(shipment.nextRetryAfter).toISOString() : null,
           estimatedDelivery: shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toISOString() : null,
           updatedAt: shipment.updatedAt ? new Date(shipment.updatedAt).toISOString() : null,
         } : null,

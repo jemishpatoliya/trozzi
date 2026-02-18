@@ -23,6 +23,30 @@ function safeNumberValue(v) {
     return Number.isFinite(n) ? n : null;
 }
 
+function safeStringValue(v) {
+    if (typeof v !== 'string') return '';
+    return v.trim().slice(0, 256);
+}
+
+function mapCartItemsForResponse(items) {
+    return (items || []).map((it) => {
+        const raw = it?.toJSON ? it.toJSON() : { ...it };
+        const p = raw?.product && typeof raw.product === 'object'
+            ? { ...(raw.product.toJSON ? raw.product.toJSON() : raw.product) }
+            : raw.product;
+
+        if (p && typeof p === 'object') {
+            if (raw?.name) p.name = raw.name;
+            if (raw?.sku) p.sku = raw.sku;
+            if (raw?.image) p.image = raw.image;
+            if (raw?.size) p.size = raw.size;
+            if (raw?.color) p.color = raw.color;
+        }
+
+        return { ...raw, product: p };
+    });
+}
+
 function findCartItemIndex(cart, productId, size, color) {
     const pid = String(productId);
     const s = safeVariantValue(size);
@@ -49,6 +73,8 @@ const CartSchema = new mongoose.Schema({
         product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
         quantity: { type: Number, required: true, min: 1 },
         price: { type: Number, required: true },
+        name: { type: String, default: '' },
+        sku: { type: String, default: '' },
         size: { type: String, default: '' },
         color: { type: String, default: '' },
         image: { type: String, default: '' },
@@ -63,7 +89,7 @@ const Cart = mongoose.models.Cart || mongoose.model('Cart', CartSchema);
 router.get('/', authenticateUser, requireUser, async (req, res) => {
     try {
         const cart = await Cart.findOne({ user: req.user._id })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions management');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions management');
 
         if (!cart) {
             return res.json({ items: [], totalAmount: 0 });
@@ -90,7 +116,7 @@ router.get('/', authenticateUser, requireUser, async (req, res) => {
         }
 
         res.json({
-            items: cart.items,
+            items: mapCartItemsForResponse(cart.items),
             totalAmount: cart.totalAmount,
         });
     } catch (error) {
@@ -102,7 +128,7 @@ router.get('/', authenticateUser, requireUser, async (req, res) => {
 // Add item to cart
 router.post('/add', authenticateUser, requireUser, async (req, res) => {
     try {
-        const { productId, quantity, size, color, image, price } = req.body;
+        const { productId, quantity, size, color, image, price, name, sku } = req.body;
 
         if (!productId || !quantity || quantity < 1) {
             return res.status(400).json({ error: 'Product ID and quantity are required' });
@@ -136,6 +162,8 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
         }
 
         const incomingPrice = safeNumberValue(price);
+        const incomingName = safeStringValue(name);
+        const incomingSku = safeStringValue(sku);
 
         if (existingItemIndex >= 0) {
             // Update quantity
@@ -143,6 +171,14 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
             const incomingImage = safeUrlValue(image);
             if (incomingImage) {
                 cart.items[existingItemIndex].image = incomingImage;
+            }
+
+            if (incomingName) {
+                cart.items[existingItemIndex].name = incomingName;
+            }
+
+            if (incomingSku) {
+                cart.items[existingItemIndex].sku = incomingSku;
             }
 
             if (incomingPrice !== null && incomingPrice >= 0) {
@@ -154,6 +190,8 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
                 product: productId,
                 quantity,
                 price: (incomingPrice !== null && incomingPrice >= 0) ? incomingPrice : product.price,
+                name: incomingName,
+                sku: incomingSku,
                 size: safeVariantValue(size),
                 color: safeVariantValue(color),
                 image: safeUrlValue(image),
@@ -168,7 +206,7 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -176,7 +214,7 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
 
         res.json({
             message: 'Item added to cart',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
         });
     } catch (error) {
@@ -232,7 +270,7 @@ router.put('/update', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -240,7 +278,7 @@ router.put('/update', authenticateUser, requireUser, async (req, res) => {
 
         res.json({
             message: 'Cart updated',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
         });
     } catch (error) {
@@ -278,7 +316,7 @@ router.delete('/remove/:productId', authenticateUser, requireUser, async (req, r
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -286,7 +324,7 @@ router.delete('/remove/:productId', authenticateUser, requireUser, async (req, r
 
         res.json({
             message: 'Item removed from cart',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
         });
     } catch (error) {
@@ -337,7 +375,7 @@ router.delete('/remove', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -345,7 +383,7 @@ router.delete('/remove', authenticateUser, requireUser, async (req, res) => {
 
         res.json({
             message: 'Item removed from cart',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
         });
     } catch (error) {
@@ -409,7 +447,7 @@ router.delete('/remove-by-object', authenticateUser, requireUser, async (req, re
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -417,7 +455,7 @@ router.delete('/remove-by-object', authenticateUser, requireUser, async (req, re
 
         res.json({
             message: 'Item removed from cart',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
             extractedProductId: actualProductId
         });
@@ -492,7 +530,7 @@ router.put('/update-by-object', authenticateUser, requireUser, async (req, res) 
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -500,7 +538,7 @@ router.put('/update-by-object', authenticateUser, requireUser, async (req, res) 
 
         res.json({
             message: 'Cart updated',
-            items: updatedCart.items,
+            items: mapCartItemsForResponse(updatedCart.items),
             totalAmount: updatedCart.totalAmount,
             extractedProductId: actualProductId
         });

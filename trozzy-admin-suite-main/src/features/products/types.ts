@@ -37,6 +37,17 @@ export interface ProductVariantOverride {
   stockOverride?: number;
 }
 
+export interface ProductColorVariant {
+  color: string;
+  colorName: string;
+  colorCode: string;
+  name?: string;
+  images: string[];
+  price?: number;
+  stock?: number;
+  sku?: string;
+}
+
 export interface KeyValuePair {
   key: string;
   value: string;
@@ -71,6 +82,7 @@ export interface ProductManagementFormValues {
     images: ProductImage[];
     thumbnailId: string | null;
   };
+  colorVariants?: ProductColorVariant[];
   attributes: {
     sets: AttributeSet[];
     variants: ProductVariantOverride[];

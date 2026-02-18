@@ -13,6 +13,7 @@ const OrderTracking = () => {
     const [orders, setOrders] = useState([]);
     const ordersRef = useRef([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const selectedOrderRef = useRef(null);
     const [shipmentTimeline, setShipmentTimeline] = useState(null);
     const [loading, setLoading] = useState(true);
     const [detailsLoading, setDetailsLoading] = useState(false);
@@ -63,6 +64,10 @@ const OrderTracking = () => {
         if (currentStatus === 'cancelled') return [...baseStatusFlow.slice(0, 1), 'cancelled'];
         return baseStatusFlow;
     };
+
+    useEffect(() => {
+        selectedOrderRef.current = selectedOrder;
+    }, [selectedOrder]);
 
     useEffect(() => {
         let cancelled = false;
@@ -157,6 +162,29 @@ const OrderTracking = () => {
                 setCounts((c) => ({ ...c, ...computeCountsFromOrders(next) }));
                 return next;
             });
+
+            const opened = selectedOrderRef.current;
+            if (opened && String(opened?.id || '') === id) {
+                setSelectedOrder((prev) => {
+                    if (!prev) return prev;
+                    const createdAtIso = prev?.createdAtIso || prev?.createdAt || new Date().toISOString();
+                    return {
+                        ...prev,
+                        status,
+                        statusHistory: buildStatusHistory(createdAtIso, status),
+                    };
+                });
+
+                void (async () => {
+                    try {
+                        const trackingRes = await apiClient.get(`/orders/${id}/shipment-timeline`);
+                        const trackingRaw = trackingRes?.data;
+                        setShipmentTimeline(normalizeShipmentTimeline(trackingRaw));
+                    } catch (_e) {
+                        // ignore
+                    }
+                })();
+            }
         });
 
         socket.on('payment:status_changed', (evt) => {

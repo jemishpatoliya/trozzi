@@ -4,6 +4,11 @@ export interface CartItemDoc {
   product: Types.ObjectId;
   quantity: number;
   price: number;
+  name?: string;
+  sku?: string;
+  image?: string;
+  size?: string;
+  color?: string;
   addedAt: Date;
 }
 
@@ -19,6 +24,11 @@ const CartItemSchema = new Schema<CartItemDoc>({
   product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true },
+  name: { type: String },
+  sku: { type: String },
+  image: { type: String },
+  size: { type: String },
+  color: { type: String },
   addedAt: { type: Date, default: Date.now },
 });
 

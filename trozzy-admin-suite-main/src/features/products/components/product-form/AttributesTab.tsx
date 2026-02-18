@@ -53,26 +53,13 @@ export function AttributesTab() {
   const sets = useWatch({ control, name: "attributes.sets" }) ?? [];
   const variants = useWatch({ control, name: "attributes.variants" }) ?? [];
   const startPrice = useWatch({ control, name: "pricing.sellingPrice" }) ?? 0;
+  const colorVariants = useWatch({ control, name: "colorVariants" }) ?? [];
 
   // Local state for the color picker inputs (keyed by set index)
   const [colorInputs, setColorInputs] = useState<Record<number, { hex: string; name: string }>>({});
   const [sizeGuideImageUploading, setSizeGuideImageUploading] = useState(false);
 
   const sizeGuideImageUrl = useWatch({ control, name: "attributes.sizeGuideImageUrl" }) ?? "";
-
-  const quickAddValues = (index: number, newVals: string[]) => {
-    const current = getValues(`attributes.sets.${index}.values`) || [];
-    const merged = Array.from(new Set([...current, ...newVals]));
-    setValue(`attributes.sets.${index}.values`, merged, { shouldDirty: true, shouldValidate: true });
-  };
-
-  const getSuggestions = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes("size")) return ["XS", "S", "M", "L", "XL", "XXL"];
-    if (n.includes("color") || n.includes("colour")) return ["Red", "Blue", "Black", "White", "Green"];
-    if (n.includes("material")) return ["Cotton", "Polyester", "Wool", "Leather"];
-    return [];
-  };
 
   const isColorAttribute = (name: string) => {
     const n = name.toLowerCase();
@@ -138,6 +125,85 @@ export function AttributesTab() {
     setValue("attributes.sets", next, { shouldDirty: true });
   };
 
+  const uploadVariantImage = async (file: File) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Please sign in to upload an image.");
+
+      const form = new FormData();
+      form.append("image", file);
+
+      const res = await fetch(`${API_BASE_URL}/upload/admin-image?folder=product-variants`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+
+      if (!res.ok) {
+        let msg = `Upload failed (${res.status})`;
+        try {
+          const text = await res.text();
+          if (text) msg = text.slice(0, 200);
+        } catch {
+        }
+        throw new Error(msg);
+      }
+
+      const data: any = await res.json();
+      const url = String(data?.url || "").trim();
+      if (!url) throw new Error(String(data?.message || "Upload failed"));
+      return url;
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: String(e?.message || e), variant: "destructive" });
+      return "";
+    }
+  };
+
+  const normalizeColorKey = (value: string) => {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9\-]/g, "");
+  };
+
+  const colorSet = useMemo(() => {
+    return sets.find((s) => isColorAttribute(String(s?.name || "")));
+  }, [sets]);
+
+  const derivedColors = useMemo(() => {
+    const vals = Array.isArray(colorSet?.values) ? colorSet.values : [];
+    return vals
+      .map((v) => String(v))
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+  }, [colorSet]);
+
+  useEffect(() => {
+    if (derivedColors.length === 0) return;
+    const existing = Array.isArray(getValues("colorVariants")) ? (getValues("colorVariants") as any[]) : [];
+    const existingByKey = new Map(existing.map((v) => [String(v?.color || ""), v]));
+    const next = derivedColors.map((c) => {
+      const colorName = c;
+      const key = normalizeColorKey(colorName) || colorName;
+      const prev = existingByKey.get(key) || existing.find((v) => String(v?.colorName || "").trim() === colorName);
+      return {
+        color: key,
+        colorName,
+        colorCode: String(prev?.colorCode || "") || "#000000",
+        name: prev?.name,
+        images: Array.isArray(prev?.images) ? prev.images : [],
+        price: prev?.price,
+        stock: prev?.stock,
+        sku: prev?.sku,
+      };
+    });
+    setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [derivedColors.join("|")]);
+
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <Card className="glass lg:col-span-2">
@@ -183,7 +249,6 @@ export function AttributesTab() {
 
             <div className="space-y-4">
               {sets.map((s, idx) => {
-                const suggestions = getSuggestions(s.name);
                 const isColor = isColorAttribute(s.name);
                 const isGuide = isSizeGuideAttribute(s.name);
                 
@@ -278,39 +343,23 @@ export function AttributesTab() {
                           </div>
                         </div>
                       )}
-                      <TagInput
-                        value={s.values}
-                        onChange={(vals) => {
-                          const next = [...getValues("attributes.sets")];
-                          next[idx] = { ...next[idx], values: vals };
-                          setValue("attributes.sets", next, { shouldDirty: true });
-                        }}
-                        placeholder={isColor ? "Type color name or hex" : "Type value & hit Enter"}
-                      />
-                      
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        {suggestions.length > 0 && (
-                          <>
-                            <span className="text-xs text-muted-foreground self-center mr-1">
-                              Quick add:
-                            </span>
-                            {suggestions.map((sug) => (
-                              <Badge
-                                key={sug}
-                                variant="outline"
-                                className="cursor-pointer hover:bg-accent"
-                                onClick={() => quickAddValues(idx, [sug])}
-                              >
-                                {sug}
-                              </Badge>
-                            ))}
-                          </>
-                        )}
+                      {!isGuide && (
+                        <TagInput
+                          value={s.values}
+                          onChange={(vals) => {
+                            const next = [...getValues("attributes.sets")];
+                            next[idx] = { ...next[idx], values: vals };
+                            setValue("attributes.sets", next, { shouldDirty: true });
+                          }}
+                          placeholder={isColor ? "Type color name or hex" : "Type value & hit Enter"}
+                        />
+                      )}
 
-                        {isColor && (
+                      {isColor && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Button variant="outline" size="sm" className="h-6 text-xs gap-1 ml-2">
+                              <Button variant="outline" size="sm" className="h-6 text-xs gap-1">
                                 <Palette className="h-3 w-3" />
                                 Custom Color
                               </Button>
@@ -326,9 +375,9 @@ export function AttributesTab() {
                                       value={colorInputs[idx]?.hex ?? "#000000"}
                                       onChange={(e) => {
                                         const hex = e.target.value;
-                                        setColorInputs(prev => ({
+                                        setColorInputs((prev) => ({
                                           ...prev,
-                                          [idx]: { hex, name: hex } // Auto-set name to hex initially
+                                          [idx]: { hex, name: hex },
                                         }));
                                       }}
                                     />
@@ -340,9 +389,9 @@ export function AttributesTab() {
                                       value={colorInputs[idx]?.name ?? ""}
                                       onChange={(e) => {
                                         const val = e.target.value;
-                                        setColorInputs(prev => ({
+                                        setColorInputs((prev) => ({
                                           ...prev,
-                                          [idx]: { ...prev[idx] || { hex: "#000000" }, name: val }
+                                          [idx]: { ...(prev[idx] || { hex: "#000000" }), name: val },
                                         }));
                                       }}
                                     />
@@ -354,14 +403,16 @@ export function AttributesTab() {
                                   disabled={!colorInputs[idx]?.name}
                                   onClick={() => {
                                     const val = colorInputs[idx]?.name;
-                                    if (val) {
-                                      quickAddValues(idx, [val]);
-                                      // Reset
-                                      setColorInputs(prev => ({
-                                        ...prev,
-                                        [idx]: { hex: "#000000", name: "" }
-                                      }));
-                                    }
+                                    if (!val) return;
+
+                                    const current = getValues(`attributes.sets.${idx}.values`) || [];
+                                    const merged = Array.from(new Set([...(current || []), val]));
+                                    setValue(`attributes.sets.${idx}.values`, merged, { shouldDirty: true, shouldValidate: true });
+
+                                    setColorInputs((prev) => ({
+                                      ...prev,
+                                      [idx]: { hex: "#000000", name: "" },
+                                    }));
                                   }}
                                 >
                                   Add Color
@@ -369,8 +420,8 @@ export function AttributesTab() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -499,6 +550,91 @@ export function AttributesTab() {
               )}
             </div>
           </div>
+
+          {derivedColors.length > 0 && (
+            <div className="rounded-xl border bg-muted/10 p-4 space-y-3">
+              <div>
+                <p className="font-medium">Color Variants</p>
+                <p className="text-sm text-muted-foreground">
+                  Set per-color product name, SKU and images.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {(Array.isArray(colorVariants) ? colorVariants : []).map((cv: any, idx: number) => (
+                  <div key={String(cv?.color || idx)} className="rounded-xl border bg-background p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-4 w-4 rounded-full border"
+                            style={{ backgroundColor: String(cv?.colorCode || "#000000") }}
+                          />
+                          <p className="font-medium truncate">{String(cv?.colorName || cv?.color || "Color")}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">Key: {String(cv?.color || "")}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-1 md:col-span-1">
+                        <Label className="text-xs">Color Code</Label>
+                        <Input
+                          className="h-8"
+                          value={String(cv?.colorCode ?? "")}
+                          onChange={(e) => {
+                            const next = [...(getValues("colorVariants") as any[])];
+                            next[idx] = { ...next[idx], colorCode: e.target.value };
+                            setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          placeholder="#RRGGBB"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs">Images</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {(Array.isArray(cv?.images) ? cv.images : []).map((url: string) => (
+                          <div key={url} className="relative">
+                            <img src={url} alt="variant" className="h-12 w-12 rounded-md border object-cover" />
+                            <button
+                              type="button"
+                              className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive text-white text-xs"
+                              onClick={() => {
+                                const next = [...(getValues("colorVariants") as any[])];
+                                const imgs = Array.isArray(next[idx]?.images) ? next[idx].images : [];
+                                next[idx] = { ...next[idx], images: imgs.filter((u: string) => u !== url) };
+                                setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="h-10 w-[220px]"
+                          onChange={async (e) => {
+                            const f = e.currentTarget.files?.[0];
+                            e.currentTarget.value = "";
+                            if (!f) return;
+                            const url = await uploadVariantImage(f);
+                            if (!url) return;
+                            const next = [...(getValues("colorVariants") as any[])];
+                            const imgs = Array.isArray(next[idx]?.images) ? next[idx].images : [];
+                            next[idx] = { ...next[idx], images: Array.from(new Set([...imgs, url])) };
+                            setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

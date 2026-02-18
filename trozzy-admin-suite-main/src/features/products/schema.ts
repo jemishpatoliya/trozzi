@@ -56,6 +56,20 @@ export const productManagementSchema = z
         .max(12, "Max 12 images"),
       thumbnailId: z.string().nullable(),
     }),
+    colorVariants: z
+      .array(
+        z.object({
+          color: nonEmpty("Color is required"),
+          colorName: nonEmpty("Color name is required"),
+          colorCode: nonEmpty("Color code is required"),
+          name: z.string().trim().optional(),
+          images: z.array(z.string().trim().min(1)).default([]),
+          price: z.number().optional(),
+          stock: z.number().int().optional(),
+          sku: z.string().trim().optional(),
+        }),
+      )
+      .optional(),
     attributes: z.object({
       sets: z.array(
         z.object({
@@ -188,6 +202,7 @@ export const productManagementDefaults: ProductManagementFormValues = {
     images: [],
     thumbnailId: null,
   },
+  colorVariants: [],
   attributes: {
     sets: [
       { id: "attr-color", name: "Color", values: [], useForVariants: true },

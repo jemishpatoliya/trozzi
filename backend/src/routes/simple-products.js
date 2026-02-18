@@ -85,6 +85,27 @@ function pickAttributeValues(management, needle) {
         .filter((v) => v.length > 0);
 }
 
+function pickSizeValues(management) {
+    const sets = management && management.attributes && Array.isArray(management.attributes.sets)
+        ? management.attributes.sets
+        : [];
+
+    const match = sets.find((s) => {
+        const name = typeof (s && s.name) === 'string' ? String(s.name).toLowerCase() : '';
+        if (!name) return false;
+        if (!name.includes('size')) return false;
+        // Avoid "Size Guide" matching the size list.
+        if (name.includes('guide')) return false;
+        return true;
+    });
+
+    const vals = match && Array.isArray(match.values) ? match.values : [];
+    return vals
+        .map((v) => String(v))
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+}
+
 function mapProduct(req, p) {
     const management = p && p.management ? p.management : null;
     const shipping = management && management.shipping ? management.shipping : null;
@@ -94,7 +115,7 @@ function mapProduct(req, p) {
     const descriptionHtml = management && management.basic && typeof management.basic.descriptionHtml === 'string'
         ? management.basic.descriptionHtml
         : '';
-    const derivedSizes = pickAttributeValues(management, 'size').filter((v) => !v.toLowerCase().includes('guide'));
+    const derivedSizes = pickSizeValues(management);
     const derivedColors = pickAttributeValues(management, 'color');
     const sizeGuide = pickAttributeValues(management, 'size guide');
     const sizeGuideKey = sizeGuide && sizeGuide.length ? String(sizeGuide[0]) : '';

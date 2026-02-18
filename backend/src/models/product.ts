@@ -7,6 +7,7 @@ export type ProductColorVariant = {
   color: string;
   colorName: string;
   colorCode: string;
+  name?: string;
   images: string[];
   price?: number;
   stock?: number;
@@ -123,6 +124,7 @@ const ColorVariantSchema = new Schema({
   color: { type: String, required: true },
   colorName: { type: String, required: true },
   colorCode: { type: String, required: true },
+  name: { type: String },
   images: { type: [String], required: true, default: [] },
   price: { type: Number },
   stock: { type: Number },

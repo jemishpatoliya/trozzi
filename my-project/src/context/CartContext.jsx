@@ -171,6 +171,9 @@ export const CartProvider = ({ children }) => {
             const response = await apiClient.post('/cart/add', {
                 productId,
                 quantity,
+                name: detailObject.name,
+                sku: detailObject.sku,
+                image: detailObject.image,
                 ...variantPayload,
                 price: (detailObject && typeof detailObject.price === 'number') ? detailObject.price : undefined,
             });

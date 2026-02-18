@@ -2,16 +2,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 import { apiClient } from '../api/client';
+import { useCart } from '../context/CartContext';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
 const SummaryPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { clearCart } = useCart();
 
     const [paymentStatus, setPaymentStatus] = useState('unknown');
     const [paymentMessage, setPaymentMessage] = useState('');
     const [checking, setChecking] = useState(false);
+    const [cartCleared, setCartCleared] = useState(false);
 
     const getLastMerchantOrderId = () => {
         try {
@@ -90,6 +93,7 @@ const SummaryPage = () => {
 
         return {
             orderId: String(state.orderId ?? state.id ?? '') || '',
+            orderNumber: String(state.orderNumber ?? '') || '',
             items,
             subtotal,
             shipping,
@@ -103,9 +107,51 @@ const SummaryPage = () => {
     }, [location]);
 
     useEffect(() => {
+        const pm = String(data.paymentMethod || '').toLowerCase();
+        if (pm === 'cod') {
+            setPaymentStatus('completed');
+            setPaymentMessage('Order placed with Cash on Delivery.');
+            return;
+        }
+
         void refreshPhonePeStatus();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [data.paymentMethod]);
+
+    useEffect(() => {
+        if (paymentStatus !== 'completed') return;
+        if (cartCleared) return;
+
+        let mode = 'cart';
+        try {
+            mode = String(localStorage.getItem('trozzy_last_checkout_mode') || 'cart').toLowerCase();
+        } catch (_e) {
+            mode = 'cart';
+        }
+
+        if (mode !== 'cart') {
+            setCartCleared(true);
+            return;
+        }
+
+        void (async () => {
+            try {
+                await clearCart();
+            } catch (_e) {
+                // ignore
+            } finally {
+                setCartCleared(true);
+                try {
+                    localStorage.removeItem('trozzy_last_checkout_mode');
+                    localStorage.removeItem('lastPaymentProviderOrderId');
+                    localStorage.removeItem('lastPaymentId');
+                    localStorage.removeItem('lastOrderId');
+                } catch (_e2) {
+                    // ignore
+                }
+            }
+        })();
+    }, [paymentStatus, cartCleared, clearCart]);
 
     return (
         <div className="min-h-screen bg-[#F1F3F6] overflow-x-hidden">
@@ -155,7 +201,9 @@ const SummaryPage = () => {
                             {paymentStatus === 'completed' ? (
                                 <>
                                     <div className="text-sm font-semibold text-gray-900">Order placed</div>
-                                    {data.orderId ? (
+                                    {data.orderNumber ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order #: <span className="font-mono">{data.orderNumber}</span></div>
+                                    ) : data.orderId ? (
                                         <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{data.orderId}</span></div>
                                     ) : null}
                                     {data.paymentMethod ? (

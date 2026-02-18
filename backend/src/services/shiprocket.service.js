@@ -6,6 +6,13 @@ let cachedToken = null;
 let tokenExpiresAt = 0;
 let inflightTokenPromise = null;
 
+function maskEmail(email) {
+  const s = String(email || '');
+  const at = s.indexOf('@');
+  if (at <= 1) return s;
+  return `${s.slice(0, 2)}***${s.slice(at)}`;
+}
+
 function getRequiredEnv(name) {
   const val = String(process.env[name] || '').trim();
   if (!val) throw new Error(`Missing ${name}`);
@@ -29,10 +36,27 @@ async function loginAndGetToken() {
   const password = getRequiredEnv('SHIPROCKET_PASSWORD');
 
   const url = `${SHIPROCKET_BASE_URL}/auth/login`;
-  const res = await axios.post(url, { email, password }, { timeout: 30_000 });
+  let res;
+  try {
+    res = await axios.post(url, { email, password }, { timeout: 30_000 });
+  } catch (e) {
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+    console.error('[Shiprocket] Login failed', {
+      email: maskEmail(email),
+      status,
+      data,
+    });
+    throw e;
+  }
 
   const token = res?.data?.token;
   if (!token) throw new Error('Shiprocket login did not return token');
+
+  console.log('[Shiprocket] Login success', {
+    email: maskEmail(email),
+    tokenReceived: true,
+  });
 
   cachedToken = token;
   tokenExpiresAt = Date.now() + getTokenTtlMs();
@@ -78,6 +102,11 @@ async function shiprocketRequest(config, { retryOnAuth = true } = {}) {
     });
   } catch (err) {
     if (retryOnAuth && isAuthError(err)) {
+      console.warn('[Shiprocket] Auth error, invalidating token and retrying once', {
+        status: err?.response?.status,
+        url: config?.url,
+        method: config?.method,
+      });
       invalidateToken();
       const freshToken = await getShiprocketToken();
       return await axios({
@@ -124,18 +153,48 @@ async function schedulePickup({ shipmentId }) {
   return res.data;
 }
 
+async function cancelShiprocketOrders({ ids }) {
+  const list = Array.isArray(ids) ? ids : [];
+  const clean = list.map((v) => String(v || '').trim()).filter(Boolean);
+  if (!clean.length) {
+    const err = new Error('No Shiprocket order ids to cancel');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const url = `${SHIPROCKET_BASE_URL}/orders/cancel`;
+  const res = await shiprocketRequest({
+    method: 'POST',
+    url,
+    data: { ids: clean },
+  });
+  return res.data;
+}
+
 function buildOrderItemsFromOrder(order) {
   const items = Array.isArray(order?.items) ? order.items : [];
 
-  return items.map((item) => ({
-    name: String(item?.name || ''),
-    sku: String(item?.sku || ''),
-    units: Number(item?.quantity || 1),
-    selling_price: Number(item?.price || 0),
-    discount: Number(item?.discount || 0),
-    tax: Number(item?.tax || 0),
-    hsn: Number(item?.hsn || 0),
-  }));
+  return items.map((item, idx) => {
+    const name = String(item?.name || '').trim();
+    const skuCandidate =
+      String(item?.sku || '').trim()
+      || String(item?.productId || '').trim()
+      || String(item?.product || '').trim()
+      || String(item?.product?._id || '').trim()
+      || String(item?._id || '').trim();
+
+    const sku = skuCandidate || `SKU-${idx + 1}`;
+
+    return {
+      name: name || `Item-${idx + 1}`,
+      sku,
+      units: Number(item?.quantity || 1),
+      selling_price: Number(item?.price || 0),
+      discount: Number(item?.discount || 0),
+      tax: Number(item?.tax || 0),
+      hsn: Number(item?.hsn || 0),
+    };
+  });
 }
 
 function buildAdhocOrderPayloadFromOrder(order, { paymentMethod }) {
@@ -171,8 +230,10 @@ function buildAdhocOrderPayloadFromOrder(order, { paymentMethod }) {
     payment_method: paymentMethod, // 'Prepaid' | 'COD'
     cod_amount: paymentMethod === 'COD' ? Number(order?.total || 0) : 0,
     shipping_charges: Number(order?.shipping || 0),
-    giftwrap_charges: 0,
-    transaction_charges: 0,
+    // Shiprocket order total typically adds these charges into Order Total.
+    // We use giftwrap_charges to carry COD charge (if any) and transaction_charges for tax.
+    giftwrap_charges: paymentMethod === 'COD' ? Number(order?.codCharge || 0) : 0,
+    transaction_charges: Number(order?.tax || 0),
     total_discount: 0,
     sub_total: Number(order?.subtotal || 0),
 
@@ -231,6 +292,7 @@ module.exports = {
   createAdhocOrder,
   generateAwb,
   schedulePickup,
+  cancelShiprocketOrders,
   buildOrderItemsFromOrder,
   buildAdhocOrderPayloadFromOrder,
   createShipmentForOrder,

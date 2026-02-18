@@ -286,9 +286,10 @@ const ProductDetail = () => {
                 : (selectedImages?.[selectedImage] || selectedImages?.[0] || product?.image || product?.galleryImages?.[0] || '');
             const cartPrice = pricing.displaySelling;
             const cartSku = selectedVariant?.sku ?? product?.sku;
+            const cartName = product?.name;
 
             await addToCart(productDocId, quantity, {
-                name: product?.name,
+                name: cartName,
                 image: cartImage,
                 price: cartPrice,
                 brand: product?.brand,

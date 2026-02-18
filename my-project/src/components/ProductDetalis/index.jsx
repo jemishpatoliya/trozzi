@@ -147,6 +147,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   const currentPrice = currentVariant?.price || product?.price;
   const currentStock = currentVariant?.stock || product?.stock;
   const currentSku = currentVariant?.sku || product?.sku;
+  const currentName = product?.name;
   const baseImages = [product?.image, ...((product?.galleryImages ?? []) || [])].filter(Boolean);
   const currentImages = hasColorVariants
     ? (useVariantImages ? (Array.isArray(currentVariant?.images) ? currentVariant.images.filter(Boolean) : []) : baseImages)
@@ -163,7 +164,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     setIsAdding(true);
     try {
       await addToCart(productId, quantity, {
-        name: product?.name,
+        name: currentName,
         image: currentImages?.[0],
         price: currentPrice,
         brand: product?.brand,
@@ -275,11 +276,11 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             {typeof currentStock === "number" ? `${currentStock} Items` : "147 Items"}
           </span>
         </span>
-        {hasColorVariants && currentVariant && (
+        {currentSku ? (
           <span className="text-gray-500 text-[12px] md:text-[14px]">
             SKU: <span className="font-medium">{currentSku}</span>
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Description */}

@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 
 const shipmentSchema = new mongoose.Schema({
   order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
-  shiprocketOrderId: { type: String, required: true },
+  shiprocketOrderId: { type: String, required: false, default: '' },
   shiprocketShipmentId: { type: String, required: false, default: '' },
   courierId: { type: Number, required: false, default: 0 },
-  awbNumber: { type: String, required: true },
-  courierName: { type: String, required: true },
+  awbNumber: { type: String, required: false, default: '' },
+  courierName: { type: String, required: false, default: '' },
   status: { type: String, required: true, enum: ['new', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'failed'], default: 'new' },
   trackingUrl: { type: String },
   estimatedDelivery: { type: Date },

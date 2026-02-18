@@ -378,6 +378,63 @@ router.get('/phonepe/status/:merchantOrderId', authenticateToken, async (req, re
             $push: { statusHistory: { status: 'paid', at: nowIso, source: 'phonepe' } },
           },
         );
+
+        // Ensure Shiprocket shipment exists for paid prepaid orders (idempotent).
+        try {
+          const { Shipment } = require('../models/shipment');
+          const existing = await Shipment.findOne({ order: payment.order }).lean();
+          if (!existing) {
+            const updatedOrder = await Order.findById(payment.order);
+            if (updatedOrder) {
+              const { createShipmentForOrder } = require('../services/shiprocket.service');
+              const shiprocketResult = await createShipmentForOrder(updatedOrder, { paymentMethod: 'Prepaid' });
+
+              await Shipment.create({
+                order: updatedOrder._id,
+                shiprocketOrderId: String(shiprocketResult?.order_id || ''),
+                shiprocketShipmentId: String(shiprocketResult?.shipment_id || ''),
+                courierId: Number(shiprocketResult?.courier_id || 0) || 0,
+                awbNumber: String(shiprocketResult?.awb_code || ''),
+                courierName: String(shiprocketResult?.courier_name || ''),
+                status: 'new',
+                trackingUrl: shiprocketResult?.tracking_url || '',
+                estimatedDelivery: shiprocketResult?.estimated_delivery_days
+                  ? new Date(Date.now() + Number(shiprocketResult.estimated_delivery_days) * 24 * 60 * 60 * 1000)
+                  : null,
+                eventHistory: [{ status: 'new', at: new Date(), raw: shiprocketResult }],
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Shiprocket shipment creation error (phonepe status):', e?.raw || e);
+          try {
+            await Order.updateOne(
+              { _id: payment.order },
+              {
+                $set: { status: 'paid_but_shipment_failed' },
+                $push: {
+                  statusHistory: { status: 'paid_but_shipment_failed', at: nowIso, source: 'phonepe_status', error: e.message },
+                },
+              },
+            );
+            const { Shipment } = require('../models/shipment');
+            await Shipment.create({
+              order: payment.order,
+              shiprocketOrderId: '',
+              shiprocketShipmentId: '',
+              courierId: 0,
+              awbNumber: '',
+              courierName: '',
+              status: 'failed',
+              lastError: e.message,
+              nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000),
+              retryCount: 1,
+              eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
+            });
+          } catch (e2) {
+            console.error('Failed to record Shiprocket status failure:', e2);
+          }
+        }
       }
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,6 +120,34 @@ const OrdersPage = () => {
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<OrderDetail | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
+  const selectedOrderRef = useRef<Order | null>(null);
+  const detailsRefreshInFlightRef = useRef(false);
+
+  useEffect(() => {
+    selectedOrderRef.current = selectedOrder;
+  }, [selectedOrder]);
+
+  const refreshSelectedOrderDetails = useCallback(
+    async (orderId: string) => {
+      const current = selectedOrderRef.current;
+      if (!current || current.id !== orderId) return;
+      if (detailsRefreshInFlightRef.current) return;
+
+      try {
+        detailsRefreshInFlightRef.current = true;
+        const response = await ordersAPI.getOrder(orderId);
+        if (response?.success && response?.data) {
+          setSelectedOrderDetails(response.data as OrderDetail);
+        }
+      } catch (_e) {
+        // ignore
+      } finally {
+        detailsRefreshInFlightRef.current = false;
+      }
+    },
+    [setSelectedOrderDetails],
+  );
+
   useEffect(() => {
     loadOrders();
     loadCounts();
@@ -161,12 +189,14 @@ const OrdersPage = () => {
       const status = String(evt?.status || '').toLowerCase();
       if (!id || !status) return;
       patchOrder(id, { status: status as Order['status'] });
+      void refreshSelectedOrderDetails(id);
     });
 
     socket.on('order:tracking_updated', (evt: any) => {
       const id = String(evt?.id || '');
       if (!id) return;
       patchOrder(id, {});
+      void refreshSelectedOrderDetails(id);
     });
 
     socket.on('admin:notification', (n: any) => {
@@ -178,7 +208,7 @@ const OrdersPage = () => {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [refreshSelectedOrderDetails]);
 
   const loadOrders = async () => {
     try {

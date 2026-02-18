@@ -40,6 +40,20 @@ export const productManagementSchema = z.object({
     images: z.array(z.object({ id: z.string(), url: z.string().min(1), alt: z.string().optional() })),
     thumbnailId: z.string().nullable(),
   }),
+  colorVariants: z
+    .array(
+      z.object({
+        color: z.string().trim().min(1),
+        colorName: z.string().trim().min(1),
+        colorCode: z.string().trim().min(1),
+        name: z.string().trim().optional(),
+        images: z.array(z.string().trim().min(1)).default([]),
+        price: z.number().optional(),
+        stock: z.number().int().optional(),
+        sku: z.string().trim().optional(),
+      }),
+    )
+    .optional(),
   attributes: z.object({
     sets: z.array(z.object({ id: z.string(), name: z.string().min(1), values: z.array(z.string()), useForVariants: z.boolean() })),
     variants: z.array(
