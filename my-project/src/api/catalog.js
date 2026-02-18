@@ -1,10 +1,55 @@
 import { api } from "./client";
 
+function getApiOrigin() {
+    const apiBase = String(api.defaults.baseURL || "");
+    return apiBase.replace(/\/?api\/?$/, "");
+}
+
+function toAbsoluteUrl(value) {
+    const raw = typeof value === "string" ? value : "";
+    const s = raw.trim();
+    if (!s) return "";
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith("//")) return `https:${s}`;
+    if (s.startsWith("/")) return `${getApiOrigin()}${s}`;
+    return s;
+}
+
 function applyManagementToProduct(product) {
     const management = product && product.management;
-    if (!management) return product;
+    if (!product || typeof product !== 'object') return product;
 
-    const next = { ...product };
+    const stableId = product.id || product._id;
+
+    // Normalize core media fields even if management is absent
+    const normalizedBase = {
+        ...product,
+        ...(stableId ? { id: stableId } : {}),
+    };
+
+    if (typeof normalizedBase.image === 'string') {
+        normalizedBase.image = toAbsoluteUrl(normalizedBase.image);
+    }
+
+    if (Array.isArray(normalizedBase.galleryImages)) {
+        normalizedBase.galleryImages = normalizedBase.galleryImages.map((u) => toAbsoluteUrl(u)).filter(Boolean);
+    }
+
+    if (Array.isArray(normalizedBase.colorVariants)) {
+        normalizedBase.colorVariants = normalizedBase.colorVariants.map((v) => {
+            const images = Array.isArray(v?.images)
+                ? v.images.map((u) => toAbsoluteUrl(u)).filter(Boolean)
+                : v?.images;
+            return {
+                ...v,
+                ...(images ? { images } : {}),
+            };
+        });
+    }
+
+    if (!management) return normalizedBase;
+
+    const next = { ...normalizedBase };
     const basic = (management && management.basic) || {};
     const pricing = (management && management.pricing) || {};
     const inventory = (management && management.inventory) || {};

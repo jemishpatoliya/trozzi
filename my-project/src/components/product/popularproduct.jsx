@@ -64,9 +64,18 @@ const PopularProducts = ({ hideAddToCart = false }) => {
         </div>
 
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
-          {products.map((product) => (
-            <ProductCard key={product.id || product._id} product={product} hideAddToCart={hideAddToCart} />
-          ))}
+          {products.map((product, idx) => {
+            const stableId = product?.id || product?._id || product?.slug || product?.sku;
+            const stableKey = String(stableId || `popular-${idx}`);
+            const normalizedProduct = stableId && !product?.id ? { ...product, id: stableKey } : { ...(product || {}), id: stableKey };
+            return (
+              <ProductCard
+                key={stableKey}
+                product={normalizedProduct}
+                hideAddToCart={hideAddToCart}
+              />
+            );
+          })}
         </div>
       </div>
     </section>

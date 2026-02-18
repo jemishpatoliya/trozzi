@@ -15,12 +15,14 @@ function toAbsoluteUrl(req, url) {
     const value = String(url ?? '').trim();
     if (!value) return '';
     if (/^https?:\/\//i.test(value)) return value;
+    // Support stored paths like "uploads/..." and "/uploads/..." for S3
+    const normalizedUploadsPath = value.startsWith('/uploads/') ? value.slice(1) : value;
+    if (/^uploads\//i.test(normalizedUploadsPath) && AWS_REGION && AWS_S3_BUCKET) {
+        return `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${normalizedUploadsPath}`;
+    }
     if (value.startsWith('/')) {
         const proto = req.headers['x-forwarded-proto'] || req.protocol;
         return `${proto}://${req.get('host')}${value}`;
-    }
-    if (/^uploads\//i.test(value) && AWS_REGION && AWS_S3_BUCKET) {
-        return `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${value}`;
     }
     return value;
 }
@@ -86,6 +88,9 @@ function pickAttributeValues(management, needle) {
 function mapProduct(req, p) {
     const management = p && p.management ? p.management : null;
     const shipping = management && management.shipping ? management.shipping : null;
+    const pricing = management && management.pricing ? management.pricing : null;
+    const inventory = management && management.inventory ? management.inventory : null;
+    const media = management && management.media ? management.media : null;
     const descriptionHtml = management && management.basic && typeof management.basic.descriptionHtml === 'string'
         ? management.basic.descriptionHtml
         : '';
@@ -112,6 +117,42 @@ function mapProduct(req, p) {
         ? incomingColorVariants
         : (hasAnyVariantImages(storedVariants) ? storedVariants : null);
 
+    const sellingPrice = Number(pricing?.sellingPrice ?? pricing?.selling_price ?? NaN);
+    const price = Number.isFinite(sellingPrice) ? sellingPrice : Number(p?.price ?? 0) || 0;
+
+    const stockQuantity = Number(inventory?.stockQuantity ?? inventory?.stock_quantity ?? NaN);
+    const stock = Number.isFinite(stockQuantity) ? stockQuantity : Number(p?.stock ?? 0) || 0;
+
+    const rawMediaImages = Array.isArray(media?.images) ? media.images : [];
+    const mediaThumbId = media?.thumbnailId ?? null;
+    const mediaThumb = mediaThumbId ? rawMediaImages.find((i) => i?.id === mediaThumbId) : null;
+    const mediaPrimary = String((mediaThumb?.url ?? rawMediaImages[0]?.url ?? '') || '').trim();
+    const mediaGallery = rawMediaImages
+        .map((i) => String(i?.url ?? '').trim())
+        .filter((u) => u.length > 0);
+
+    const image = toAbsoluteUrl(req, String(p?.image ?? '').trim() || mediaPrimary);
+    const galleryImages = ((Array.isArray(p?.galleryImages) ? p.galleryImages : []).length
+        ? (Array.isArray(p?.galleryImages) ? p.galleryImages : [])
+        : mediaGallery)
+        .map((img) => toAbsoluteUrl(req, img))
+        .filter(Boolean);
+
+    const colorVariants = (Array.isArray(preferredVariants) && preferredVariants.length
+        ? preferredVariants
+        : (Array.isArray(incomingColorVariants) && incomingColorVariants.length ? incomingColorVariants : (storedVariants && storedVariants.length ? storedVariants : generatedColorVariants)))
+        .map((v) => {
+            const images = Array.isArray(v?.images)
+                ? v.images.map((img) => toAbsoluteUrl(req, img)).filter(Boolean)
+                : [];
+            return {
+                ...v,
+                images,
+                price: Number.isFinite(Number(v?.price)) ? Number(v.price) : v?.price,
+                stock: Number.isFinite(Number(v?.stock)) ? Number(v.stock) : v?.stock,
+            };
+        });
+
     return {
         _id: String(p._id),
         id: String(p._id),
@@ -119,11 +160,11 @@ function mapProduct(req, p) {
         visibility: (p.visibility ?? (management && management.basic ? management.basic.visibility : undefined) ?? 'public'),
         name: p.name,
         sku: p.sku,
-        price: p.price,
-        stock: p.stock,
+        price,
+        stock,
         status: p.status,
-        image: p.image,
-        galleryImages: p.galleryImages,
+        image,
+        galleryImages,
         category: p.category,
         description: p.description,
         descriptionHtml,
@@ -140,9 +181,7 @@ function mapProduct(req, p) {
         sizeGuide,
         sizeGuideKey,
         sizeGuideImageUrl: toAbsoluteUrl(req, management && management.attributes ? management.attributes.sizeGuideImageUrl : ''),
-        colorVariants: Array.isArray(preferredVariants) && preferredVariants.length
-            ? preferredVariants
-            : (Array.isArray(incomingColorVariants) && incomingColorVariants.length ? incomingColorVariants : (storedVariants && storedVariants.length ? storedVariants : generatedColorVariants)),
+        colorVariants,
         management: p.management,
     };
 }
@@ -274,7 +313,7 @@ router.get('/', async (req, res) => {
             const totalPages = Math.max(1, Math.ceil(Number(totalItems || 0) / safeLimit));
 
             return res.json({
-                items: docs.map(mapProduct),
+                items: docs.map((p) => mapProduct(req, p)),
                 page: safePage,
                 limit: safeLimit,
                 total: totalItems,

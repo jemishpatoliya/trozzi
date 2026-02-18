@@ -237,9 +237,13 @@ const ProductListing = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-4">
-                                {items.map((product) => (
-                                    <ProductCard key={product.id || product._id} product={product} view="grid" />
-                                ))}
+                                {items.map((product, idx) => {
+                                    const stableId = product?.id || product?._id || product?.slug || product?.sku || `listing-${idx}`;
+                                    const normalizedProduct = stableId && !product?.id ? { ...product, id: stableId } : product;
+                                    return (
+                                        <ProductCard key={stableId} product={normalizedProduct} view="grid" />
+                                    );
+                                })}
                             </div>
                         )}
 
