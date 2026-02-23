@@ -281,6 +281,18 @@ const startServer = (port, attempt = 0) => {
 startServer(BASE_PORT);
 
 const mongoUri = process.env.MONGODB_URI;
+const mongoUriStandard = process.env.MONGODB_URI_STANDARD;
+
+const isSrvLookupError = (err) => {
+  const msg = String(err?.message || '');
+  const code = String(err?.code || '');
+  return (
+    msg.includes('querySrv') ||
+    msg.includes('_mongodb._tcp') ||
+    (code === 'ENOTFOUND' && msg.includes('mongodb.net')) ||
+    (code === 'ECONNREFUSED' && msg.includes('_mongodb._tcp'))
+  );
+};
 
 const connectWithRetry = async () => {
   if (!mongoUri) {
@@ -298,6 +310,22 @@ const connectWithRetry = async () => {
   } catch (error) {
     isDbConnected = false;
     console.error('❌ MongoDB connection error:', error);
+
+    if (mongoUriStandard && isSrvLookupError(error)) {
+      try {
+        console.log('ℹ️ Retrying with MONGODB_URI_STANDARD...');
+        await mongoose.connect(mongoUriStandard, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+        });
+        isDbConnected = true;
+        console.log('✅ MongoDB Connected (standard URI)');
+        return;
+      } catch (error2) {
+        console.error('❌ MongoDB connection error (standard URI):', error2);
+      }
+    }
+
     console.error('⏳ Retrying MongoDB connection in 5 seconds...');
     setTimeout(connectWithRetry, 5000);
   }
