@@ -14,6 +14,7 @@ const ProductListing = () => {
     const [page, setPage] = useState(1);
     const [limit] = useState(12);
     const [category, setCategory] = useState("");
+    const [subCategoryId, setSubCategoryId] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [sortBy] = useState("relevance");
     const [priceRange, setPriceRange] = useState([0, 10000]);
@@ -47,13 +48,15 @@ const ProductListing = () => {
             return (name && name === rawLower) || (slug && slug === rawLower);
         });
 
-        return match ? String(match.id || match._id || raw) : raw;
+        return match ? String(match.name || raw) : raw;
     }, [category, categories]);
 
     useEffect(() => {
         const urlCategory = searchParams.get("category") || "";
+        const urlSubCategoryId = searchParams.get("subCategoryId") || "";
         const urlSearch = searchParams.get("q") || "";
         setCategory(urlCategory);
+        setSubCategoryId(urlSubCategoryId);
         setSearchQuery(urlSearch);
         setPage(1);
     }, [searchParams]);
@@ -154,7 +157,8 @@ const ProductListing = () => {
                     mode: "public",
                     page,
                     limit,
-                    category: resolvedCategory || undefined,
+                    category: subCategoryId ? undefined : (resolvedCategory || undefined),
+                    subCategoryId: subCategoryId || undefined,
                     q: searchQuery || undefined,
                     sort: sortBy && sortBy !== "relevance" ? sortBy : undefined,
                     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
@@ -183,7 +187,7 @@ const ProductListing = () => {
         return () => {
             cancelled = true;
         };
-    }, [resolvedCategory, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
+    }, [resolvedCategory, subCategoryId, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
 
     return (
         <section className="py-2 sm:py-5 bg-gray-50 min-h-screen">

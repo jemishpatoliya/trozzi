@@ -22,6 +22,23 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [sizeGuideData, setSizeGuideData] = useState(null);
 
+  const materialValues = useMemo(() => {
+    const sets = Array.isArray(product?.attributeSets)
+      ? product.attributeSets
+      : (Array.isArray(product?.management?.attributes?.sets) ? product.management.attributes.sets : []);
+
+    const match = sets.find((s) => {
+      const name = typeof s?.name === 'string' ? s.name.trim().toLowerCase() : '';
+      return name === 'material' || name.includes('material');
+    });
+
+    const raw = match?.values;
+    const vals = Array.isArray(raw) ? raw : (raw === undefined || raw === null ? [] : [raw]);
+    return vals
+      .map((v) => String(v ?? '').trim())
+      .filter((v) => v.length > 0);
+  }, [product?.attributeSets, product?.management?.attributes?.sets]);
+
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -82,6 +99,10 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
 
   const { addToCart } = useCart();
   const { toggleWishlist } = useWishlist();
+
+  const hasSizeGuideImage = useMemo(() => {
+    return String(product?.sizeGuideImageUrl || '').trim().length > 0;
+  }, [product?.sizeGuideImageUrl]);
 
   const handleShare = async () => {
     if (!productId) return;
@@ -185,6 +206,11 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     }
     setIsAdding(true);
     try {
+      const codAvailable = typeof product?.codAvailable === 'boolean'
+        ? product.codAvailable
+        : Boolean(product?.management?.shipping?.codAvailable);
+      const codCharge = Number(product?.codCharge ?? product?.management?.shipping?.codCharge ?? 0) || 0;
+
       const buyNowItem = {
         _id: productId,
         product: {
@@ -196,6 +222,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           sku: currentSku || product?.sku || '',
           size: selectedSize || '',
           color: hasColorVariants ? (currentVariant?.colorName || '') : (selectedSimpleColor || ''),
+          codAvailable,
+          codCharge,
+          management: product?.management,
         },
         price: currentPrice ?? product?.price ?? 0,
         quantity: Number(quantity ?? 1) || 1,
@@ -254,10 +283,14 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
             {product?.brand || product?.category || "House of Chikankari"}
           </span>
         </span>
-        <Rating name="size-small" defaultValue={4} size="small" readOnly />
-        <span className="text-gray-500 text-[12px] md:text-[14px] cursor-pointer hover:underline">
-          Review (5)
-        </span>
+        {Number(product?.rating ?? 0) > 0 ? (
+          <Rating name="size-small" value={Number(product?.rating ?? 0)} size="small" readOnly />
+        ) : null}
+        {Number(product?.reviews ?? 0) > 0 ? (
+          <span className="text-gray-500 text-[12px] md:text-[14px] cursor-pointer hover:underline">
+            Review ({Number(product?.reviews ?? 0)})
+          </span>
+        ) : null}
       </div>
 
       {/* Price */}
@@ -295,6 +328,15 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         )}
       </p>
 
+      {materialValues.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 mb-4 md:mb-6">
+          <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Material:</span>
+          <span className="text-gray-700 text-[13px] md:text-[15px]">
+            {materialValues.join(', ')}
+          </span>
+        </div>
+      )}
+
       {/* Sizes */}
       <div className="flex flex-wrap items-center gap-3 mb-4 md:mb-6">
         <span className="text-gray-600 text-[14px] md:text-[16px] font-[500]">Size:</span>
@@ -314,7 +356,8 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         </div>
       </div>
 
-      {sizeGuideRows.length > 0 && (
+      {/* Size Guide */}
+      {(hasSizeGuideImage || sizeGuideRows.length > 0) && (
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3">
             <span className="text-gray-600 text-[16px] font-[500]">Size Guide</span>
@@ -330,7 +373,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           <Dialog open={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} maxWidth="sm" fullWidth>
             <DialogTitle>Size Guide</DialogTitle>
             <DialogContent>
-              {String(product?.sizeGuideImageUrl || '').trim() ? (
+              {hasSizeGuideImage ? (
                 <div className="mb-4">
                   <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 flex items-center justify-center">
                     <img
@@ -341,7 +384,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
                     />
                   </div>
                 </div>
-              ) : (
+              ) : null}
+
+              {sizeGuideRows.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
@@ -372,7 +417,7 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
                     </tbody>
                   </table>
                 </div>
-              )}
+              ) : null}
             </DialogContent>
           </Dialog>
         </div>
@@ -418,14 +463,45 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
 
       {/* Quantity + Add to Cart */}
       <div className="hidden md:flex items-center gap-4 py-4">
-        <div className="QtyBoxWrapper w-[80px]">
-          <input
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-full h-10 px-2 border border-gray-300 rounded-md text-center"
-          />
+        <div className="QtyBoxWrapper">
+          <div className="inline-flex items-center rounded-md border border-gray-300 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setQuantity((prev) => Math.max(1, Number(prev || 1) - 1))}
+              className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700"
+              aria-label="Decrease quantity"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={(e) => {
+                const raw = parseInt(e.target.value);
+                const desired = Number.isFinite(raw) ? raw : 1;
+                const max = Number(currentStock ?? 0);
+                const capped = Number.isFinite(max) && max > 0 ? Math.min(max, desired) : desired;
+                setQuantity(Math.max(1, capped));
+              }}
+              className="w-[70px] h-10 px-2 text-center outline-none"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setQuantity((prev) => {
+                  const next = Number(prev || 1) + 1;
+                  const max = Number(currentStock ?? 0);
+                  if (Number.isFinite(max) && max > 0) return Math.min(max, next);
+                  return next;
+                })
+              }
+              className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700"
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
         </div>
         <Button
           variant="contained"

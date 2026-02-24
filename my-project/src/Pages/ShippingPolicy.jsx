@@ -26,7 +26,7 @@ const ShippingPolicy = () => {
                         </p>
 
                         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Shipping Methods</h2>
-                        <p className="text-gray-600 mb-4">Trozzy offers standard and expedited shipping options. You can choose your preferred method at checkout.</p>
+                        <p className="text-gray-600 mb-4">Trozzi offers standard and expedited shipping options. You can choose your preferred method at checkout.</p>
 
                         <h2 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Processing Times</h2>
                         <p className="text-gray-600 mb-4">Orders typically ship within approximately 15 business days of being placed, unless otherwise noted on the product page or at checkout.</p>

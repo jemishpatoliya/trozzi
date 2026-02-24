@@ -42,6 +42,8 @@ function mapProduct(req: Request, p: any) {
     images: Array.isArray(v?.images) ? v.images.map((img: any) => toAbsoluteUrl(req, img)).filter(Boolean) : [],
   }));
 
+  const attributeSets = Array.isArray(p?.management?.attributes?.sets) ? p.management.attributes.sets : [];
+
   const sellingPrice = Number(p?.management?.pricing?.sellingPrice ?? p?.management?.pricing?.selling_price ?? NaN);
   const price = Number.isFinite(sellingPrice) ? sellingPrice : Number(p?.price ?? 0) || 0;
 
@@ -100,6 +102,7 @@ function mapProduct(req: Request, p: any) {
     salePageBannerText: typeof p?.management?.salePage?.bannerText === 'string' ? p.management.salePage.bannerText : "",
     codAvailable: typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(p?.management?.shipping?.codAvailable),
     codCharge: Number(p?.codCharge ?? p?.management?.shipping?.codCharge ?? 0) || 0,
+    attributeSets,
   };
 }
 
@@ -132,6 +135,18 @@ router.get("/", async (req: Request, res: Response) => {
   const category = req.query.category ? String(req.query.category) : "";
   if (category) {
     filter.category = category;
+  }
+
+  const subCategoryId = req.query.subCategoryId ? String(req.query.subCategoryId) : "";
+  if (subCategoryId) {
+    // Some legacy products may have this value only inside management.basic
+    filter.$and = Array.isArray(filter.$and) ? filter.$and : [];
+    filter.$and.push({
+      $or: [
+        { subCategoryId },
+        { "management.basic.subCategoryId": subCategoryId },
+      ],
+    });
   }
 
   const featured = req.query.featured === undefined ? undefined : String(req.query.featured);
@@ -391,6 +406,14 @@ async function upsertFromManagement(id: string, values: any) {
     (Array.isArray(existing?.colorVariants) && existing.colorVariants.length > 0 ? existing.colorVariants : undefined) ??
     (normalizedGeneratedColorVariants.length > 0 ? normalizedGeneratedColorVariants : []);
 
+  const colorsFromVariants = Array.from(
+    new Set(
+      (Array.isArray(nextColorVariants) ? nextColorVariants : [])
+        .map((v: any) => String(v?.colorName || v?.color || "").trim())
+        .filter((v: string) => v.length > 0),
+    ),
+  );
+
   const thumbnailUrl = values.media?.thumbnailId
     ? values.media?.images?.find((i: any) => i.id === values.media.thumbnailId)?.url
     : values.media?.images?.[0]?.url;
@@ -413,7 +436,7 @@ async function upsertFromManagement(id: string, values: any) {
     featured: !!values.marketing.featured,
     sizes: derivedSizes,
     sizeGuideKey: derivedSizeGuideKey,
-    colors: derivedColors,
+    colors: colorsFromVariants.length > 0 ? colorsFromVariants : derivedColors,
     tags: values.seo.metaKeywords ?? [],
     keyFeatures: (values.details.technicalSpecs ?? []).map((kv: any) => kv.key).filter(Boolean),
     warranty: values.details.warrantyInfo ?? "",

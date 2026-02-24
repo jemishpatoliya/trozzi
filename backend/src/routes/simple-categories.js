@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { CategoryModel } = require('../models/category');
+const { ProductModel } = require('../models/product');
 
 // GET /api/categories - Get all categories
 router.get('/', async (req, res) => {
@@ -13,6 +14,30 @@ router.get('/', async (req, res) => {
             filter.active = true;
         }
         const categories = await CategoryModel.find(filter).sort({ order: 1 }).lean();
+
+        const categoryIds = categories.map((c) => String(c._id));
+        const countById = new Map(categoryIds.map((id) => [id, 0]));
+
+        await Promise.all(
+            categoryIds.map(async (id) => {
+                const productFilter = {
+                    $or: [
+                        { category: id },
+                        { categoryId: id },
+                        { 'management.basic.categoryIds': id },
+                    ],
+                };
+
+                if (mode === 'public') {
+                    productFilter.status = 'active';
+                    productFilter.visibility = 'public';
+                }
+
+                const count = await ProductModel.countDocuments(productFilter);
+                countById.set(id, Number(count ?? 0) || 0);
+            })
+        );
+
         res.json(
             categories.map((c) => ({
                 id: String(c._id),
@@ -22,7 +47,7 @@ router.get('/', async (req, res) => {
                 parentId: c.parentId,
                 order: c.order,
                 active: c.active,
-                productCount: c.productCount,
+                productCount: countById.get(String(c._id)) ?? c.productCount,
                 imageUrl: c.imageUrl,
             }))
         );

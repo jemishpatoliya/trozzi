@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { CategoryModel } = require('../models/category');
+const { ProductModel } = require('../models/product');
 
 // GET /api/subcategories?parentCategoryId=XXX - Get subcategories for a parent category
 router.get('/', async (req, res) => {
@@ -18,18 +19,67 @@ router.get('/', async (req, res) => {
         }
 
         const categories = await CategoryModel.find(filter).sort({ order: 1 }).lean();
+
+        const subCategoryIds = categories.map((c) => String(c._id));
+        const countById = new Map(subCategoryIds.map((id) => [id, 0]));
+
+        if (subCategoryIds.length > 0) {
+            const productFilter = {
+                $or: [
+                    { subCategoryId: { $in: subCategoryIds } },
+                    { 'management.basic.subCategoryId': { $in: subCategoryIds } },
+                ],
+            };
+
+            if (mode === 'public') {
+                productFilter.status = 'active';
+                productFilter.visibility = 'public';
+            }
+
+            const rows = await ProductModel.aggregate([
+                { $match: productFilter },
+                {
+                    $project: {
+                        subId: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $ne: ['$subCategoryId', null] },
+                                        { $ne: ['$subCategoryId', ''] },
+                                    ],
+                                },
+                                '$subCategoryId',
+                                '$management.basic.subCategoryId',
+                            ],
+                        },
+                    },
+                },
+                { $group: { _id: '$subId', count: { $sum: 1 } } },
+            ]);
+
+            rows.forEach((r) => {
+                const id = String(r?._id ?? '').trim();
+                if (!id) return;
+                if (!countById.has(id)) return;
+                countById.set(id, Number(r?.count ?? 0) || 0);
+            });
+        }
+
         res.json(
-            categories.map((c) => ({
-                id: String(c._id),
-                name: c.name,
-                shortDescription: c.shortDescription,
-                description: c.description,
-                parentId: c.parentId,
-                order: c.order,
-                active: c.active,
-                productCount: c.productCount,
-                imageUrl: c.imageUrl,
-            }))
+            categories.map((c) => {
+                const id = String(c._id);
+                return {
+                    id,
+                    name: c.name,
+                    shortDescription: c.shortDescription,
+                    description: c.description,
+                    parentId: c.parentId,
+                    order: c.order,
+                    active: c.active,
+                    productCount: countById.get(id) ?? 0,
+                    imageUrl: c.imageUrl,
+                };
+            })
         );
     } catch (error) {
         console.error('Failed to fetch subcategories:', error);

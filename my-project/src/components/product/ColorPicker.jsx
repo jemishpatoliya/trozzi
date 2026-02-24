@@ -1,4 +1,5 @@
 import React from 'react';
+import { colorNameToHex } from '../../utils/colorVariants';
 
 const ColorPicker = ({
     colors = [],
@@ -37,7 +38,7 @@ const ColorPicker = ({
                                 : 'border-gray-300 hover:border-gray-400 hover:scale-105'
                             }
             `}
-                        style={{ backgroundColor: color.colorCode }}
+                        style={{ backgroundColor: color?.colorCode || colorNameToHex(color?.colorName || color?.color) }}
                         title={color.colorName}
                     >
 

@@ -22,7 +22,15 @@ export function formatMoney(amount: number, currency = "INR") {
   }
 }
 
-export function getTaxRate(taxClass: TaxClass) {
+export function getTaxRate(taxClass: TaxClass, taxRatePercent?: number) {
+  if (taxClass === "none") return 0;
+
+  const override = Number(taxRatePercent);
+  if (Number.isFinite(override)) {
+    const clamped = Math.max(0, Math.min(100, override));
+    return clamped / 100;
+  }
+
   if (taxClass === "gst") return 0.18;
   if (taxClass === "vat") return 0.2;
   return 0;

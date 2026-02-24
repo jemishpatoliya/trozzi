@@ -49,9 +49,6 @@ const Navigation = () => {
   const menuItems = [
     'Home',
     'Fashion',
-    'Footwear',
-    'Grossary',
-    'Beauty',
     'Jewellery'
   ];
 
@@ -64,6 +61,14 @@ const Navigation = () => {
   };
 
   const routeForCategory = (value) => `/ProductListing?category=${encodeURIComponent(String(value))}`;
+  const routeForSubCategory = (parentName, childId) => {
+    const parent = String(parentName || '').trim();
+    const child = String(childId || '').trim();
+    const params = new URLSearchParams();
+    if (parent) params.set('category', parent);
+    if (child) params.set('subCategoryId', child);
+    return `/ProductListing?${params.toString()}`;
+  };
 
   const tabLinkClass = ({ isActive }) => (
     `link transition font-bold text-text-900 dark:text-text-100 hover:text-primary-600 dark:hover:text-primary-400 text-sm py-2 px-3 rounded-lg hover:bg-primary-50 dark:hover:bg-surface-800 ` +
@@ -99,7 +104,7 @@ const Navigation = () => {
                             <ul>
                               {children.map((child) => (
                                 <li key={child.id || child.name}>
-                                  <NavLink to={routeForCategory(child.id || child._id || child.name)}>
+                                  <NavLink to={routeForSubCategory(cat.name, child.id || child._id)}>
                                     <Button className='!w-full !text-left !text-text-700 dark:!text-text-300 hover:!bg-primary-50 dark:hover:!bg-surface-800 hover:!text-primary-600 dark:hover:!text-primary-400 transition-colors'>
                                       {child.name}
                                     </Button>

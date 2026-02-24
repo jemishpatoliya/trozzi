@@ -8,6 +8,7 @@ const AdminSettings = () => {
     const [error, setError] = useState('');
 
     const [brandLogoUrl, setBrandLogoUrl] = useState('');
+    const [enableCod, setEnableCod] = useState(true);
     const [uploading, setUploading] = useState(false);
 
     const token = useMemo(() => localStorage.getItem('adminToken') || localStorage.getItem('token') || '', []);
@@ -25,6 +26,7 @@ const AdminSettings = () => {
                 const data = res?.data?.data;
                 if (!cancelled) {
                     setBrandLogoUrl(String(data?.brandLogoUrl || '').trim());
+                    setEnableCod(data?.enableCod !== false);
                 }
             } catch (e) {
                 const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to load settings';
@@ -72,7 +74,7 @@ const AdminSettings = () => {
         try {
             const res = await apiClient.put(
                 '/admin/content-settings',
-                { brandLogoUrl },
+                { brandLogoUrl, enableCod },
                 {
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                 },
@@ -80,6 +82,7 @@ const AdminSettings = () => {
 
             const data = res?.data?.data;
             setBrandLogoUrl(String(data?.brandLogoUrl || brandLogoUrl).trim());
+            setEnableCod(data?.enableCod !== false);
         } catch (e) {
             const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Failed to save settings';
             setError(msg);
@@ -149,6 +152,28 @@ const AdminSettings = () => {
                                         Upload image to S3 and save. This logo will appear on Header, Login and Register pages.
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-6">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-gray-900">Cash on Delivery</h2>
+                                    <div className="text-sm text-gray-600 mt-1">Turn COD on/off for the entire store checkout.</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setEnableCod((v) => !v)}
+                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${enableCod ? 'bg-blue-600' : 'bg-gray-300'}`}
+                                    aria-pressed={enableCod}
+                                >
+                                    <span
+                                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${enableCod ? 'translate-x-6' : 'translate-x-1'}`}
+                                    />
+                                </button>
+                            </div>
+                            <div className="mt-2 text-sm">
+                                Status: <span className={`font-semibold ${enableCod ? 'text-emerald-700' : 'text-red-700'}`}>{enableCod ? 'Enabled' : 'Disabled'}</span>
                             </div>
                         </div>
                     </div>

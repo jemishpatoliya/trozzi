@@ -25,11 +25,13 @@ const CartDrawer = ({ open, onClose }) => {
 
     const calculateSubtotal = () => {
         return items.reduce((total, item) => {
-            const price = item?.price ?? item?.product?.price ?? 0;
-            const qty = item?.quantity ?? 0;
+            const price = Number(item?.price ?? item?.product?.price ?? 0) || 0;
+            const qty = Number(item?.quantity ?? 0) || 0;
             return total + (price * qty);
         }, 0);
     };
+
+    const totalQty = items.reduce((sum, item) => sum + (Number(item?.quantity ?? 0) || 0), 0);
 
     const calculateCodChargeTotal = () => {
         return items.reduce((sum, item) => {
@@ -88,7 +90,7 @@ const CartDrawer = ({ open, onClose }) => {
                 {/* Header */}
                 <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" component="div">
-                        Shopping Cart ({items.length})
+                        Shopping Cart ({totalQty})
                     </Typography>
                     <IconButton onClick={onClose} size="small">
                         <MdClose />
@@ -176,7 +178,11 @@ const CartDrawer = ({ open, onClose }) => {
 
                                                 {/* Price */}
                                                 <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                                    ₹{(item.price || item.product?.price || 0) * item.quantity}
+                                                    {(() => {
+                                                        const price = Number(item?.price ?? item?.product?.price ?? 0) || 0;
+                                                        const qty = Number(item?.quantity ?? 0) || 0;
+                                                        return formatCurrency(price * qty);
+                                                    })()}
                                                 </Typography>
                                             </Box>
 
@@ -202,7 +208,7 @@ const CartDrawer = ({ open, onClose }) => {
                         {/* Price Summary */}
                         <Box sx={{ mb: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="body2">Items ({items.length})</Typography>
+                                <Typography variant="body2">Items ({totalQty})</Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(subtotalMoney)}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>

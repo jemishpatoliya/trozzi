@@ -8,6 +8,23 @@ const auth = require('../middleware/auth');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
 const { sendMail } = require('../services/mailer');
 
+const getDisposableEmailDomains = () => {
+    try {
+        const list = require('disposable-email-domains');
+        return Array.isArray(list) ? list : [];
+    } catch (_e) {
+        return null;
+    }
+};
+
+const isDisposableEmail = (email) => {
+    const domains = getDisposableEmailDomains();
+    if (!domains) return false;
+    const domain = String(email || '').split('@').pop().toLowerCase().trim();
+    if (!domain) return false;
+    return domains.includes(domain);
+};
+
 async function sendOtpViaMsg91({ phone, otp, purpose }) {
     const authkey = String(process.env.MSG91_AUTH_KEY || '').trim();
     const templateId = String(process.env.MSG91_OTP_TEMPLATE_ID || '').trim();
@@ -577,6 +594,13 @@ router.post('/register', [
         const email = String(req.body?.email || '').trim().toLowerCase();
         const password = String(req.body?.password || '');
         const phone = req.body?.phone ? normalizePhone(req.body.phone) : '';
+
+        if (isDisposableEmail(email)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Disposable/tempmail email addresses are not allowed',
+            });
+        }
 
         // Check if user already exists
         const existingByEmail = await UserModel.findOne({ email });

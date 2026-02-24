@@ -87,6 +87,11 @@ router.post('/cod', async (req, res) => {
       return res.status(503).json({ success: false, message: 'Database not ready' });
     }
 
+    const settings = await getOrCreateContentSettings();
+    if (settings && settings.enableCod === false) {
+      return res.status(400).json({ success: false, message: 'Cash on Delivery is currently disabled' });
+    }
+
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
     if (items.length === 0) {
       return res.status(400).json({ success: false, message: 'Order items are required' });
@@ -1142,6 +1147,45 @@ router.put('/:id/status', async (req, res) => {
     const updated = result.value;
     const io = req.app.get('io');
 
+    if (status === 'cancelled') {
+      try {
+        const { Shipment } = require('../models/shipment');
+        const shipment = await Shipment.findOne({ order: _id });
+        const shiprocketOrderId = String(shipment?.shiprocketOrderId || '').trim();
+        if (shipment && shiprocketOrderId && shipment.status !== 'cancelled') {
+          const { cancelShiprocketOrders } = require('../services/shiprocket.service');
+          const raw = await cancelShiprocketOrders({ ids: [shiprocketOrderId] });
+          await Shipment.updateOne(
+            { _id: shipment._id },
+            {
+              $set: {
+                status: 'cancelled',
+                cancelledAt: new Date(),
+                lastError: '',
+                nextRetryAfter: null,
+                updatedAt: new Date(),
+              },
+              $push: { eventHistory: { status: 'cancelled', at: new Date(), raw } },
+            },
+          );
+        }
+      } catch (e) {
+        console.error('Shiprocket cancel on admin cancel failed:', e?.raw || e);
+        try {
+          const { Shipment } = require('../models/shipment');
+          await Shipment.updateOne(
+            { order: _id },
+            {
+              $set: { lastError: String(e?.message || 'Shiprocket cancel failed'), lastRetryAt: new Date(), updatedAt: new Date() },
+              $push: { eventHistory: { status: 'failed', at: new Date(), raw: { error: e?.message, details: e?.raw } } },
+            },
+          );
+        } catch (_e2) {
+          // ignore
+        }
+      }
+    }
+
     const orderPayload = {
       id: String(updated._id),
       orderNumber: String(updated.orderNumber || ''),
@@ -1740,15 +1784,84 @@ router.get('/:id/tracking', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    let shipment = null;
+    try {
+      const { Shipment } = require('../models/shipment');
+      shipment = await Shipment.findOne({ order: _id }).lean();
+    } catch (_e) {
+      shipment = null;
+    }
+
+    const toIsoMaybe = (v) => {
+      if (!v) return '';
+      if (v instanceof Date) return v.toISOString();
+      const s = String(v);
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) return d.toISOString();
+      return s;
+    };
+
+    const timeline = [];
+    const history = Array.isArray(shipment?.eventHistory) ? shipment.eventHistory : [];
+    for (const h of history) {
+      const raw = h?.raw;
+      timeline.push({
+        at: toIsoMaybe(h?.at),
+        status: String(h?.status || ''),
+        location: '',
+        activity: '',
+        source: 'shiprocket',
+        raw,
+      });
+
+      const scans = Array.isArray(raw?.scans) ? raw.scans : [];
+      for (const s of scans) {
+        timeline.push({
+          at: toIsoMaybe(s?.date),
+          status: String(s?.status || ''),
+          location: String(s?.location || ''),
+          activity: String(s?.activity || ''),
+          source: 'shiprocket_scan',
+          raw: s,
+        });
+      }
+    }
+
+    timeline.sort((a, b) => {
+      const da = new Date(a.at);
+      const dbb = new Date(b.at);
+      const ta = Number.isNaN(da.getTime()) ? 0 : da.getTime();
+      const tb = Number.isNaN(dbb.getTime()) ? 0 : dbb.getTime();
+      return tb - ta;
+    });
+
     return res.json({
       success: true,
       data: {
         orderId: String(doc._id),
         orderNumber: String(doc.orderNumber || ''),
         status: normalizeStatus(doc.status),
-        trackingNumber: String(doc?.tracking?.trackingNumber || ''),
-        courierName: String(doc?.tracking?.courierName || ''),
-        trackingUrl: String(doc?.tracking?.trackingUrl || ''),
+        trackingNumber: String(shipment?.awbNumber || doc?.tracking?.trackingNumber || ''),
+        courierName: String(shipment?.courierName || doc?.tracking?.courierName || ''),
+        trackingUrl: String(shipment?.trackingUrl || doc?.tracking?.trackingUrl || ''),
+        shipment: shipment
+          ? {
+              id: String(shipment._id),
+              status: String(shipment.status || ''),
+              shiprocketOrderId: String(shipment.shiprocketOrderId || ''),
+              shiprocketShipmentId: String(shipment.shiprocketShipmentId || ''),
+              courierId: Number(shipment.courierId || 0) || 0,
+              awbNumber: String(shipment.awbNumber || ''),
+              courierName: String(shipment.courierName || ''),
+              trackingUrl: String(shipment.trackingUrl || ''),
+              lastError: String(shipment.lastError || ''),
+              retryCount: Number(shipment.retryCount || 0) || 0,
+              nextRetryAfter: shipment.nextRetryAfter ? new Date(shipment.nextRetryAfter).toISOString() : null,
+              estimatedDelivery: shipment.estimatedDelivery ? new Date(shipment.estimatedDelivery).toISOString() : null,
+              updatedAt: shipment.updatedAt ? new Date(shipment.updatedAt).toISOString() : null,
+            }
+          : null,
+        timeline,
         statusHistory: Array.isArray(doc?.statusHistory) ? doc.statusHistory : [],
         statusTimestamps: doc?.statusTimestamps && typeof doc.statusTimestamps === 'object' ? doc.statusTimestamps : {},
       },

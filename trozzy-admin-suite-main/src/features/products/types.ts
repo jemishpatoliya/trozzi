@@ -69,6 +69,7 @@ export interface ProductManagementFormValues {
     originalPrice: number;
     sellingPrice: number;
     taxClass: TaxClass;
+    taxRatePercent?: number;
   };
   inventory: {
     sku: string;

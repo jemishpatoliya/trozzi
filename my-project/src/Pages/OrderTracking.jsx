@@ -14,6 +14,7 @@ const OrderTracking = () => {
     const ordersRef = useRef([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const selectedOrderRef = useRef(null);
+    const openOrderRef = useRef(null);
     const [shipmentTimeline, setShipmentTimeline] = useState(null);
     const [loading, setLoading] = useState(true);
     const [detailsLoading, setDetailsLoading] = useState(false);
@@ -235,9 +236,10 @@ const OrderTracking = () => {
 
         const found = (Array.isArray(orders) ? orders : []).find((o) => String(o?.id || '') === id);
         if (found) {
-            openOrder(found);
+            const fn = openOrderRef.current;
+            if (typeof fn === 'function') fn(found);
         }
-    }, [location.search, loading, orders, openOrder]);
+    }, [location.search, loading, orders]);
 
     const getStatusIndex = (flow, status) => {
         return flow.indexOf(status);
@@ -359,7 +361,11 @@ const OrderTracking = () => {
         } finally {
             setDetailsLoading(false);
         }
-    }, []);
+    }, [normalizeOrderDetail, normalizeShipmentTimeline]);
+
+    useEffect(() => {
+        openOrderRef.current = openOrder;
+    }, [openOrder]);
 
     const openReviewModal = (item) => {
         setReviewItem(item);

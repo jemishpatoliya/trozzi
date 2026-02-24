@@ -56,6 +56,23 @@ function applyManagementToProduct(product) {
     const marketing = (management && management.marketing) || {};
     const seo = (management && management.seo) || {};
     const shipping = (management && management.shipping) || {};
+    const attributes = (management && management.attributes) || {};
+
+    const pickAttributeValues = (needle) => {
+        const sets = attributes && Array.isArray(attributes.sets) ? attributes.sets : [];
+        const lower = String(needle || '').toLowerCase();
+        const match = sets.find((s) => {
+            const name = typeof s?.name === 'string' ? String(s.name).toLowerCase() : '';
+            if (!name) return false;
+            return name.includes(lower);
+        });
+        const raw = match ? match.values : [];
+        const vals = Array.isArray(raw) ? raw : (raw === undefined || raw === null ? [] : [raw]);
+        return vals
+            .map((v) => String(v ?? ''))
+            .map((v) => v.trim())
+            .filter((v) => v.length > 0);
+    };
 
     if (typeof basic.name === "string" && basic.name.trim()) next.name = basic.name;
     if (typeof inventory.sku === "string" && inventory.sku.trim()) next.sku = inventory.sku;
@@ -78,6 +95,17 @@ function applyManagementToProduct(product) {
     if (typeof shipping.weightKg === "number" && Number.isFinite(shipping.weightKg)) next.weight = shipping.weightKg;
     if (shipping.dimensionsCm && typeof shipping.dimensionsCm === "object") next.dimensions = shipping.dimensionsCm;
 
+    // Fallback: derive sizes/colors from attribute sets when missing on the catalog product.
+    // (Admin stores size values in management.attributes.sets)
+    if (!Array.isArray(next.sizes) || next.sizes.length === 0) {
+        const derivedSizes = pickAttributeValues('size').filter((v) => !v.toLowerCase().includes('guide'));
+        if (derivedSizes.length > 0) next.sizes = derivedSizes;
+    }
+    if (!Array.isArray(next.colors) || next.colors.length === 0) {
+        const derivedColors = pickAttributeValues('color');
+        if (derivedColors.length > 0) next.colors = derivedColors;
+    }
+
     return next;
 }
 
@@ -97,6 +125,7 @@ export async function fetchProducts({
     limit,
     mode = "public",
     category,
+    subCategoryId,
     featured,
     q,
     minPrice,
@@ -116,6 +145,7 @@ export async function fetchProducts({
     if (page) params.page = page;
     if (limit) params.limit = limit;
     if (category) params.category = category;
+    if (subCategoryId) params.subCategoryId = subCategoryId;
     if (featured !== undefined) params.featured = featured;
     if (q) params.q = q;
     if (minPrice !== undefined) params.minPrice = minPrice;

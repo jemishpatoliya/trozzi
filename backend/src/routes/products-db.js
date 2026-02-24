@@ -77,6 +77,18 @@ router.get('/', async (req, res) => {
             filter.category = category;
         }
 
+        const subCategoryId = req.query.subCategoryId ? String(req.query.subCategoryId) : "";
+        if (subCategoryId) {
+            // Some legacy products may have this value only inside management.basic
+            filter.$and = Array.isArray(filter.$and) ? filter.$and : [];
+            filter.$and.push({
+                $or: [
+                    { subCategoryId },
+                    { "management.basic.subCategoryId": subCategoryId },
+                ],
+            });
+        }
+
         const featured = req.query.featured === undefined ? undefined : String(req.query.featured);
         if (featured === "true") {
             filter.featured = true;

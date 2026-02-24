@@ -228,7 +228,7 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
   const shouldShowOffers = Boolean(normalized?.salePageEnabled) || Boolean(String(normalized?.salePageBannerText || '').trim());
   const shouldShowFreeDelivery = Boolean(normalized?.freeShipping);
   const shouldShowRating = safeRating > 0 || Number(normalized?.reviews || 0) > 0;
-  const shouldShowTrusted = Boolean(normalized?.featured) || (String(normalized?.badge || '').toLowerCase() === 'trusted');
+  const shouldShowTrusted = false;
 
   return (
     <div
@@ -383,13 +383,6 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
             ) : (
               <span />
             )}
-
-            {shouldShowTrusted ? (
-              <div className="hidden md:inline-flex items-center gap-1 text-[12px] font-semibold text-[#7B1FA2]">
-                <FaCheckCircle className="text-[14px]" />
-                Trusted
-              </div>
-            ) : null}
           </div>
 
           {!hideAddToCart ? (

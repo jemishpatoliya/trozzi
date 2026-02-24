@@ -10,6 +10,7 @@ const DEFAULTS = {
   showOrderHistory: true,
   showWishlistCount: true,
   enableProfileEditing: true,
+  enableCod: true,
 };
 
 export const useContentSettings = () => {

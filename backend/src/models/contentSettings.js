@@ -19,6 +19,7 @@ const ContentSettingsSchema = new mongoose.Schema(
     showOrderHistory: { type: Boolean, default: true },
     showWishlistCount: { type: Boolean, default: true },
     enableProfileEditing: { type: Boolean, default: true },
+    enableCod: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

@@ -14,7 +14,7 @@ export default function ShopLayout() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Link to="/shop" className="text-sm font-semibold tracking-tight">
-              Trozzy Store
+              Trozzi Store
             </Link>
             <Badge variant="outline">Preview</Badge>
           </div>
@@ -39,7 +39,7 @@ export default function ShopLayout() {
 
       <footer className="border-t">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Trozzy
+          © {new Date().getFullYear()} Trozzi
         </div>
       </footer>
     </div>

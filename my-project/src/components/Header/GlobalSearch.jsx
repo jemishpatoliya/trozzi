@@ -126,9 +126,9 @@ const GlobalSearch = () => {
             {/* Search Input */}
             <div className="relative">
                 <form onSubmit={handleSearch}>
-                    <div className={`flex items-center bg-white rounded-full border border-gray-200 transition-all duration-200 ${isSearchOpen ? 'shadow-sm ring-2 ring-[#2874F0]/15 border-[#2874F0]/40' : ''}`}>
+                    <div className={`flex items-center bg-white rounded-xl border border-gray-200 transition-all duration-200 ${isSearchOpen ? 'shadow-sm ring-2 ring-[#2874F0]/10 border-[#2874F0]/40' : 'hover:border-gray-300'}`}>
                         <div className="pl-3 pr-2 text-gray-500">
-                            <IoSearchSharp className="text-[18px]" />
+                            <IoSearchSharp className="text-[16px]" />
                         </div>
                         <input
                             type="text"
@@ -136,13 +136,13 @@ const GlobalSearch = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onFocus={() => setIsSearchOpen(true)}
                             placeholder="Search for Products, Brands and More"
-                            className="flex-1 pr-3 sm:pr-4 py-2 bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-900 placeholder-gray-400"
+                            className="flex-1 pr-3 sm:pr-4 py-1.5 sm:py-2 bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-900 placeholder-gray-400"
                         />
                         {searchQuery && (
                             <button
                                 type="button"
                                 onClick={() => setSearchQuery('')}
-                                className="p-2.5 text-gray-400 hover:text-gray-700 transition-colors"
+                                className="p-2 text-gray-400 hover:text-gray-700 transition-colors"
                             >
                                 <IoClose className="text-lg" />
                             </button>

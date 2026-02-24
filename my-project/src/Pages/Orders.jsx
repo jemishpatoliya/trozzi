@@ -69,6 +69,17 @@ const Orders = () => {
     return ['new', 'processing', 'paid'].includes(s);
   };
 
+  const formatStatusLabel = (status) => {
+    const s = String(status || '').trim();
+    if (!s) return 'New';
+    return s
+      .replace(/_/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  };
+
   const handleCancelOrder = async (order) => {
     const id = String(order?.id || '');
     if (!id) return;
@@ -169,23 +180,33 @@ const Orders = () => {
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-sm text-gray-500">Status</div>
-                  <div className="font-medium text-gray-900 capitalize">{order.status}</div>
+                  <div className="font-medium text-gray-900">{formatStatusLabel(order.status)}</div>
                   <div className="text-sm text-gray-500">Total: <span className="font-semibold text-gray-900">{formatCurrency(order.total)}</span></div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/order-tracking?id=${encodeURIComponent(order.id)}`);
+                      }}
+                    >
+                      Track
+                    </button>
                   {canCancel(order.status) ? (
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-60"
-                        disabled={cancellingId === order.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCancelOrder(order);
-                        }}
-                      >
-                        {cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-60"
+                      disabled={cancellingId === order.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCancelOrder(order);
+                      }}
+                    >
+                      {cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                    </button>
                   ) : null}
+                  </div>
                 </div>
               </div>
 

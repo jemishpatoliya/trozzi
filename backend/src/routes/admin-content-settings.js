@@ -70,6 +70,12 @@ router.put('/', authenticateAdmin, requireAdmin, async (req, res) => {
       update.enableProfileEditing = b;
     }
 
+    if (body.enableCod !== undefined) {
+      const b = parseBoolean(body.enableCod);
+      if (b === null) return res.status(400).json({ success: false, message: 'enableCod must be boolean' });
+      update.enableCod = b;
+    }
+
     const updated = await ContentSettingsModel.findByIdAndUpdate(
       SINGLETON_ID,
       { $set: update, $setOnInsert: { _id: SINGLETON_ID } },

@@ -16,6 +16,7 @@ router.get('/', async (_req, res) => {
         showOrderHistory: settings.showOrderHistory,
         showWishlistCount: settings.showWishlistCount,
         enableProfileEditing: settings.enableProfileEditing,
+        enableCod: settings.enableCod,
       },
     });
   } catch (error) {

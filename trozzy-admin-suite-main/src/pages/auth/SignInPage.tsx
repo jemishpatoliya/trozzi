@@ -60,7 +60,7 @@ const SignInPage = () => {
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">Welcome to Trozzy</CardTitle>
+            <CardTitle className="text-2xl font-bold">Welcome to Trozzi</CardTitle>
             <CardDescription>Sign in to access your admin panel</CardDescription>
           </div>
         </CardHeader>
@@ -71,7 +71,7 @@ const SignInPage = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@trozzy.com"
+                placeholder="admin@trozzi.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

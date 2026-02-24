@@ -13,7 +13,7 @@ const AboutUs = () => {
 
                 {/* Hero Section */}
                 <div className="text-center mb-16">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4">About Trozzy</h1>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-4">About Trozzi</h1>
                     <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                         Your trusted online shopping destination for quality products, great prices, and exceptional service.
                     </p>
@@ -25,13 +25,13 @@ const AboutUs = () => {
                     <div className="max-w-3xl">
                         <div>
                             <p className="text-gray-600 mb-4">
-                                Founded in 2024, Trozzy started with a simple mission: to make online shopping accessible, affordable, and enjoyable for everyone across India.
+                                Founded in 2024, Trozzi started with a simple mission: to make online shopping accessible, affordable, and enjoyable for everyone across India.
                             </p>
                             <p className="text-gray-600 mb-4">
                                 What began as a small operation has grown into a comprehensive e-commerce platform serving thousands of customers nationwide. We believe in the power of technology to transform the shopping experience.
                             </p>
                             <p className="text-gray-600">
-                                Today, Trozzy offers a curated selection of products across fashion, electronics, home goods, and more - all carefully selected to meet our high standards for quality and value.
+                                Today, Trozzi offers a curated selection of products across fashion, electronics, home goods, and more - all carefully selected to meet our high standards for quality and value.
                             </p>
                         </div>
                     </div>

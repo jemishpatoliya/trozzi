@@ -197,6 +197,7 @@ const Home = () => {
           </div>
         </div>
         <Homeslider />
+        <div data-scroll-top-trigger="1" />
         {/* <Homecatslider /> */}
       </section>
 

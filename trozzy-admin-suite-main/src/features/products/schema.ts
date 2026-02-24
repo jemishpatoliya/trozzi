@@ -26,6 +26,7 @@ export const productManagementSchema = z
       originalPrice: money.min(0.01, "Original price is required"),
       sellingPrice: money.min(0.01, "Selling price is required"),
       taxClass: z.enum(["gst", "vat", "none"]),
+      taxRatePercent: z.number().finite().min(0).max(100).optional(),
     }),
     inventory: z.object({
       sku: nonEmpty("SKU is required"),
@@ -189,6 +190,7 @@ export const productManagementDefaults: ProductManagementFormValues = {
     originalPrice: 0,
     sellingPrice: 0,
     taxClass: "gst",
+    taxRatePercent: 18,
   },
   inventory: {
     sku: "",

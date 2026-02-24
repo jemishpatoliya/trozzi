@@ -4,6 +4,23 @@ const { UserModel } = require('../models/user');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+const getDisposableEmailDomains = () => {
+  try {
+    const list = require('disposable-email-domains');
+    return Array.isArray(list) ? list : [];
+  } catch (_e) {
+    return null;
+  }
+};
+
+const isDisposableEmail = (email) => {
+  const domains = getDisposableEmailDomains();
+  if (!domains) return false;
+  const domain = String(email || '').split('@').pop().toLowerCase().trim();
+  if (!domain) return false;
+  return domains.includes(domain);
+};
+
 // Helper function to generate JWT token
 const generateToken = (userId) => {
   const jwt = require('jsonwebtoken');
@@ -27,6 +44,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ 
         success: false,
         error: 'All required fields must be provided' 
+      });
+    }
+
+    if (isDisposableEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Disposable/tempmail email addresses are not allowed',
       });
     }
 

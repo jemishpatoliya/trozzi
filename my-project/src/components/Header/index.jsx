@@ -45,9 +45,10 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const headerClassName = useMemo(() => {
-    const base = "bg-white border-b border-gray-200 sticky top-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
+    const base = "bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
     const visibility = hidden ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100";
     const shadow = !hidden && elevated ? "shadow-md" : "shadow-none";
     return `${base} ${visibility} ${shadow}`;
@@ -70,6 +71,20 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
     setIsMobileMenuOpen(false);
     setIsMobileSearchOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktop(Boolean(mq.matches));
+    update();
+    try {
+      mq.addEventListener('change', update);
+      return () => mq.removeEventListener('change', update);
+    } catch (_e) {
+      mq.addListener(update);
+      return () => mq.removeListener(update);
+    }
+  }, []);
 
   const toggleCart = () => {
     setIsCartOpen(!isCartOpen);
@@ -217,27 +232,31 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
               </Link>
 
               {/* Desktop Search */}
-              <div className="hidden md:flex flex-1 min-w-0 justify-center px-4">
-                <div className="w-full max-w-2xl">
-                  <GlobalSearch />
+              {isDesktop ? (
+                <div className="flex flex-1 min-w-0 justify-center px-4">
+                  <div className="w-full max-w-2xl">
+                    <GlobalSearch />
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {/* Actions */}
               <div className="ml-auto flex items-center gap-1 md:gap-2">
-                <Tooltip title="Search" arrow>
-                  <IconButton
-                    aria-label="search"
-                    onClick={toggleMobileSearch}
-                    className="!w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
-                  >
-                    {isMobileSearchOpen ? (
-                      <FiX className="text-lg text-gray-700" />
-                    ) : (
-                      <FiSearch className="text-lg text-gray-700" />
-                    )}
-                  </IconButton>
-                </Tooltip>
+                {!isDesktop && (
+                  <Tooltip title="Search" arrow>
+                    <IconButton
+                      aria-label="search"
+                      onClick={toggleMobileSearch}
+                      className="!w-9 !h-9 hover:bg-blue-50 transition-colors rounded-xl"
+                    >
+                      {isMobileSearchOpen ? (
+                        <FiX className="text-lg text-gray-700" />
+                      ) : (
+                        <FiSearch className="text-lg text-gray-700" />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                )}
 
                 <div className="hidden md:block">
                   <UserMenu />
@@ -272,18 +291,20 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                   </Link>
                 </Tooltip>
               </div>
-
-              {isMobileSearchOpen && (
-                <div className="md:hidden mt-2 pb-2">
-                  <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-2">
-                    <GlobalSearch />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
+
+      {!isDesktop && isMobileSearchOpen && (
+        <div className="md:hidden">
+          <div className="container mx-auto px-3 sm:px-4 pb-2">
+            <div className="rounded-xl bg-white border border-gray-200 shadow-sm p-2">
+              <GlobalSearch />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation - Desktop */}
       <div className="hidden md:block bg-white dark:bg-surface-900 border-t border-border-100 dark:border-border-800">
@@ -298,4 +319,4 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   );
 });
 
-export default Header
+export default Header;

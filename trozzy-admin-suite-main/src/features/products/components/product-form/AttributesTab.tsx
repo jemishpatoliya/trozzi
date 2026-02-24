@@ -246,10 +246,9 @@ export function AttributesTab() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
             <div className="space-y-4">
               {sets.map((s, idx) => {
-                const isColor = isColorAttribute(s.name);
+                const isColor = isColorAttribute(String(s?.name || ""));
                 const isGuide = isSizeGuideAttribute(s.name);
                 
                 return (
@@ -377,14 +376,14 @@ export function AttributesTab() {
                                         const hex = e.target.value;
                                         setColorInputs((prev) => ({
                                           ...prev,
-                                          [idx]: { hex, name: hex },
+                                          [idx]: { hex, name: prev[idx]?.name ?? "" },
                                         }));
                                       }}
                                     />
                                   </div>
                                   <div className="space-y-2 flex-1">
                                     <Input
-                                      placeholder="Color name or Hex"
+                                      placeholder="Color Name"
                                       className="h-9"
                                       value={colorInputs[idx]?.name ?? ""}
                                       onChange={(e) => {
@@ -395,6 +394,18 @@ export function AttributesTab() {
                                         }));
                                       }}
                                     />
+                                    <Input
+                                      placeholder="#RRGGBB"
+                                      className="h-9"
+                                      value={colorInputs[idx]?.hex ?? "#000000"}
+                                      onChange={(e) => {
+                                        const hex = e.target.value;
+                                        setColorInputs((prev) => ({
+                                          ...prev,
+                                          [idx]: { ...(prev[idx] || { name: "" }), hex },
+                                        }));
+                                      }}
+                                    />
                                   </div>
                                 </div>
                                 <Button
@@ -402,12 +413,38 @@ export function AttributesTab() {
                                   className="w-full"
                                   disabled={!colorInputs[idx]?.name}
                                   onClick={() => {
-                                    const val = colorInputs[idx]?.name;
-                                    if (!val) return;
+                                    const nameRaw = String(colorInputs[idx]?.name || "").trim();
+                                    const hexRaw = String(colorInputs[idx]?.hex || "").trim() || "#000000";
+                                    if (!nameRaw) return;
+
+                                    const key = normalizeColorKey(nameRaw) || nameRaw;
 
                                     const current = getValues(`attributes.sets.${idx}.values`) || [];
-                                    const merged = Array.from(new Set([...(current || []), val]));
+                                    const merged = Array.from(new Set([...(current || []), nameRaw]));
                                     setValue(`attributes.sets.${idx}.values`, merged, { shouldDirty: true, shouldValidate: true });
+
+                                    const existing = Array.isArray(getValues("colorVariants")) ? (getValues("colorVariants") as any[]) : [];
+                                    const foundIndex = existing.findIndex(
+                                      (v) => String(v?.color || "") === key || String(v?.colorName || "").trim() === nameRaw
+                                    );
+
+                                    const nextVariants = [...existing];
+                                    if (foundIndex >= 0) {
+                                      nextVariants[foundIndex] = {
+                                        ...nextVariants[foundIndex],
+                                        color: key,
+                                        colorName: nameRaw,
+                                        colorCode: hexRaw,
+                                      };
+                                    } else {
+                                      nextVariants.push({
+                                        color: key,
+                                        colorName: nameRaw,
+                                        colorCode: hexRaw,
+                                        images: [],
+                                      });
+                                    }
+                                    setValue("colorVariants", nextVariants, { shouldDirty: true, shouldValidate: true });
 
                                     setColorInputs((prev) => ({
                                       ...prev,
@@ -435,121 +472,123 @@ export function AttributesTab() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-muted/10 p-4 space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium">Variants</p>
-                <p className="text-sm text-muted-foreground">
-                  Review and customize generated variants.
-                </p>
+          {false && (
+            <div className="rounded-xl border bg-muted/10 p-4 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">Variants</p>
+                  <p className="text-sm text-muted-foreground">
+                    Review and customize generated variants.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => {
+                    const currentSets = getValues("attributes.sets");
+                    const existing = getValues("attributes.variants");
+                    const next = generateVariantOverrides(currentSets, existing);
+                    setValue("attributes.variants", next, { shouldDirty: true });
+                    toast({
+                      title: "Variants generated",
+                      description: `Generated ${next.length} variants based on your options.`,
+                    });
+                  }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Generate / Update Variants
+                </Button>
               </div>
-              <Button
-                type="button"
-                className="gap-2"
-                onClick={() => {
-                  const currentSets = getValues("attributes.sets");
-                  const existing = getValues("attributes.variants");
-                  const next = generateVariantOverrides(currentSets, existing);
-                  setValue("attributes.variants", next, { shouldDirty: true });
-                  toast({
-                    title: "Variants generated",
-                    description: `Generated ${next.length} variants based on your options.`,
-                  });
-                }}
-              >
-                <Sparkles className="h-4 w-4" />
-                Generate / Update Variants
-              </Button>
-            </div>
 
-            <div className="space-y-3">
-              {variants.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No variants. Add options with values and click Generate.
-                </p>
-              ) : (
-                variants.map((v, idx) => (
-                  <div
-                    key={v.id}
-                    className="rounded-xl border bg-background p-4"
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{v.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {Object.entries(v.attributes)
-                            .map(([k, val]) => `${k}: ${val}`)
-                            .join(" · ")}
-                        </p>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-3 lg:w-[34rem]">
-                        <div className="space-y-1">
-                          <Label className="text-xs">SKU</Label>
-                          <Input
-                            className="h-8"
-                            value={v.skuOverride ?? ""}
-                            onChange={(e) => {
-                              const next = [...getValues("attributes.variants")];
-                              next[idx] = {
-                                ...next[idx],
-                                skuOverride: e.target.value,
-                              };
-                              setValue("attributes.variants", next, {
-                                shouldDirty: true,
-                              });
-                            }}
-                            placeholder="Custom SKU"
-                          />
+              <div className="space-y-3">
+                {variants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No variants. Add options with values and click Generate.
+                  </p>
+                ) : (
+                  variants.map((v, idx) => (
+                    <div
+                      key={v.id}
+                      className="rounded-xl border bg-background p-4"
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{v.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {Object.entries(v.attributes)
+                              .map(([k, val]) => `${k}: ${val}`)
+                              .join(" · ")}
+                          </p>
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Price</Label>
-                          <Input
-                            className="h-8"
-                            type="number"
-                            value={v.priceOverride ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const next = [...getValues("attributes.variants")];
-                              next[idx] = {
-                                ...next[idx],
-                                priceOverride:
-                                  raw === "" ? undefined : Number(raw),
-                              };
-                              setValue("attributes.variants", next, {
-                                shouldDirty: true,
-                              });
-                            }}
-                            placeholder={formatMoney(startPrice)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Stock</Label>
-                          <Input
-                            className="h-8"
-                            type="number"
-                            value={v.stockOverride ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              const next = [...getValues("attributes.variants")];
-                              next[idx] = {
-                                ...next[idx],
-                                stockOverride:
-                                  raw === "" ? undefined : Number(raw),
-                              };
-                              setValue("attributes.variants", next, {
-                                shouldDirty: true,
-                              });
-                            }}
-                            placeholder="Stock"
-                          />
+                        <div className="grid gap-3 sm:grid-cols-3 lg:w-[34rem]">
+                          <div className="space-y-1">
+                            <Label className="text-xs">SKU</Label>
+                            <Input
+                              className="h-8"
+                              value={v.skuOverride ?? ""}
+                              onChange={(e) => {
+                                const next = [...getValues("attributes.variants")];
+                                next[idx] = {
+                                  ...next[idx],
+                                  skuOverride: e.target.value,
+                                };
+                                setValue("attributes.variants", next, {
+                                  shouldDirty: true,
+                                });
+                              }}
+                              placeholder="Custom SKU"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Price</Label>
+                            <Input
+                              className="h-8"
+                              type="number"
+                              value={v.priceOverride ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const next = [...getValues("attributes.variants")];
+                                next[idx] = {
+                                  ...next[idx],
+                                  priceOverride:
+                                    raw === "" ? undefined : Number(raw),
+                                };
+                                setValue("attributes.variants", next, {
+                                  shouldDirty: true,
+                                });
+                              }}
+                              placeholder={formatMoney(startPrice)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Stock</Label>
+                            <Input
+                              className="h-8"
+                              type="number"
+                              value={v.stockOverride ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const next = [...getValues("attributes.variants")];
+                                next[idx] = {
+                                  ...next[idx],
+                                  stockOverride:
+                                    raw === "" ? undefined : Number(raw),
+                                };
+                                setValue("attributes.variants", next, {
+                                  shouldDirty: true,
+                                });
+                              }}
+                              placeholder="Stock"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {derivedColors.length > 0 && (
             <div className="rounded-xl border bg-muted/10 p-4 space-y-3">
@@ -574,20 +613,162 @@ export function AttributesTab() {
                         </div>
                         <p className="text-xs text-muted-foreground truncate">Key: {String(cv?.color || "")}</p>
                       </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          const nextSets = [...(getValues("attributes.sets") as any[])];
+                          const setIndex = nextSets.findIndex((s) => isColorAttribute(String(s?.name || "")));
+                          if (setIndex >= 0) {
+                            const colorName = String(cv?.colorName || "").trim();
+                            const colorKey = normalizeColorKey(colorName || String(cv?.color || ""));
+                            const values = Array.isArray(nextSets[setIndex]?.values) ? nextSets[setIndex].values : [];
+
+                            nextSets[setIndex] = {
+                              ...nextSets[setIndex],
+                              values: values.filter((v: any) => {
+                                const s = String(v ?? '').trim();
+                                if (!s) return false;
+                                const k = normalizeColorKey(s);
+                                return k !== colorKey;
+                              }),
+                            };
+                            setValue("attributes.sets", nextSets, { shouldDirty: true, shouldValidate: true });
+                          }
+
+                          const existingVariants = Array.isArray(getValues("colorVariants")) ? (getValues("colorVariants") as any[]) : [];
+                          const targetName = String(cv?.colorName || "").trim();
+                          const targetKey = normalizeColorKey(targetName || String(cv?.color || ""));
+
+                          const nextVariants = existingVariants.filter((v) => {
+                            const vName = String(v?.colorName || '').trim();
+                            const vKey = normalizeColorKey(vName || String(v?.color || ''));
+                            return vKey !== targetKey;
+                          });
+
+                          setValue("colorVariants", nextVariants, { shouldDirty: true, shouldValidate: true });
+                        }}
+                        title="Delete color variant"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-3">
-                      <div className="space-y-1 md:col-span-1">
-                        <Label className="text-xs">Color Code</Label>
+                      <div className="space-y-1 md:col-span-2">
+                        <Label className="text-xs">Color Name</Label>
                         <Input
                           className="h-8"
-                          value={String(cv?.colorCode ?? "")}
+                          value={String(cv?.colorName ?? "")}
+                          onChange={(e) => {
+                            const nextName = String(e.target.value ?? "");
+                            const prevName = String(cv?.colorName ?? "");
+                            const prevKey = normalizeColorKey(prevName || String(cv?.color || ""));
+                            const nextKey = normalizeColorKey(nextName);
+
+                            const next = [...(getValues("colorVariants") as any[])];
+                            next[idx] = {
+                              ...next[idx],
+                              colorName: nextName,
+                              ...(nextKey ? { color: nextKey } : {}),
+                            };
+                            setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+
+                            const nextSets = [...(getValues("attributes.sets") as any[])];
+                            const setIndex = nextSets.findIndex((s) => isColorAttribute(String(s?.name || "")));
+                            if (setIndex >= 0) {
+                              const values = Array.isArray(nextSets[setIndex]?.values) ? nextSets[setIndex].values : [];
+                              const replaced = values.map((v: any) => {
+                                const raw = String(v ?? "").trim();
+                                if (!raw) return raw;
+                                const k = normalizeColorKey(raw);
+                                if (prevKey && k === prevKey) return nextName;
+                                return raw;
+                              });
+                              const deduped = Array.from(new Set(replaced.map((v: any) => String(v).trim()).filter((v: string) => v.length > 0)));
+                              nextSets[setIndex] = { ...nextSets[setIndex], values: deduped };
+                              setValue("attributes.sets", nextSets, { shouldDirty: true, shouldValidate: true });
+                            }
+                          }}
+                          placeholder="e.g. Navy Blue"
+                        />
+                      </div>
+                      <div className="space-y-1 md:col-span-1">
+                        <Label className="text-xs">Color Code</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            className="h-8 w-10 p-0 border-0 rounded cursor-pointer"
+                            value={(() => {
+                              const raw = String(cv?.colorCode ?? "").trim();
+                              return /^#[0-9a-f]{6}$/i.test(raw) ? raw : "#000000";
+                            })()}
+                            onChange={(e) => {
+                              const next = [...(getValues("colorVariants") as any[])];
+                              next[idx] = { ...next[idx], colorCode: e.target.value };
+                              setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                            }}
+                            title="Pick color"
+                          />
+                          <Input
+                            className="h-8 flex-1"
+                            value={String(cv?.colorCode ?? "")}
+                            onChange={(e) => {
+                              const next = [...(getValues("colorVariants") as any[])];
+                              next[idx] = { ...next[idx], colorCode: e.target.value };
+                              setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                            }}
+                            placeholder="#RRGGBB"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">SKU</Label>
+                        <Input
+                          className="h-8"
+                          value={String(cv?.sku ?? "")}
                           onChange={(e) => {
                             const next = [...(getValues("colorVariants") as any[])];
-                            next[idx] = { ...next[idx], colorCode: e.target.value };
+                            next[idx] = { ...next[idx], sku: e.target.value };
                             setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
                           }}
-                          placeholder="#RRGGBB"
+                          placeholder="Variant SKU"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Price</Label>
+                        <Input
+                          className="h-8"
+                          type="number"
+                          value={cv?.price ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const next = [...(getValues("colorVariants") as any[])];
+                            next[idx] = { ...next[idx], price: raw === "" ? undefined : Number(raw) };
+                            setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          placeholder={String(startPrice || 0)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Stock</Label>
+                        <Input
+                          className="h-8"
+                          type="number"
+                          value={cv?.stock ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const next = [...(getValues("colorVariants") as any[])];
+                            next[idx] = { ...next[idx], stock: raw === "" ? undefined : Number(raw) };
+                            setValue("colorVariants", next, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          placeholder="Stock"
                         />
                       </div>
                     </div>

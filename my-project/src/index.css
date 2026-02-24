@@ -93,11 +93,16 @@ header.top-strip{
 .MuiBadge-badge{
     background-color: #FF9F00!important;
 }
-nav ul button {text-transform: capitalize!important; color: rgba(0,0,0,0.7)!important;}
-nav ul button  :hover{text-transform: capitalize!important; color: #2874F0!important;}
+nav ul button {text-transform: capitalize!important; color: rgba(17,24,39,0.85)!important;}
+nav ul button:hover{color: #111827!important; background-color: rgba(243,244,246,1)!important;}
 
-nav ul button:hover .MuiTouchRipple-root{background-color: #000000!important;}
-nav ul button .MuiTouchRipple-root{background-color: #2874F0!important; opacity: 0.25; }
+nav ul button .MuiTouchRipple-root{background-color: transparent!important;}
+nav ul .submenu ul{padding: 6px !important;}
+nav ul .submenu li + li{border-top: 1px solid rgba(229,231,235,1) !important;}
+nav ul .submenu button{justify-content: flex-start!important; padding: 10px 12px!important; border-radius: 10px!important; background-color: transparent!important; font-weight: 500!important; letter-spacing: 0.1px;}
+nav ul .submenu button:hover{background-color: rgba(239,246,255,1)!important; color: #1d4ed8!important;}
+nav ul .submenu button:focus{background-color: transparent!important;}
+nav ul .submenu button:active{background-color: rgba(239,246,255,1)!important;}
 nav ul .submenu{visibility: hidden; z-index: 1000;}
 
 .silderhome{

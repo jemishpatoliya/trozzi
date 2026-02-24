@@ -38,6 +38,18 @@ function escapeRegExp(value) {
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+async function resolveCategoryId(categoryValue) {
+    const raw = String(categoryValue ?? '').trim();
+    if (!raw) return '';
+
+    // If it's already a valid ObjectId, treat as id
+    if (mongoose?.Types?.ObjectId?.isValid(raw)) return raw;
+
+    const rx = new RegExp(`^${escapeRegExp(raw)}$`, 'i');
+    const doc = await CategoryModel.findOne({ $or: [{ name: rx }, { slug: rx }] }).lean();
+    return doc ? String(doc._id) : '';
+}
+
 function parseCsvQuery(value) {
     if (value === undefined || value === null) return [];
     return String(value)
@@ -77,8 +89,8 @@ function pickAttributeValues(management, needle) {
         ? management.attributes.sets
         : [];
     const lower = String(needle || '').toLowerCase();
-    const match = sets.find((s) => typeof (s && s.name) === 'string' && String(s.name).toLowerCase().includes(lower));
-    const vals = match && Array.isArray(match.values) ? match.values : [];
+    const matches = sets.filter((s) => typeof (s && s.name) === 'string' && String(s.name).toLowerCase().includes(lower));
+    const vals = matches.flatMap((m) => (Array.isArray(m?.values) ? m.values : []));
     return vals
         .map((v) => String(v))
         .map((v) => v.trim())
@@ -90,7 +102,7 @@ function pickSizeValues(management) {
         ? management.attributes.sets
         : [];
 
-    const match = sets.find((s) => {
+    const matches = sets.filter((s) => {
         const name = typeof (s && s.name) === 'string' ? String(s.name).toLowerCase() : '';
         if (!name) return false;
         if (!name.includes('size')) return false;
@@ -99,11 +111,18 @@ function pickSizeValues(management) {
         return true;
     });
 
-    const vals = match && Array.isArray(match.values) ? match.values : [];
+    const vals = matches.flatMap((m) => (Array.isArray(m?.values) ? m.values : []));
+    const seen = new Set();
     return vals
         .map((v) => String(v))
         .map((v) => v.trim())
-        .filter((v) => v.length > 0);
+        .filter((v) => v.length > 0)
+        .filter((v) => {
+            const key = v.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
 }
 
 function mapProduct(req, p) {
@@ -166,9 +185,11 @@ function mapProduct(req, p) {
             const images = Array.isArray(v?.images)
                 ? v.images.map((img) => toAbsoluteUrl(req, img)).filter(Boolean)
                 : [];
+            const sku = typeof v?.sku === 'string' ? v.sku.trim() : '';
             return {
                 ...v,
                 images,
+                sku: sku || undefined,
                 price: Number.isFinite(Number(v?.price)) ? Number(v.price) : v?.price,
                 stock: Number.isFinite(Number(v?.stock)) ? Number(v.stock) : v?.stock,
             };
@@ -258,7 +279,29 @@ router.get('/', async (req, res) => {
 
         const category = req.query?.category ? String(req.query.category) : '';
         if (category) {
-            filter.category = category;
+            const resolvedCategoryId = await resolveCategoryId(category);
+            const or = [{ category }];
+            if (resolvedCategoryId) {
+                or.push({ category: resolvedCategoryId });
+                or.push({ categoryId: resolvedCategoryId });
+                // Legacy products may only have categoryIds in management
+                or.push({ 'management.basic.categoryIds': resolvedCategoryId });
+            }
+
+            filter.$and = Array.isArray(filter.$and) ? filter.$and : [];
+            filter.$and.push({ $or: or });
+        }
+
+        const subCategoryId = req.query?.subCategoryId ? String(req.query.subCategoryId) : '';
+        if (subCategoryId) {
+            // Some legacy products may have this value only inside management.basic
+            filter.$and = Array.isArray(filter.$and) ? filter.$and : [];
+            filter.$and.push({
+                $or: [
+                    { subCategoryId },
+                    { 'management.basic.subCategoryId': subCategoryId },
+                ],
+            });
         }
 
         const q = String(req.query?.q ?? '').trim();

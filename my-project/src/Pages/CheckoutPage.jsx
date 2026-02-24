@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useContentSettings } from '../context/ContentSettingsContext';
 import { apiClient } from '../api/client';
 import { FaArrowLeft } from 'react-icons/fa';
 import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
@@ -9,6 +10,7 @@ import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
 const CheckoutPage = () => {
     const { items, fetchCart, clearCart } = useCart();
     const { user } = useAuth();
+    const { settings } = useContentSettings();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -82,12 +84,14 @@ const CheckoutPage = () => {
 
     const isCodEligible = useMemo(() => {
         if (!Array.isArray(normalizedItems) || normalizedItems.length === 0) return false;
+        const globalEnabled = settings?.enableCod !== false;
+        if (!globalEnabled) return false;
         return normalizedItems.every((it) => {
             const p = it?.product || {};
             const codEnabled = typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(p?.management?.shipping?.codAvailable);
             return Boolean(codEnabled);
         });
-    }, [normalizedItems]);
+    }, [normalizedItems, settings?.enableCod]);
 
     useEffect(() => {
         if (!isCodEligible && formData.paymentMethod === 'cod') {
@@ -455,7 +459,9 @@ const CheckoutPage = () => {
                                 >
                                     <div className="text-[13px] font-extrabold text-gray-900">Cash on Delivery</div>
                                     <div className="text-[12px] text-gray-600 mt-1">
-                                        {isCodEligible ? `COD charge: ₹${Number(codChargeTotal || 0).toFixed(2)}` : 'Not available for one or more items'}
+                                        {isCodEligible
+                                            ? `COD charge: ₹${Number(codChargeTotal || 0).toFixed(2)}`
+                                            : (settings?.enableCod === false ? 'COD is disabled by admin' : 'Not available for one or more items')}
                                     </div>
                                 </button>
                             </div>
@@ -659,7 +665,9 @@ const CheckoutPage = () => {
                                         >
                                             <div className="text-[13px] font-extrabold text-gray-900">Cash on Delivery</div>
                                             <div className="text-[12px] text-gray-600">
-                                                {isCodEligible ? `COD charge: ₹${Number(codChargeTotal || 0).toFixed(2)}` : 'Not available for one or more items'}
+                                                {isCodEligible
+                                                    ? `COD charge: ₹${Number(codChargeTotal || 0).toFixed(2)}`
+                                                    : (settings?.enableCod === false ? 'COD is disabled by admin' : 'Not available for one or more items')}
                                             </div>
                                         </button>
                                     </div>

@@ -17,6 +17,7 @@ type AdminContentSettingsPayload = {
   success: boolean;
   data?: {
     brandLogoUrl?: string;
+    enableCod?: boolean;
   };
   message?: string;
 };
@@ -28,6 +29,7 @@ const SettingsPage = () => {
   const [profile, setProfile] = useState({ name: '', email: '', password: '', confirmPassword: '' });
 
   const [brandLogoUrl, setBrandLogoUrl] = useState('');
+  const [enableCod, setEnableCod] = useState(true);
   const [logoLoading, setLogoLoading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoSaving, setLogoSaving] = useState(false);
@@ -54,6 +56,7 @@ const SettingsPage = () => {
 
         if (!cancelled && res.data?.success) {
           setBrandLogoUrl(String(res.data?.data?.brandLogoUrl || '').trim());
+          setEnableCod(res.data?.data?.enableCod !== false);
         }
       } catch (error: any) {
         const msg = error?.response?.data?.message || error?.message || 'Failed to load brand logo setting';
@@ -105,7 +108,7 @@ const SettingsPage = () => {
 
       const res = await axios.put<AdminContentSettingsPayload>(
         `${API_BASE_URL}/admin/content-settings`,
-        { brandLogoUrl },
+        { brandLogoUrl, enableCod },
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
@@ -114,6 +117,7 @@ const SettingsPage = () => {
       }
 
       setBrandLogoUrl(String(res.data?.data?.brandLogoUrl || brandLogoUrl).trim());
+      setEnableCod(res.data?.data?.enableCod !== false);
       toast({ title: 'Saved', description: 'Brand logo saved successfully' });
     } catch (error: any) {
       const msg = error?.response?.data?.message || error?.message || 'Failed to save brand logo';
@@ -219,6 +223,30 @@ const SettingsPage = () => {
               disabled={logoLoading || logoUploading || logoSaving}
             >
               {logoSaving ? 'Saving…' : logoUploading ? 'Uploading…' : logoLoading ? 'Loading…' : 'Save Logo'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <SettingsIcon className="h-5 w-5 text-primary" />Cash on Delivery
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+              <div>
+                <p className="font-medium">Enable COD</p>
+                <p className="text-sm text-muted-foreground">Allow customers to place Cash on Delivery orders.</p>
+              </div>
+              <Switch checked={enableCod} onCheckedChange={(v) => setEnableCod(Boolean(v))} />
+            </div>
+            <Button
+              onClick={() => void saveLogo()}
+              className="w-full gradient-primary text-primary-foreground"
+              disabled={logoLoading || logoUploading || logoSaving}
+            >
+              {logoSaving ? 'Saving…' : logoUploading ? 'Uploading…' : logoLoading ? 'Loading…' : 'Save COD Setting'}
             </Button>
           </CardContent>
         </Card>

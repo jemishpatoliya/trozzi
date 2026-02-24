@@ -290,7 +290,7 @@ export function BasicDetailsTab({
                   <FormItem>
                     <FormLabel>Brand</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Trozzy Audio" {...field} />
+                      <Input placeholder="e.g. Trozzi Audio" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

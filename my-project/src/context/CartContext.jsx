@@ -45,6 +45,13 @@ export const CartProvider = ({ children }) => {
         );
     };
 
+    const makeLineKey = useCallback((item) => {
+        const pid = String(getComparableId(item) || '');
+        const size = String(item?.size || item?.product?.size || '').trim();
+        const color = String(item?.color || item?.product?.color || '').trim();
+        return `${pid}__${size}__${color}`;
+    }, []);
+
     const calculateTotalAmount = useCallback((cartItems) => {
         return roundMoney(cartItems.reduce((sum, item) => {
             const qty = Number(item?.quantity ?? 0) || 0;
@@ -105,13 +112,6 @@ export const CartProvider = ({ children }) => {
             const serverItems = response.data.items || [];
             const mergedItems = [...serverItems];
 
-            const makeLineKey = (item) => {
-                const pid = String(getComparableId(item) || '');
-                const size = String(item?.size || item?.product?.size || '').trim();
-                const color = String(item?.color || item?.product?.color || '').trim();
-                return `${pid}__${size}__${color}`;
-            };
-
             const serverByKey = new Map(serverItems.map((it) => [makeLineKey(it), it]));
 
             localItems.forEach((localItem) => {
@@ -124,10 +124,19 @@ export const CartProvider = ({ children }) => {
                     // Upgrade local item with server product snapshot (contains codCharge/codAvailable)
                     const idx = mergedItems.findIndex((m) => makeLineKey(m) === key);
                     if (idx >= 0) {
+                        const localPrice = localItem?.price ?? localItem?.product?.price;
+                        const localSku = localItem?.sku ?? localItem?.product?.sku;
                         mergedItems[idx] = {
                             ...localItem,
                             ...matchedServer,
-                            product: matchedServer.product || localItem.product,
+                            // Preserve variant-specific overrides from local cart when server snapshot doesn't have them.
+                            price: localItem?.price ?? matchedServer?.price,
+                            sku: localItem?.sku ?? matchedServer?.sku,
+                            product: {
+                                ...(matchedServer.product || localItem.product),
+                                price: localPrice ?? (matchedServer?.product?.price ?? matchedServer?.price),
+                                sku: localSku ?? (matchedServer?.product?.sku ?? matchedServer?.sku),
+                            },
                         };
                     }
                     return;
@@ -153,6 +162,94 @@ export const CartProvider = ({ children }) => {
     // - addToCart(productId, qty, variant)
     // - addToCart(productId, qty, productMeta, variant)
     const addToCart = async (productId, quantity = 1, productMetaOrVariant = {}, variantArg) => {
+        const candidate = (productMetaOrVariant && typeof productMetaOrVariant === 'object') ? productMetaOrVariant : {};
+        const hasMetaFields = ['name', 'price', 'sku', 'brand', 'image'].some((k) => k in candidate);
+        const hasVariantFields = ['size', 'color', 'variantId', 'options'].some((k) => k in candidate);
+
+        // Common callsite passes a single object with BOTH meta + variant fields.
+        // In that case we must keep meta (price/sku) instead of treating the object as a variant-only payload.
+        if (!variantArg && hasMetaFields && hasVariantFields) {
+            const detailObject = normalizeDetails(candidate);
+            const variantPayload = extractVariantPayload(candidate);
+            try {
+                setLoading(true);
+                const response = await apiClient.post('/cart/add', {
+                    productId,
+                    quantity,
+                    name: detailObject.name,
+                    sku: detailObject.sku,
+                    image: detailObject.image,
+                    ...variantPayload,
+                    price: Number.isFinite(Number(detailObject.price)) ? Number(detailObject.price) : undefined,
+                });
+
+                const respItems = Array.isArray(response.data?.items) ? response.data.items : [];
+                const lineKey = makeLineKey({ _id: productId, size: variantPayload?.size, color: variantPayload?.color });
+                const patchedItems = respItems.map((it) => {
+                    if (makeLineKey(it) !== lineKey) return it;
+                    const next = { ...it };
+                    if (Number.isFinite(Number(detailObject.price))) {
+                        next.price = Number(detailObject.price);
+                    }
+                    if (typeof detailObject.sku === 'string' && detailObject.sku.trim()) {
+                        next.sku = detailObject.sku.trim();
+                    }
+                    if (next.product && typeof next.product === 'object') {
+                        next.product = {
+                            ...next.product,
+                            ...(Number.isFinite(Number(detailObject.price)) ? { price: Number(detailObject.price) } : {}),
+                            ...(typeof detailObject.sku === 'string' && detailObject.sku.trim() ? { sku: detailObject.sku.trim() } : {}),
+                        };
+                    }
+                    return next;
+                });
+
+                setItems(patchedItems);
+                setTotalAmount(calculateTotalAmount(patchedItems));
+                toast.success('Item added to cart');
+                return { success: true, message: response.data.message };
+            } catch (error) {
+                console.error('Failed to add to cart:', error);
+                const existingItem = items.find(item => getComparableId(item) === productId);
+                let newItems;
+                if (existingItem) {
+                    newItems = items.map(item =>
+                        getComparableId(item) === productId
+                            ? { ...item, quantity: (item.quantity || 0) + quantity }
+                            : item
+                    );
+                } else {
+                    const newItem = {
+                        _id: productId,
+                        product: {
+                            _id: productId,
+                            name: detailObject.name || 'Product',
+                            price: Number.isFinite(Number(detailObject.price)) ? Number(detailObject.price) : 0,
+                            image: detailObject.image || '',
+                            brand: detailObject.brand || '',
+                            sku: typeof detailObject.sku === 'string' ? detailObject.sku : '',
+                            size: variantPayload.size,
+                            color: variantPayload.color,
+                        },
+                        sku: typeof detailObject.sku === 'string' ? detailObject.sku : '',
+                        price: Number.isFinite(Number(detailObject.price)) ? Number(detailObject.price) : 0,
+                        quantity,
+                        size: variantPayload.size || '',
+                        color: variantPayload.color || '',
+                        image: detailObject.image || '',
+                    };
+                    newItems = [...items, newItem];
+                }
+                const newTotal = calculateTotalAmount(newItems);
+                setItems(newItems);
+                setTotalAmount(newTotal);
+                toast.success('Item added to cart');
+                return { success: true, message: 'Item added to cart' };
+            } finally {
+                setLoading(false);
+            }
+        }
+
         const variant = (variantArg && typeof variantArg === 'object')
             ? variantArg
             : (productMetaOrVariant && typeof productMetaOrVariant === 'object' && ('size' in productMetaOrVariant || 'color' in productMetaOrVariant))
@@ -177,8 +274,30 @@ export const CartProvider = ({ children }) => {
                 ...variantPayload,
                 price: (detailObject && typeof detailObject.price === 'number') ? detailObject.price : undefined,
             });
-            setItems(response.data.items || []);
-            setTotalAmount(calculateTotalAmount(response.data.items || []));
+
+            const respItems = Array.isArray(response.data?.items) ? response.data.items : [];
+            const lineKey = makeLineKey({ _id: productId, size: variantPayload?.size, color: variantPayload?.color });
+            const patchedItems = respItems.map((it) => {
+                if (makeLineKey(it) !== lineKey) return it;
+                const next = { ...it };
+                if (detailObject && typeof detailObject.price === 'number') {
+                    next.price = detailObject.price;
+                }
+                if (detailObject && typeof detailObject.sku === 'string' && detailObject.sku.trim()) {
+                    next.sku = detailObject.sku.trim();
+                }
+                if (next.product && typeof next.product === 'object') {
+                    next.product = {
+                        ...next.product,
+                        ...(detailObject && typeof detailObject.price === 'number' ? { price: detailObject.price } : {}),
+                        ...(detailObject && typeof detailObject.sku === 'string' && detailObject.sku.trim() ? { sku: detailObject.sku.trim() } : {}),
+                    };
+                }
+                return next;
+            });
+
+            setItems(patchedItems);
+            setTotalAmount(calculateTotalAmount(patchedItems));
             toast.success('Item added to cart');
             return { success: true, message: response.data.message };
         } catch (error) {
@@ -204,11 +323,12 @@ export const CartProvider = ({ children }) => {
                         size: variantPayload.size,
                         color: variantPayload.color,
                     },
+                    sku: detailObject.sku || '',
                     price: detailObject.price ?? 0,
                     quantity,
-                    size: productMeta.size || '',
-                    color: productMeta.color || '',
-                    image: productMeta.image || '',
+                    size: variantPayload.size || '',
+                    color: variantPayload.color || '',
+                    image: detailObject.image || '',
                 };
                 newItems = [...items, newItem];
             }

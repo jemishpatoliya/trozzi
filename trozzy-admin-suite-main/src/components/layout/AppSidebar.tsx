@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import axios from 'axios';
 import {
   LayoutDashboard,
   BarChart3,
@@ -132,10 +133,47 @@ interface AppSidebarProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type AdminContentSettingsPayload = {
+  success: boolean;
+  data?: {
+    brandLogoUrl?: string;
+  };
+  message?: string;
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+
 export function AppSidebar({ open, onOpenChange }: AppSidebarProps) {
   const location = useLocation();
   const { state } = useSidebar();
   const [expandedItems, setExpandedItems] = useState<string[]>(['Analytics', 'Reviews']);
+  const [brandLogoUrl, setBrandLogoUrl] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await axios.get<AdminContentSettingsPayload>(`${API_BASE_URL}/admin/content-settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!cancelled && res.data?.success) {
+          setBrandLogoUrl(String(res.data?.data?.brandLogoUrl || '').trim());
+        }
+      } catch (_e) {
+        if (!cancelled) setBrandLogoUrl('');
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const toggleExpanded = (title: string) => {
     setExpandedItems((prev) =>
@@ -158,10 +196,19 @@ export function AppSidebar({ open, onOpenChange }: AppSidebarProps) {
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-glow-sm">
-            <Zap className="h-5 w-5 text-primary-foreground" />
+            {brandLogoUrl ? (
+              <img
+                src={brandLogoUrl}
+                alt="Brand logo"
+                className="h-10 w-10 rounded-xl object-contain bg-white/90 p-1"
+                loading="eager"
+              />
+            ) : (
+              <Zap className="h-5 w-5 text-primary-foreground" />
+            )}
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="font-bold text-lg text-sidebar-foreground">Trozzy</span>
+            <span className="font-bold text-lg text-sidebar-foreground">Trozzi</span>
             <span className="text-xs text-sidebar-muted">Admin Panel</span>
           </div>
         </div>

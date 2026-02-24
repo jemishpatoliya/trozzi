@@ -32,12 +32,13 @@ export function PricingTab() {
   const originalPrice = useWatch({ control, name: "pricing.originalPrice" }) ?? 0;
   const sellingPrice = useWatch({ control, name: "pricing.sellingPrice" }) ?? 0;
   const taxClass = useWatch({ control, name: "pricing.taxClass" }) ?? "gst";
+  const taxRatePercent = useWatch({ control, name: "pricing.taxRatePercent" });
 
   const discount = useMemo(
     () => computeDiscount(originalPrice, sellingPrice),
     [originalPrice, sellingPrice]
   );
-  const taxRate = useMemo(() => getTaxRate(taxClass), [taxClass]);
+  const taxRate = useMemo(() => getTaxRate(taxClass, taxRatePercent), [taxClass, taxRatePercent]);
   const taxAmount = useMemo(() => sellingPrice * taxRate, [sellingPrice, taxRate]);
   const totalInclTax = useMemo(
     () => sellingPrice + taxAmount,
@@ -51,7 +52,7 @@ export function PricingTab() {
           <CardTitle>Pricing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <FormField
               control={control}
               name="pricing.originalPrice"
@@ -112,6 +113,32 @@ export function PricingTab() {
                       <SelectItem value="none">None</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="pricing.taxRatePercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tax rate (%)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        field.onChange(next === "" ? undefined : Number(next));
+                      }}
+                      disabled={taxClass === "none"}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

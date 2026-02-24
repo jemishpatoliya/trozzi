@@ -6,18 +6,11 @@ const Review = require('../models/Review');
 // GET /api/admin/reviews/stats - Get review statistics
 router.get('/stats', async (req, res) => {
     try {
-        const stats = {
-            totalReviews: 8,
-            averageRating: 4,
-            pendingReviews: 2,
-            approvedReviews: 5,
-            rejectedReviews: 1,
-            ratingDistribution: { '1': 0, '2': 1, '3': 1, '4': 3, '5': 3 }
-        };
+        const stats = await Review.getStats();
 
         res.json({
             success: true,
-            stats
+            data: stats
         });
     } catch (error) {
         res.status(500).json({
@@ -73,35 +66,6 @@ router.patch('/bulk-update', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to bulk update reviews'
-        });
-    }
-});
-
-// GET /api/admin/reviews/:id - Get single review
-router.get('/:id', async (req, res) => {
-    try {
-        const mockReview = {
-            _id: req.params.id,
-            rating: 4,
-            title: 'Great product',
-            comment: 'Really enjoyed this product, would recommend!',
-            customerName: 'John Doe',
-            customerEmail: 'john@example.com',
-            productName: 'Wireless Headphones Pro',
-            productId: '1',
-            status: 'approved',
-            createdAt: new Date().toISOString(),
-            helpful: 5
-        };
-
-        res.json({
-            success: true,
-            review: mockReview
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch review'
         });
     }
 });
@@ -195,20 +159,6 @@ router.get('/', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to fetch reviews'
-        });
-    }
-});
-
-// GET /api/admin/reviews/stats - Get review statistics
-router.get('/stats', async (req, res) => {
-    try {
-        const stats = await Review.getStats();
-        res.json(stats);
-    } catch (error) {
-        console.error('Error fetching review stats:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch review statistics'
         });
     }
 });

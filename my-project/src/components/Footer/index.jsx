@@ -23,7 +23,7 @@ const Footer = () => {
                 <div className="grid grid-cols-1 gap-10 sm:gap-12 md:grid-cols-3">
                     {/* Company Info */}
                     <div>
-                        <h3 className="text-xl font-semibold tracking-tight text-white">Trozzy</h3>
+                        <h3 className="text-xl font-semibold tracking-tight text-white">Trozzi</h3>
                         <p className="mt-3 text-sm leading-6 text-slate-400 max-w-md">
                             Your one-stop shop for amazing products. Quality, style, and affordability all in one place.
                         </p>
@@ -89,7 +89,7 @@ const Footer = () => {
                 {/* Bottom Bar */}
                 <div className="mt-10 border-t border-white/10 pt-6">
                     <p className="text-center text-xs text-slate-500">
-                        {new Date().getFullYear()} Trozzy. All rights reserved.
+                        {new Date().getFullYear()} Trozzi. All rights reserved.
                     </p>
                 </div>
             </div>
