@@ -4,7 +4,7 @@ import { FaArrowLeft, FaTruck, FaShieldAlt, FaHeadset, FaAward } from 'react-ico
 
 const AboutUs = () => {
     return (
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="min-h-screen bg-gray-50 mt-40 py-12">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <Link to="/" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 mb-6">
                     <FaArrowLeft className="mr-2" />

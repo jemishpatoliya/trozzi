@@ -27,7 +27,9 @@ const Orders = () => {
 
       try {
         const res = await apiClient.get('/orders/my');
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+        console.log('Orders API response:', res.data);
+        const data = Array.isArray(res?.data?.data) ? res.data.data : Array.isArray(res?.data) ? res.data : [];
+        console.log('Orders extracted:', data);
         if (!cancelled) setOrders(data);
       } catch (e) {
         const message = e?.response?.data?.message || e?.message || 'Failed to load orders';
@@ -127,7 +129,7 @@ const Orders = () => {
 
   if (!showOrderHistory) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 mt-72 py-8">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">My Orders</h1>
           <p className="text-gray-600">Order history is currently disabled.</p>
@@ -137,7 +139,7 @@ const Orders = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 mt-52 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
       </div>
@@ -151,7 +153,7 @@ const Orders = () => {
           <div className="text-gray-600">Loading your orders...</div>
         </div>
       ) : normalizedOrders.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-sm p-6 mt-40">
           <p className="text-gray-600">No orders found.</p>
         </div>
       ) : (

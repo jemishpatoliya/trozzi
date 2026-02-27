@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useContentSettings } from '../../context/ContentSettingsContext';
-import { FaUser, FaShoppingCart, FaHeart, FaSignOutAlt } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt } from 'react-icons/fa';
 
 const UserMenu = ({ onNavigate }) => {
     const { user, logout } = useAuth();
-    const { settings } = useContentSettings();
     const [isOpen, setIsOpen] = useState(false);
     const navigate = useNavigate();
 
@@ -47,7 +45,7 @@ const UserMenu = ({ onNavigate }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-[100]">
                     <Link
                         to="/profile"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -59,34 +57,10 @@ const UserMenu = ({ onNavigate }) => {
                         <FaUser className="mr-2 h-4 w-4" />
                         My Profile
                     </Link>
-                    {settings?.showOrderHistory !== false ? (
-                        <Link
-                            to="/orders"
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                            onClick={() => {
-                                setIsOpen(false);
-                                onNavigate?.();
-                            }}
-                        >
-                            <FaShoppingCart className="mr-2 h-4 w-4" />
-                            My Orders
-                        </Link>
-                    ) : null}
-                    <Link
-                        to="/wishlist"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        onClick={() => {
-                            setIsOpen(false);
-                            onNavigate?.();
-                        }}
-                    >
-                        <FaHeart className="mr-2 h-4 w-4" />
-                        Wishlist
-                    </Link>
-                    <hr className="my-1" />
                     <button
+                        type="button"
                         onClick={handleLogout}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
                         <FaSignOutAlt className="mr-2 h-4 w-4" />
                         Sign Out

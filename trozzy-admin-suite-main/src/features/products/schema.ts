@@ -108,6 +108,7 @@ export const productManagementSchema = z
       freeShipping: z.boolean(),
       codAvailable: z.boolean(),
       codCharge: z.number().finite().min(0, "Must be 0 or greater"),
+      shippingCharge: z.number().finite().min(0, "Must be 0 or greater"),
     }),
     marketing: z.object({
       featured: z.boolean(),
@@ -226,6 +227,7 @@ export const productManagementDefaults: ProductManagementFormValues = {
     freeShipping: false,
     codAvailable: true,
     codCharge: 0,
+    shippingCharge: 0,
   },
   marketing: {
     featured: false,

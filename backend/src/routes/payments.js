@@ -22,9 +22,19 @@ function getPhonePeSdkEnv() {
   const isNodeProd = nodeEnv === 'production';
   const allowProdInDev = String(process.env.PHONEPE_ALLOW_PROD_IN_DEV || '').trim().toLowerCase() === 'true';
 
+  console.log('[PhonePe Env Check]', {
+    PHONEPE_ENV: raw,
+    wantsProd,
+    NODE_ENV: nodeEnv,
+    isNodeProd,
+    PHONEPE_ALLOW_PROD_IN_DEV: allowProdInDev,
+    willUseProduction: wantsProd && (isNodeProd || allowProdInDev),
+  });
+
   // Most common cause of 401 Invalid Client: sandbox credentials used against production env.
   // To avoid accidental prod calls during local development, require an explicit override.
   if (wantsProd && !isNodeProd && !allowProdInDev) {
+    console.log('[PhonePe Env Check] FORCING SANDBOX: Production requested but NODE_ENV is not "production" and PHONEPE_ALLOW_PROD_IN_DEV is not "true"');
     return Env.SANDBOX;
   }
 
@@ -41,14 +51,16 @@ function getPhonePeClient() {
   const clientVersion = String(process.env.PHONEPE_CLIENT_VERSION || '').trim();
 
   const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
-  if (!isProd && !phonePeClientInitLogged) {
+  const resolvedEnv = getPhonePeSdkEnv();
+  
+  if (!phonePeClientInitLogged) {
     phonePeClientInitLogged = true;
     const cid = clientId;
     const cidMasked = cid ? `${cid.slice(0, 6)}...${cid.slice(-4)}` : '';
-    const resolvedEnv = getPhonePeSdkEnv() === Env.PRODUCTION ? 'PRODUCTION' : 'SANDBOX';
     console.log('[PhonePe SDK] init', {
       env: String(process.env.PHONEPE_ENV || '').trim() || 'SANDBOX',
-      resolvedEnv,
+      resolvedEnv: resolvedEnv === Env.PRODUCTION ? 'PRODUCTION' : 'SANDBOX',
+      nodeEnv: process.env.NODE_ENV,
       clientId: cidMasked,
       clientSecretLen: clientSecret ? clientSecret.length : 0,
       clientVersion,
@@ -59,7 +71,7 @@ function getPhonePeClient() {
     throw new Error('Missing PHONEPE_CLIENT_ID / PHONEPE_CLIENT_SECRET / PHONEPE_CLIENT_VERSION');
   }
 
-  phonePeClientSingleton = new StandardCheckoutClient(clientId, clientSecret, clientVersion, getPhonePeSdkEnv(), false);
+  phonePeClientSingleton = new StandardCheckoutClient(clientId, clientSecret, clientVersion, resolvedEnv, false);
   return phonePeClientSingleton;
 }
 
@@ -1192,7 +1204,21 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
           eventHistory: [{ status: 'new', at: new Date(), raw: shiprocketResult }],
         });
       } catch (e) {
-        console.error('Shiprocket shipment creation error:', e?.raw || e);
+        // Enhanced error logging for debugging
+        console.error('[SHIPROCKET ERROR] Shipment creation failed:', {
+          message: e?.message,
+          raw: e?.raw,
+          status: e?.response?.status,
+          statusText: e?.response?.statusText,
+          data: e?.response?.data,
+          orderId: String(updatedOrder._id),
+          orderNumber: updatedOrder.orderNumber,
+          env: {
+            hasEmail: !!process.env.SHIPROCKET_EMAIL,
+            hasPassword: !!process.env.SHIPROCKET_PASSWORD,
+            pickupLocation: process.env.SHIPROCKET_PICKUP_LOCATION,
+          }
+        });
         // Mark order as paid_but_shipment_failed and schedule retry
         await Order.updateOne(
           { _id: updatedOrder._id },

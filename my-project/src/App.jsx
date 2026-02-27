@@ -525,8 +525,8 @@ function App() {
                                             {/* Main Content - Scrollable */}
                                             <main
                                                 ref={mainScrollRef}
-                                                className="flex-1 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0"
-                                                style={{ paddingTop: headerHeight, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight}px` }}
+                                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0 relative"
+                                                style={{ paddingTop: headerHeight + 8, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight + 8}px` }}
                                             >
                                                 <Suspense fallback={
                                                     <div className="flex items-center justify-center h-64">

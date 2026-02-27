@@ -28,10 +28,12 @@ export function ShippingTab() {
   };
   const freeShipping = useWatch({ control, name: "shipping.freeShipping" });
   const codAvailable = useWatch({ control, name: "shipping.codAvailable" });
+  const shippingCharge = useWatch({ control, name: "shipping.shippingCharge" }) ?? 0;
 
   const volumetric = (dimensions.length * dimensions.width * dimensions.height) / 5000;
   const chargeable = Math.max(weight, volumetric);
-  const cost = freeShipping ? 0 : Math.max(4.99, chargeable * 1.2);
+  const calculatedCost = Math.max(4.99, chargeable * 1.2);
+  const cost = freeShipping ? 0 : (Number(shippingCharge) > 0 ? Number(shippingCharge) : calculatedCost);
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -92,6 +94,30 @@ export function ShippingTab() {
                       min={0}
                       step={0.01}
                       disabled={!codAvailable}
+                      {...field}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === "" ? 0 : Number(raw));
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="shipping.shippingCharge"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Shipping charge</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      disabled={freeShipping}
                       {...field}
                       onChange={(e) => {
                         const raw = e.target.value;

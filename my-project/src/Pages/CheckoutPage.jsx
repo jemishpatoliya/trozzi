@@ -158,6 +158,12 @@ const CheckoutPage = () => {
             const free = typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(p?.management?.shipping?.freeShipping);
             if (free) return sum;
 
+            // Use custom shipping charge if set, otherwise calculate based on weight/dimensions
+            const customShippingCharge = Number(p?.shippingCharge ?? p?.management?.shipping?.shippingCharge ?? 0) || 0;
+            if (customShippingCharge > 0) {
+                return sum + customShippingCharge * qty;
+            }
+
             const weightKg = Number(p?.weight ?? p?.management?.shipping?.weightKg ?? 0) || 0;
             const dims = p?.dimensions ?? p?.management?.shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
             const length = Number(dims?.length ?? 0) || 0;
@@ -412,7 +418,7 @@ const CheckoutPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 py-6 px-3 sm:px-6">
+        <div className="min-h-screen bg-gray-50 mt-40 py-6 px-3 sm:px-6">
             <div className="max-w-4xl mx-auto">
                 <div className="py-4 sm:py-8 px-3 sm:px-6 lg:px-8 overflow-x-hidden pb-24 sm:pb-0">
                     <div className="sm:hidden flex items-center justify-between mb-3">

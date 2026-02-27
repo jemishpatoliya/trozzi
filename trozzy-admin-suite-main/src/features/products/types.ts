@@ -101,6 +101,7 @@ export interface ProductManagementFormValues {
     freeShipping: boolean;
     codAvailable: boolean;
     codCharge: number;
+    shippingCharge: number;
   };
   marketing: {
     featured: boolean;

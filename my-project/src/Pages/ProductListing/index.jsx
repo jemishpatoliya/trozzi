@@ -190,13 +190,13 @@ const ProductListing = () => {
     }, [resolvedCategory, subCategoryId, limit, normalizedSelectedSizes, page, priceRange, searchQuery, selectedFilters.availability, selectedFilters.rating, sortBy]);
 
     return (
-        <section className="py-2 sm:py-5 bg-gray-50 min-h-screen">
-            <div className="container mx-auto px-2 sm:px-4">
+        <section className="py-4 min-h-screen mt-40">
+            <div className="container mx-auto px-2 sm:px-4 mb-4">
                 <Breadcrumbs aria-label="breadcrumb" className="hidden sm:flex mb-4">
                     <Link underline="hover" color="inherit" href="/" className="link transition hover:text-blue-600">
                         Home
                     </Link>
-                    <Link underline="hover" color="inherit" href="/ProductListing" className="link transition hover:text-blue-600">
+                    <Link underline="hover" color="inherit" className="text-gray-500">
                         Products
                     </Link>
                 </Breadcrumbs>

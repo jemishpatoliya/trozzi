@@ -5,7 +5,7 @@ import GlobalSearch from "./GlobalSearch";
 import Badge from "@mui/material/Badge";
 import { styled } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
-import { FiShoppingCart, FiHeart, FiMenu, FiSearch, FiX } from "react-icons/fi";
+import { FiShoppingCart, FiHeart, FiMenu, FiSearch, FiX, FiShoppingBag } from "react-icons/fi";
 import Tooltip from "@mui/material/Tooltip";
 import UserMenu from "./UserMenu";
 import Navigation from "./Navigation";
@@ -48,11 +48,10 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
   const [isDesktop, setIsDesktop] = useState(false);
 
   const headerClassName = useMemo(() => {
-    const base = "bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[1000] transition-transform transition-opacity duration-300 ease-out";
-    const visibility = hidden ? "-translate-y-full opacity-0 pointer-events-none" : "translate-y-0 opacity-100";
-    const shadow = !hidden && elevated ? "shadow-md" : "shadow-none";
-    return `${base} ${visibility} ${shadow}`;
-  }, [hidden, elevated]);
+    const base = "bg-white border-b border-gray-200 fixed top-0 left-0 right-0 z-[100] transition-shadow duration-300 ease-out";
+    const shadow = elevated ? "shadow-md" : "shadow-none";
+    return `${base} ${shadow}`;
+  }, [elevated]);
 
   const wishlistBadgeCount = settings?.showWishlistCount ? wishlistCount : 0;
 
@@ -290,6 +289,17 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
                     </IconButton>
                   </Link>
                 </Tooltip>
+
+                <Tooltip title="My Orders" arrow>
+                  <Link to="/orders" className="hidden md:inline-flex">
+                    <IconButton
+                      aria-label="orders"
+                      className="!w-9 !h-9 sm:!w-11 sm:!h-11 hover:bg-blue-50 transition-colors rounded-xl"
+                    >
+                      <FiShoppingBag className="text-lg sm:text-xl md:text-2xl text-gray-700" />
+                    </IconButton>
+                  </Link>
+                </Tooltip>
               </div>
             </div>
           </div>
@@ -307,7 +317,7 @@ const Header = forwardRef(({ hidden = false, elevated = false }, ref) => {
       )}
 
       {/* Navigation - Desktop */}
-      <div className="hidden md:block bg-white dark:bg-surface-900 border-t border-border-100 dark:border-border-800">
+      <div className="hidden md:block bg-white dark:bg-surface-900 border-t border-border-100 dark:border-border-800 relative z-[50]">
         <Navigation />
       </div>
 

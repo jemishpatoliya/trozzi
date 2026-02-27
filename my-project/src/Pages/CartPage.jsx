@@ -79,7 +79,7 @@ const CartPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24 sm:pb-0">
+        <div className="min-h-screen bg-gray-50 mt-40 pb-24 sm:pb-0">
             <div className="container mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8">
                 <div className="sm:hidden flex items-center justify-between mb-3">
                     <Link to="/" className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200">

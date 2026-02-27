@@ -136,7 +136,7 @@ const Home = () => {
   }, [apiCategories, resolveCategoryToParam])
 
   return (
-    <div className="home-page bg-[#f7f7f7]">
+    <div className="home-page bg-[#f7f7f7] mt-40">
       {/* Hero Section */}
       <section className="hero-section pt-1">
         <div className="container mx-auto px-3 sm:px-4">

@@ -225,7 +225,7 @@ const Productsdetailsh = () => {
                 </div>
             </div>
 
-            <section className='bg-white py-3 sm:py-5'>
+            <section className='bg-white mt-40 py-3 sm:py-5'>
                 {loading && (
                     <div className='container py-6 text-center text-gray-600'>Loading...</div>
                 )}

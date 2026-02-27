@@ -250,11 +250,11 @@ const ProductCard = ({ product, view = "grid", hideAddToCart = false }) => {
         <div
           className={
             isList
-              ? "aspect-square bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
-              : "aspect-square bg-gray-50 overflow-hidden relative"
+              ? "aspect-[4/5] bg-gray-50 overflow-hidden relative w-[220px] min-w-[220px]"
+              : "aspect-[4/5] bg-gray-50 overflow-hidden relative"
           }
         >
-          <div className={isList ? "relative overflow-hidden w-full h-full p-2" : "relative overflow-hidden w-full h-full p-2"}>
+          <div className={isList ? "relative overflow-hidden w-full h-full" : "relative overflow-hidden w-full h-full"}>
             <img
               src={displayImage}
               alt={normalized.name}

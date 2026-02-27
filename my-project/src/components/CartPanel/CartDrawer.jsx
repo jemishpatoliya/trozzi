@@ -52,6 +52,12 @@ const CartDrawer = ({ open, onClose }) => {
             const free = typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(p?.management?.shipping?.freeShipping);
             if (free) return sum;
 
+            // Use custom shipping charge if set, otherwise calculate based on weight/dimensions
+            const customShippingCharge = Number(p?.shippingCharge ?? p?.management?.shipping?.shippingCharge ?? 0) || 0;
+            if (customShippingCharge > 0) {
+                return sum + customShippingCharge * qty;
+            }
+
             const weightKg = Number(p?.weight ?? p?.management?.shipping?.weightKg ?? 0) || 0;
             const dims = p?.dimensions ?? p?.management?.shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
             const length = Number(dims?.length ?? 0) || 0;

@@ -201,7 +201,20 @@ router.post('/cod', async (req, res) => {
         });
       }
     } catch (e) {
-      console.error('Shiprocket shipment creation error (COD):', e?.raw || e);
+      console.error('[SHIPROCKET ERROR] COD shipment creation failed:', {
+        message: e?.message,
+        raw: e?.raw,
+        status: e?.response?.status,
+        statusText: e?.response?.statusText,
+        data: e?.response?.data,
+        orderId: String(insert.insertedId),
+        orderNumber,
+        env: {
+          hasEmail: !!process.env.SHIPROCKET_EMAIL,
+          hasPassword: !!process.env.SHIPROCKET_PASSWORD,
+          pickupLocation: process.env.SHIPROCKET_PICKUP_LOCATION,
+        }
+      });
       // Mark order as paid_but_shipment_failed and schedule retry
       try {
         const { Order } = require('../models/order');
