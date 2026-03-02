@@ -58,33 +58,23 @@ const SummaryPage = () => {
                 setPaymentMessage('Payment successful.');
                 
                 // Create order in database after successful payment
+                // Backend will get orderData from payment.metadata (MongoDB)
                 try {
                     const paymentId = localStorage.getItem('lastPaymentId');
                     if (paymentId) {
-                        const orderData = {
-                            items: data.items,
-                            subtotal: data.subtotal,
-                            shipping: data.shipping,
-                            tax: data.tax,
-                            codCharge: data.codCharge,
-                            total: data.total,
-                            customer: data.customer,
-                            address: data.address,
-                            currency: 'INR',
-                            paymentMethod: 'phonepe'
-                        };
+                        console.log('[SummaryPage] Calling verify with paymentId:', paymentId);
                         
-                        await apiClient.post('/payments/verify', {
+                        const verifyResp = await apiClient.post('/payments/verify', {
                             paymentId,
-                            status: 'completed',
-                            orderData
+                            status: 'completed'
+                            // orderData will be loaded by backend from payment.metadata
                         });
-                        console.log('[SummaryPage] Order created successfully after payment');
+                        console.log('[SummaryPage] Order created successfully:', verifyResp.data);
                         
                         // Store created order info to display in UI
                         setCreatedOrder({
-                            orderId: paymentId,
-                            orderNumber: orderData.orderNumber || ''
+                            orderId: verifyResp.data?.orderId || paymentId,
+                            orderNumber: verifyResp.data?.orderNumber || ''
                         });
                     }
                 } catch (verifyError) {

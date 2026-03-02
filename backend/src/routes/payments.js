@@ -1585,19 +1585,27 @@ router.post('/verify', authenticateToken, async (req, res) => {
 
     // Optional: create an order document if Order model exists and orderData provided
     // IMPORTANT: For completed payments, mark order as paid so it shows up in admin paid filters.
+    
+    // Get orderData from request body OR from payment metadata (stored when payment was created)
+    let effectiveOrderData = orderData;
+    if (!effectiveOrderData && payment.metadata?.orderData) {
+      effectiveOrderData = payment.metadata.orderData;
+      console.log('[VERIFY] Using orderData from payment.metadata');
+    }
+    
     console.log('[VERIFY] Check order creation:', { 
       statusIsCompleted: status === 'completed', 
-      hasOrderData: !!orderData, 
+      hasOrderData: !!effectiveOrderData, 
       hasPaymentOrder: !!payment.order 
     });
     
-    if (status === 'completed' && orderData && !payment.order) {
+    if (status === 'completed' && effectiveOrderData && !payment.order) {
       console.log('[VERIFY] Creating order...');
       
       const part = Math.random().toString(16).slice(2, 8).toUpperCase();
       const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${part}`;
 
-      const normalizedItems = await normalizeAndHydrateOrderItems(orderData.items);
+      const normalizedItems = await normalizeAndHydrateOrderItems(effectiveOrderData.items);
       console.log('[VERIFY] Normalized items:', normalizedItems.length);
 
       try {
@@ -1605,16 +1613,16 @@ router.post('/verify', authenticateToken, async (req, res) => {
           user: new mongoose.Types.ObjectId(req.userId),
           orderNumber,
           status: 'paid',
-          currency: orderData.currency || 'INR',
-          subtotal: Number(orderData.subtotal ?? 0),
-          shipping: Number(orderData.shipping ?? 0),
-          tax: Number(orderData.tax ?? 0),
-          codCharge: Number(orderData.codCharge ?? 0),
-          total: Number(orderData.total ?? 0),
-          paymentMethod: String(orderData.paymentMethod || payment.paymentMethod || payment.provider || 'upi'),
+          currency: effectiveOrderData.currency || 'INR',
+          subtotal: Number(effectiveOrderData.subtotal ?? 0),
+          shipping: Number(effectiveOrderData.shipping ?? 0),
+          tax: Number(effectiveOrderData.tax ?? 0),
+          codCharge: Number(effectiveOrderData.codCharge ?? 0),
+          total: Number(effectiveOrderData.total ?? 0),
+          paymentMethod: String(effectiveOrderData.paymentMethod || payment.paymentMethod || payment.provider || 'upi'),
           items: normalizedItems,
-          customer: orderData.customer || {},
-          address: orderData.address || {},
+          customer: effectiveOrderData.customer || {},
+          address: effectiveOrderData.address || {},
           createdAtIso: nowIso,
           statusHistory: [{ status: 'paid', at: nowIso, source: String(payment.provider || 'payment') }],
           statusTimestamps: { paid: nowIso },
@@ -1629,7 +1637,7 @@ router.post('/verify', authenticateToken, async (req, res) => {
     } else {
       console.log('[VERIFY] Skipping order creation:', { 
         statusNotCompleted: status !== 'completed',
-        noOrderData: !orderData,
+        noOrderData: !effectiveOrderData,
         alreadyHasOrder: !!payment.order
       });
     }
