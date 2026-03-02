@@ -9,8 +9,6 @@ const { Env, StandardCheckoutClient, StandardCheckoutPayRequest, RefundRequest, 
 const { AdminModel } = require('../models/admin');
 const { UserModel } = require('../models/user');
 const { ProductModel } = require('../models/product');
-const { Order } = require('../models/order');
-const { Payment } = require('../models/payment');
 const domainEvents = require('../services/domainEvents');
 
 const router = express.Router();
