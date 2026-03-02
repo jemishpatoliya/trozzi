@@ -1656,11 +1656,23 @@ router.post('/verify', authenticateToken, async (req, res) => {
 
     await payment.save();
 
+    // Fetch order details if order was created/updated
+    let orderDetails = null;
+    if (payment.order) {
+      try {
+        orderDetails = await Order.findById(payment.order).lean();
+      } catch (e) {
+        console.log('[VERIFY] Could not fetch order details:', e.message);
+      }
+    }
+
     return res.json({
       paymentId: String(payment._id),
       status: payment.status,
       provider: payment.provider,
       orderId: payment.order ? String(payment.order) : undefined,
+      orderNumber: orderDetails?.orderNumber || '',
+      order: orderDetails, // Full order details for SummaryPage display
     });
   } catch (e) {
     console.error('Verify payment error:', e);

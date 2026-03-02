@@ -16,6 +16,7 @@ const SummaryPage = () => {
     const [checking, setChecking] = useState(false);
     const [cartCleared, setCartCleared] = useState(false);
     const [createdOrder, setCreatedOrder] = useState(null);
+    const [fetchedOrder, setFetchedOrder] = useState(null); // Store order from backend
 
     const getLastMerchantOrderId = () => {
         try {
@@ -70,6 +71,13 @@ const SummaryPage = () => {
                             // orderData will be loaded by backend from payment.metadata
                         });
                         console.log('[SummaryPage] Order created successfully:', verifyResp.data);
+                        
+                        // Use order details from verify response (backend returns full order)
+                        const orderFromResponse = verifyResp.data?.order;
+                        if (orderFromResponse) {
+                            console.log('[SummaryPage] Using order from verify response:', orderFromResponse);
+                            setFetchedOrder(orderFromResponse);
+                        }
                         
                         // Store created order info to display in UI
                         setCreatedOrder({
@@ -258,13 +266,13 @@ const SummaryPage = () => {
                             {paymentStatus === 'completed' ? (
                                 <>
                                     <div className="text-sm font-semibold text-gray-900">Order placed</div>
-                                    {(createdOrder?.orderNumber || data.orderNumber) ? (
-                                        <div className="text-xs text-gray-500 mt-1">Order #: <span className="font-mono">{createdOrder?.orderNumber || data.orderNumber}</span></div>
-                                    ) : (createdOrder?.orderId || data.orderId) ? (
-                                        <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{createdOrder?.orderId || data.orderId}</span></div>
+                                    {(createdOrder?.orderNumber || fetchedOrder?.orderNumber || data.orderNumber) ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order #: <span className="font-mono">{createdOrder?.orderNumber || fetchedOrder?.orderNumber || data.orderNumber}</span></div>
+                                    ) : (createdOrder?.orderId || fetchedOrder?._id || data.orderId) ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{createdOrder?.orderId || fetchedOrder?._id || data.orderId}</span></div>
                                     ) : null}
-                                    {data.paymentMethod ? (
-                                        <div className="text-xs text-gray-500 mt-1">Payment: {data.paymentMethod.toUpperCase()}</div>
+                                    {(fetchedOrder?.paymentMethod || data.paymentMethod) ? (
+                                        <div className="text-xs text-gray-500 mt-1">Payment: {(fetchedOrder?.paymentMethod || data.paymentMethod).toUpperCase()}</div>
                                     ) : null}
                                 </>
                             ) : (
@@ -292,19 +300,19 @@ const SummaryPage = () => {
                             )}
                         </div>
 
-                        {data.address ? (
+                        {(fetchedOrder?.address || data.address) ? (
                             <div className="bg-white rounded-lg border border-gray-200 p-4">
                                 <div className="text-sm font-semibold text-gray-900 mb-2">Delivery Address</div>
                                 <div className="text-[13px] text-gray-700 leading-5">
-                                    {data.customer?.name ? (<div className="font-semibold">{data.customer.name}</div>) : null}
-                                    {data.customer?.phone ? (<div className="text-gray-600">{data.customer.phone}</div>) : null}
+                                    {(fetchedOrder?.customer?.name || data.customer?.name) ? (<div className="font-semibold">{fetchedOrder?.customer?.name || data.customer?.name}</div>) : null}
+                                    {(fetchedOrder?.customer?.phone || data.customer?.phone) ? (<div className="text-gray-600">{fetchedOrder?.customer?.phone || data.customer?.phone}</div>) : null}
                                     <div className="mt-1">
-                                        {data.address?.line1 || ''}{data.address?.line2 ? `, ${data.address.line2}` : ''}
+                                        {(fetchedOrder?.address?.line1 || data.address?.line1) || ''}{(fetchedOrder?.address?.line2 || data.address?.line2) ? `, ${fetchedOrder?.address?.line2 || data.address?.line2}` : ''}
                                     </div>
                                     <div>
-                                        {data.address?.city || ''}{data.address?.state ? `, ${data.address.state}` : ''}{data.address?.postalCode ? ` - ${data.address.postalCode}` : ''}
+                                        {(fetchedOrder?.address?.city || data.address?.city) || ''}{(fetchedOrder?.address?.state || data.address?.state) ? `, ${fetchedOrder?.address?.state || data.address?.state}` : ''}{(fetchedOrder?.address?.postalCode || data.address?.postalCode) ? ` - ${fetchedOrder?.address?.postalCode || data.address?.postalCode}` : ''}
                                     </div>
-                                    {data.address?.country ? (<div>{data.address.country}</div>) : null}
+                                    {(fetchedOrder?.address?.country || data.address?.country) ? (<div>{fetchedOrder?.address?.country || data.address?.country}</div>) : null}
                                 </div>
                             </div>
                         ) : null}
@@ -312,7 +320,7 @@ const SummaryPage = () => {
                         <div className="bg-white rounded-lg border border-gray-200 p-4">
                             <div className="text-sm font-semibold text-gray-900 mb-3">Items</div>
                             <div className="space-y-3">
-                                {data.items.map((item, idx) => {
+                                {(fetchedOrder?.items || data.items).map((item, idx) => {
                                     const pid = item?.product?._id || item?.productId || item?._id || item?.product || idx;
                                     const name = item?.product?.name || item?.name || '';
                                     const image = item?.image || item?.selectedImage || item?.product?.image || item?.product?.galleryImages?.[0] || FALLBACK_IMAGE;
@@ -373,13 +381,13 @@ const SummaryPage = () => {
                         <div className="bg-white rounded-lg border border-gray-200 p-4 lg:sticky lg:top-4">
                             <div className="text-sm font-semibold text-gray-900 mb-3">Price Details</div>
                             <div className="space-y-2 text-[13px]">
-                                <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-semibold">₹{Number(data.subtotal || 0).toFixed(0)}</span></div>
-                                <div className="flex justify-between text-gray-700"><span>Tax</span><span className="font-semibold">₹{Number(data.tax || 0).toFixed(0)}</span></div>
-                                <div className="flex justify-between text-gray-700"><span>Shipping</span><span className="font-semibold">{Number(data.shipping || 0) === 0 ? 'FREE' : `₹${Number(data.shipping || 0).toFixed(0)}`}</span></div>
-                                {Number(data.codCharge || 0) > 0 ? (
-                                    <div className="flex justify-between text-gray-700"><span>COD charge</span><span className="font-semibold">₹{Number(data.codCharge || 0).toFixed(0)}</span></div>
+                                <div className="flex justify-between text-gray-700"><span>Subtotal</span><span className="font-semibold">₹{Number((fetchedOrder?.subtotal || data.subtotal) || 0).toFixed(0)}</span></div>
+                                <div className="flex justify-between text-gray-700"><span>Tax</span><span className="font-semibold">₹{Number((fetchedOrder?.tax || data.tax) || 0).toFixed(0)}</span></div>
+                                <div className="flex justify-between text-gray-700"><span>Shipping</span><span className="font-semibold">{Number((fetchedOrder?.shipping || data.shipping) || 0) === 0 ? 'FREE' : `₹${Number((fetchedOrder?.shipping || data.shipping) || 0).toFixed(0)}`}</span></div>
+                                {Number((fetchedOrder?.codCharge || data.codCharge) || 0) > 0 ? (
+                                    <div className="flex justify-between text-gray-700"><span>COD charge</span><span className="font-semibold">₹{Number((fetchedOrder?.codCharge || data.codCharge) || 0).toFixed(0)}</span></div>
                                 ) : null}
-                                <div className="border-t pt-2 flex justify-between text-gray-900"><span className="font-semibold">Total</span><span className="font-extrabold">₹{Number(data.total || 0).toFixed(0)}</span></div>
+                                <div className="border-t pt-2 flex justify-between text-gray-900"><span className="font-semibold">Total</span><span className="font-extrabold">₹{Number((fetchedOrder?.total || data.total) || 0).toFixed(0)}</span></div>
                             </div>
                         </div>
                     </div>
