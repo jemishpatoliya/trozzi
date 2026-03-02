@@ -152,6 +152,19 @@ const PaymentGateway = ({
             localStorage.setItem('lastPaymentProviderOrderId', String(data?.providerOrderId || ''));
             localStorage.setItem('lastPaymentId', String(data?.paymentId || ''));
             localStorage.setItem('lastOrderId', String(data?.orderId || ''));
+            // Store full order data for retrieval after PhonePe redirect
+            localStorage.setItem('trozzi_lastOrderData', JSON.stringify({
+                items: normalizedItems,
+                subtotal: orderData.subtotal,
+                shipping: orderData.shipping,
+                tax: orderData.tax,
+                codCharge: orderData.codCharge,
+                total: orderData.total,
+                customer: orderData.customer,
+                address: orderData.address,
+                currency: orderData.currency,
+                paymentMethod: 'phonepe'
+            }));
         } catch (_e) {
             // ignore
         }

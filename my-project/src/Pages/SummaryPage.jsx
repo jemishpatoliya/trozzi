@@ -104,33 +104,64 @@ const SummaryPage = () => {
 
     const data = useMemo(() => {
         const state = (location && location.state) ? location.state : {};
-        const items = Array.isArray(state.items) ? state.items : [];
+        
+        // If location.state is empty (after PhonePe redirect), try localStorage
+        let items = Array.isArray(state.items) ? state.items : [];
+        let subtotal = state.subtotal;
+        let shipping = state.shipping;
+        let tax = state.tax;
+        let codCharge = state.codCharge;
+        let total = state.total;
+        let address = state.address;
+        let customer = state.customer;
+        let paymentMethod = state.paymentMethod;
+        
+        if (!items.length && !subtotal && !total) {
+            try {
+                const saved = localStorage.getItem('trozzi_lastOrderData');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    items = Array.isArray(parsed?.items) ? parsed.items : [];
+                    subtotal = parsed?.subtotal;
+                    shipping = parsed?.shipping;
+                    tax = parsed?.tax;
+                    codCharge = parsed?.codCharge;
+                    total = parsed?.total;
+                    address = parsed?.address;
+                    customer = parsed?.customer;
+                    paymentMethod = parsed?.paymentMethod || 'phonepe';
+                }
+            } catch (_e) {
+                // ignore
+            }
+        }
+        
         const money = (v) => Math.round((Number(v ?? 0) || 0) * 100) / 100;
         const rupees = (v) => Math.round(Number(v ?? 0) || 0);
 
-        const subtotal = money(state.subtotal ?? items.reduce((sum, it) => {
+        const calculatedSubtotal = money(subtotal ?? items.reduce((sum, it) => {
             const qty = Number(it?.quantity ?? 0) || 0;
             const price = Number(it?.price ?? it?.product?.price ?? 0) || 0;
             return sum + price * qty;
         }, 0));
 
-        const shipping = money(state.shipping ?? 0);
-        const tax = money(state.tax ?? 0);
-        const codCharge = money(state.codCharge ?? 0);
-        const total = rupees(state.total ?? (subtotal + shipping + tax + codCharge));
+        const calculatedShipping = money(shipping ?? 0);
+        const calculatedTax = money(tax ?? 0);
+        const calculatedCodCharge = money(codCharge ?? 0);
+        const calculatedTotal = rupees(total ?? (calculatedSubtotal + calculatedShipping + calculatedTax + calculatedCodCharge));
 
         return {
             orderId: String(state.orderId ?? state.id ?? '') || '',
             orderNumber: String(state.orderNumber ?? '') || '',
             items,
-            subtotal,
-            shipping,
-            tax,
-            codCharge,
-            total,
-            address: state.address ?? null,
-            customer: state.customer ?? null,
-            paymentMethod: String(state.paymentMethod ?? '') || '',
+            subtotal: calculatedSubtotal,
+            shipping: calculatedShipping,
+            tax: calculatedTax,
+            codCharge: calculatedCodCharge,
+            total: calculatedTotal,
+            address: address ?? null,
+            customer: customer ?? null,
+            paymentMethod: String(paymentMethod ?? '') || '',
         };
     }, [location]);
 
@@ -174,6 +205,7 @@ const SummaryPage = () => {
                     localStorage.removeItem('lastPaymentProviderOrderId');
                     localStorage.removeItem('lastPaymentId');
                     localStorage.removeItem('lastOrderId');
+                    localStorage.removeItem('trozzi_lastOrderData'); // Clean up order data
                 } catch (_e2) {
                     // ignore
                 }
