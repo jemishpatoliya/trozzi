@@ -255,7 +255,7 @@ function buildOrderItemsFromOrder(order) {
       name: name || `Item-${idx + 1}`,
       sku,
       units: Number(item?.quantity || 1),
-      selling_price: Number(item?.price || 0),
+      selling_price: Math.max(1, Number(item?.price || 0)), // Shiprocket requires min 1
       discount: Number(item?.discount || 0),
       tax: Number(item?.tax || 0),
       hsn: Number(item?.hsn || 0),

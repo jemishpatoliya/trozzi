@@ -55,6 +55,34 @@ const SummaryPage = () => {
             if (providerState === 'COMPLETED' || providerState === 'SUCCESS') {
                 setPaymentStatus('completed');
                 setPaymentMessage('Payment successful.');
+                
+                // Create order in database after successful payment
+                try {
+                    const paymentId = localStorage.getItem('lastPaymentId');
+                    if (paymentId) {
+                        const orderData = {
+                            items: data.items,
+                            subtotal: data.subtotal,
+                            shipping: data.shipping,
+                            tax: data.tax,
+                            codCharge: data.codCharge,
+                            total: data.total,
+                            customer: data.customer,
+                            address: data.address,
+                            currency: 'INR',
+                            paymentMethod: 'phonepe'
+                        };
+                        
+                        await apiClient.post('/payments/verify', {
+                            paymentId,
+                            status: 'completed',
+                            orderData
+                        });
+                        console.log('[SummaryPage] Order created successfully after payment');
+                    }
+                } catch (verifyError) {
+                    console.error('[SummaryPage] Failed to create order after payment:', verifyError);
+                }
                 return;
             }
             if (providerState === 'FAILED') {
