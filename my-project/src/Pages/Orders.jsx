@@ -110,7 +110,11 @@ const Orders = () => {
     return (Array.isArray(orders) ? orders : []).map((o) => {
       const items = Array.isArray(o?.itemsDetail) ? o.itemsDetail : [];
       const rawStatus = String(o?.orderStatus || o?.status || 'new').toLowerCase();
-      const status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
+      // Hide paid_but_shipment_failed from users - show as processing
+      let status = rawStatus === 'returned' ? 'cancelled' : rawStatus;
+      if (status === 'paid_but_shipment_failed') {
+        status = 'processing'; // Show user-friendly status
+      }
       return {
         id: String(o?.id || ''),
         orderNumber: String(o?.orderNumber || ''),

@@ -136,7 +136,7 @@ export function TopHeader({ onToggleSidebar }: TopHeaderProps) {
                     <DropdownMenuItem
                       key={String(n.id)}
                       className="flex flex-col items-start p-3 cursor-pointer"
-                      onClick={() => navigate('/notifications')}
+                      onClick={() => navigate('/content/notifications')}
                     >
                       <div className="flex items-center gap-2">
                         <div

@@ -1,6 +1,13 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+const API_BASE_URL = (() => {
+  // In production, use the same origin
+  if (window.location.hostname !== 'localhost') {
+    return `${window.location.protocol}//${window.location.host}/api`;
+  }
+  // In development, use env variable or localhost default
+  return import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+})();
 
 function authHeaders() {
   const token = localStorage.getItem('token');
@@ -281,5 +288,18 @@ export const paymentAPI = {
       responseType: 'blob',
     });
     return response;
+  },
+
+  // Sync AWB from Shiprocket for a shipment
+  syncShipmentAwb: async (shipmentId: string) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/admin/shipments/${shipmentId}/sync-awb`, null, {
+        headers: authHeaders(),
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error syncing AWB:', error);
+      throw error;
+    }
   },
 };

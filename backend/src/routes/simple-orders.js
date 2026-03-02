@@ -215,15 +215,15 @@ router.post('/cod', async (req, res) => {
           pickupLocation: process.env.SHIPROCKET_PICKUP_LOCATION,
         }
       });
-      // Mark order as paid_but_shipment_failed and schedule retry
+      // Mark order as processing (don't show failed status to user) and schedule retry
       try {
         const { Order } = require('../models/order');
         await Order.updateOne(
           { _id: insert.insertedId },
           {
-            $set: { status: 'paid_but_shipment_failed' },
+            $set: { status: 'processing' },
             $push: {
-              statusHistory: { status: 'paid_but_shipment_failed', at: nowIso, source: 'cod', error: e.message },
+              statusHistory: { status: 'processing', at: nowIso, source: 'cod', note: 'shiprocket_pending' },
             },
           }
         );
@@ -237,7 +237,7 @@ router.post('/cod', async (req, res) => {
           courierName: '',
           status: 'failed',
           lastError: e.message,
-          nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000),
+          nextRetryAfter: new Date(Date.now() + 30 * 1000), // 30 seconds
           retryCount: 1,
           eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
         });

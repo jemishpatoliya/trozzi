@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { FaUser, FaSignOutAlt } from 'react-icons/fa';
+import { FiShoppingBag } from 'react-icons/fi';
 
 const UserMenu = ({ onNavigate }) => {
     const { user, logout } = useAuth();
@@ -45,7 +46,11 @@ const UserMenu = ({ onNavigate }) => {
             </button>
 
             {isOpen && (
-                <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-[100]">
+                <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-56 bg-white rounded-md shadow-lg py-2 z-[100]">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
                     <Link
                         to="/profile"
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -54,17 +59,30 @@ const UserMenu = ({ onNavigate }) => {
                             onNavigate?.();
                         }}
                     >
-                        <FaUser className="mr-2 h-4 w-4" />
+                        <FaUser className="mr-3 h-4 w-4" />
                         My Profile
                     </Link>
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    <Link
+                        to="/orders"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                            setIsOpen(false);
+                            onNavigate?.();
+                        }}
                     >
-                        <FaSignOutAlt className="mr-2 h-4 w-4" />
-                        Sign Out
-                    </button>
+                        <FiShoppingBag className="mr-3 h-4 w-4" />
+                        My Orders
+                    </Link>
+                    <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                            <FaSignOutAlt className="mr-3 h-4 w-4" />
+                            Sign Out
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

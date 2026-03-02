@@ -162,6 +162,14 @@ const OrdersPage = () => {
       transports: ['websocket'],
     });
 
+    socket.on('connect', () => {
+      console.log('[Socket] Connected to admin channel');
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Socket] Connection error:', err);
+    });
+
     socket.on('orders:counts', (payload: any) => {
       if (!payload || typeof payload !== 'object') return;
       setCounts({
@@ -197,6 +205,38 @@ const OrdersPage = () => {
       if (!id) return;
       patchOrder(id, {});
       void refreshSelectedOrderDetails(id);
+    });
+
+    // Listen to shipment status changes from Shiprocket webhook
+    socket.on('shipment:status_changed', (evt: any) => {
+      console.log('[Socket] shipment:status_changed received:', evt);
+      const orderId = String(evt?.orderId || '');
+      const status = String(evt?.status || '').toLowerCase();
+      if (!orderId) return;
+      
+      // Map shipment status to order status
+      const statusMap: Record<string, Order['status']> = {
+        new: 'processing',
+        processing: 'processing',
+        shipped: 'shipped',
+        delivered: 'delivered',
+        cancelled: 'cancelled',
+        returned: 'cancelled',
+      };
+      const orderStatus = statusMap[status] || 'processing';
+      
+      // Update order status immediately
+      patchOrder(orderId, { status: orderStatus });
+      
+      // Show toast notification
+      toast({ 
+        title: 'Order Status Updated', 
+        description: `Order ${orderId} is now ${orderStatus}`,
+      });
+      
+      // Refresh orders list to get full updated data
+      void loadOrders();
+      void loadCounts();
     });
 
     socket.on('admin:notification', (n: any) => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -69,6 +69,7 @@ export default function ProductManagementPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState(0);
+  const initialLoadRef = useRef(true);
 
   // Define tab names for validation
   const tabs = [
@@ -83,14 +84,15 @@ export default function ProductManagementPage() {
     "sale",
   ];
 
-  // Initialize form with data
+  // Initialize form with data (only on initial load, not after mutation)
   useEffect(() => {
     if (!isEditing) {
       form.reset(productManagementDefaults);
       return;
     }
 
-    if (productQuery.data) {
+    if (productQuery.data && initialLoadRef.current) {
+      initialLoadRef.current = false;
       form.reset({
         ...productManagementDefaults,
         ...productQuery.data,
@@ -221,6 +223,8 @@ export default function ProductManagementPage() {
 
       await updateMutation.mutateAsync({ id, values });
       toast({ title: "Updated", description: "Product updated successfully." });
+      // Reset form with submitted values to reflect new status
+      form.reset(values);
     } catch (e: any) {
       toast({ title: "Request failed", description: e?.message ?? "Please try again", variant: "destructive" });
     }

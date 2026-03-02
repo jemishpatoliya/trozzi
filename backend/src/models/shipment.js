@@ -8,6 +8,8 @@ const shipmentSchema = new mongoose.Schema({
   awbNumber: { type: String, required: false, default: '' },
   courierName: { type: String, required: false, default: '' },
   status: { type: String, required: true, enum: ['new', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'failed'], default: 'new' },
+  // Raw Shiprocket status for admin display
+  shiprocketRawStatus: { type: String, default: '' },
   trackingUrl: { type: String },
   estimatedDelivery: { type: Date },
   shippedAt: { type: Date },

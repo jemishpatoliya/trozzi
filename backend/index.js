@@ -121,13 +121,15 @@ app.use('/api/auth', authLimiter);
 app.use('/api/admin', adminLimiter);
 app.use('/api', publicLimiter);
 
+// Shiprocket webhook path (dynamic via env)
+const SHIPROCKET_WEBHOOK_PATH = process.env.SHIPROCKET_WEBHOOK_PATH || '/api/webhooks/shipping';
+
 // Shiprocket webhooks need raw body for signature verification.
 app.use('/api/shipping/webhook/shiprocket', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
 // New Shiprocket webhook endpoint (required): /api/shiprocket/webhook
 app.use('/api/shiprocket/webhook', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
-// Shiprocket dashboard may reject URLs containing keywords like "shiprocket" or "sr".
-// Provide a neutral URL alias for production/local testing.
-app.use('/api/webhooks/shipping', express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
+// Dynamic webhook path from env (recommended for production)
+app.use(SHIPROCKET_WEBHOOK_PATH, express.raw({ type: 'application/json' }), shiprocketWebhookRouter);
 // PhonePe webhook needs raw body for signature/authorization verification.
 app.use('/api/payments/webhook/phonepe', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));

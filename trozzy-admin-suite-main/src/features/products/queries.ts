@@ -165,11 +165,16 @@ export function useUpdateProductMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: { id: string; values: ProductManagementFormValues }) => updateProduct(input),
-    onSuccess: async (res) => {
+    onSuccess: async (res, variables) => {
+      // Update the query cache directly with new values so form shows correct status
+      qc.setQueryData(keys.product(res.id), variables.values);
       await qc.invalidateQueries({ queryKey: keys.catalogProducts });
       await qc.invalidateQueries({ queryKey: keys.catalogProductsFull });
       await qc.refetchQueries({ queryKey: keys.catalogProductsFull });
-      await qc.invalidateQueries({ queryKey: keys.product(res.id) });
+      // Refetch product data after a short delay to ensure server has updated
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: keys.product(res.id) });
+      }, 500);
     },
   });
 }

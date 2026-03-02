@@ -51,8 +51,8 @@ async function retryFailedShipments() {
               },
             }
           );
-          // Update order status to paid if it was paid_but_shipment_failed
-          if (order.status === 'paid_but_shipment_failed') {
+          // Update order status to paid if it was processing with pending shipment
+          if (order.status === 'processing') {
             await Order.updateOne(
               { _id: order._id },
               {
@@ -64,8 +64,8 @@ async function retryFailedShipments() {
             );
           }
         } else {
-          // Still failed: schedule next retry with exponential backoff
-          const nextRetryMinutes = Math.min(60, 5 * Math.pow(2, shipment.retryCount)); // 5, 10, 20, 40, 60
+          // Still failed: schedule next retry with exponential backoff (starting at 30 seconds)
+          const nextRetrySeconds = Math.min(300, 30 * Math.pow(2, shipment.retryCount)); // 30s, 60s, 120s, 240s, 300s (5min)
           await Shipment.updateOne(
             { _id: shipment._id },
             {
@@ -73,7 +73,7 @@ async function retryFailedShipments() {
                 retryCount: shipment.retryCount + 1,
                 lastError: 'Shiprocket API error',
                 lastRetryAt: new Date(),
-                nextRetryAfter: new Date(Date.now() + nextRetryMinutes * 60 * 1000),
+                nextRetryAfter: new Date(Date.now() + nextRetrySeconds * 1000),
               },
               $push: {
                 eventHistory: { status: 'failed', at: new Date(), raw: { error: 'Shiprocket API error' } },

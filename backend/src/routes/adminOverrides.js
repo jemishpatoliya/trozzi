@@ -129,7 +129,7 @@ router.post('/admin/shipments/:orderId/retry', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Shipment not found' });
     }
 
-    // State machine: allow retry from failed/paid_but_shipment_failed
+    // State machine: allow retry from processing/pending shipment
     try {
       validateTransition('order', order.status, 'paid');
       validateTransition('shipment', shipment.status, 'new');
@@ -167,8 +167,8 @@ router.post('/admin/shipments/:orderId/retry', async (req, res) => {
             },
           }
         );
-        // Update order to paid if it was paid_but_shipment_failed
-        if (order.status === 'paid_but_shipment_failed') {
+        // Update order to paid if it was processing with pending shipment
+        if (order.status === 'processing') {
           await Order.updateOne(
             { _id: order._id },
             {
@@ -233,7 +233,7 @@ router.post('/admin/shipments/:shipmentId/cancel', async (req, res) => {
 
     // Update order to cancelled if needed
     const order = await Order.findById(shipment.order);
-    if (order && ['new', 'processing', 'paid_but_shipment_failed'].includes(order.status)) {
+    if (order && ['new', 'processing'].includes(order.status)) {
       try {
         validateTransition('order', order.status, 'cancelled');
       } catch (_e) {
@@ -264,6 +264,77 @@ router.post('/admin/shipments/:shipmentId/cancel', async (req, res) => {
   } catch (e) {
     console.error('Admin shipment cancel error:', e);
     return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Admin: sync AWB from Shiprocket
+router.post('/shipments/:shipmentId/sync-awb', async (req, res) => {
+  try {
+    const { shipmentId } = req.params;
+    console.log('[AWB Sync] Request received for shipment:', shipmentId);
+    
+    if (!mongoose.Types.ObjectId.isValid(shipmentId)) {
+      console.log('[AWB Sync] Invalid shipmentId:', shipmentId);
+      return res.status(400).json({ success: false, message: 'Invalid shipmentId' });
+    }
+
+    const shipment = await Shipment.findById(shipmentId);
+    if (!shipment) {
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+
+    if (!shipment.shiprocketOrderId) {
+      return res.status(400).json({ success: false, message: 'No Shiprocket order ID found for this shipment' });
+    }
+
+    const { syncShipmentAwbFromShiprocket } = require('../services/shiprocket.service');
+    const awbData = await syncShipmentAwbFromShiprocket(shipment);
+
+    // Update shipment with AWB details
+    await Shipment.updateOne(
+      { _id: shipment._id },
+      {
+        $set: {
+          awbNumber: awbData.awbNumber,
+          courierName: awbData.courierName,
+          trackingUrl: awbData.trackingUrl,
+          updatedAt: new Date(),
+        },
+        $push: {
+          eventHistory: { 
+            status: 'awb_synced', 
+            at: new Date(), 
+            source: 'admin',
+            raw: awbData 
+          },
+        },
+      }
+    );
+
+    // Emit socket event to update admin
+    const io = req.app.get('io');
+    if (io) {
+      io.to('admin').emit('shipment:tracking_updated', {
+        id: String(shipment._id),
+        orderId: String(shipment.order),
+        awbNumber: awbData.awbNumber,
+        courierName: awbData.courierName,
+        trackingUrl: awbData.trackingUrl,
+      });
+    }
+
+    return res.json({ 
+      success: true, 
+      message: 'AWB synced successfully', 
+      data: awbData 
+    });
+  } catch (e) {
+    console.error('Admin AWB sync error:', e);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to sync AWB', 
+      error: e.message 
+    });
   }
 });
 

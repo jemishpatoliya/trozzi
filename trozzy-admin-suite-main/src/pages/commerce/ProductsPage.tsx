@@ -6,6 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DataTable } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, Search, Edit2, Trash2, Download } from 'lucide-react';
 import type { Product } from "@/lib/mockData";
 import { exportToCSV } from "@/lib/mockData";
@@ -35,6 +45,8 @@ const ProductsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   const productsQuery = useCatalogProductsFullQuery();
   const categoriesQuery = useCategoriesQuery();
@@ -61,13 +73,27 @@ const ProductsPage = () => {
     });
   }, [products, searchQuery, statusFilter, categoryFilter]);
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
     try {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync(productToDelete.id);
       toast({ title: "Deleted", description: "Product deleted successfully" });
     } catch (e: any) {
       toast({ title: "Delete failed", description: e?.message ?? "Please try again", variant: "destructive" });
+    } finally {
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setProductToDelete(null);
   };
 
   const handleBulkStatus = async (status: Product["status"]) => {
@@ -156,7 +182,7 @@ const ProductsPage = () => {
           <Button size="icon" variant="ghost" onClick={() => navigate(`/commerce/products/${product.id}`)}>
             <Edit2 className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" onClick={() => handleDelete(product.id)}>
+          <Button size="icon" variant="ghost" onClick={() => handleDeleteClick(product)}>
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -227,6 +253,27 @@ const ProductsPage = () => {
         onSelectionChange={setSelectedIds}
         emptyMessage={productsQuery.isLoading ? "Loading products..." : "No products found"}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this product?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDelete}>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

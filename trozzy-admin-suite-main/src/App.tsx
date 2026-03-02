@@ -95,7 +95,7 @@ const App = () => (
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/categories/:categoryId/subcategories" element={<SubCategoriesPage />} />
             <Route path="/media" element={<MediaLibraryPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/content/notifications" element={<NotificationsPage />} />
             <Route path="/audit-logs" element={<AuditLogsPage />} />
             <Route path="/data-management" element={<DataManagementPage />} />
             <Route path="/ai-automation" element={<AIAutomationPage />} />

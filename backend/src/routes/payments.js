@@ -423,9 +423,9 @@ router.get('/phonepe/status/:merchantOrderId', authenticateToken, async (req, re
             await Order.updateOne(
               { _id: payment.order },
               {
-                $set: { status: 'paid_but_shipment_failed' },
+                $set: { status: 'processing' },
                 $push: {
-                  statusHistory: { status: 'paid_but_shipment_failed', at: nowIso, source: 'phonepe_status', error: e.message },
+                  statusHistory: { status: 'processing', at: nowIso, source: 'phonepe_status', note: 'shiprocket_pending' },
                 },
               },
             );
@@ -439,7 +439,7 @@ router.get('/phonepe/status/:merchantOrderId', authenticateToken, async (req, re
               courierName: '',
               status: 'failed',
               lastError: e.message,
-              nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000),
+              nextRetryAfter: new Date(Date.now() + 30 * 1000), // 30 seconds
               retryCount: 1,
               eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
             });
@@ -606,6 +606,7 @@ router.get('/transactions', async (req, res) => {
           courierName: String(shipment.courierName || ''),
           trackingUrl: String(shipment.trackingUrl || ''),
           status: String(shipment.status || ''),
+          shiprocketRawStatus: String(shipment.shiprocketRawStatus || ''),
         } : null,
       };
     });
@@ -669,6 +670,7 @@ router.get('/transactions', async (req, res) => {
           courierName: String(shipment.courierName || ''),
           trackingUrl: String(shipment.trackingUrl || ''),
           status: String(shipment.status || ''),
+          shiprocketRawStatus: String(shipment.shiprocketRawStatus || ''),
         } : null,
       };
     });
@@ -1219,13 +1221,13 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
             pickupLocation: process.env.SHIPROCKET_PICKUP_LOCATION,
           }
         });
-        // Mark order as paid_but_shipment_failed and schedule retry
+        // Mark order as processing (don't show failed status to user) and schedule retry
         await Order.updateOne(
           { _id: updatedOrder._id },
           {
-            $set: { status: 'paid_but_shipment_failed' },
+            $set: { status: 'processing' },
             $push: {
-              statusHistory: { status: 'paid_but_shipment_failed', at: nowIso, source: 'phonepe', error: e.message },
+              statusHistory: { status: 'processing', at: nowIso, source: 'phonepe', note: 'shiprocket_pending' },
             },
           }
         );
@@ -1240,7 +1242,7 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
           courierName: '',
           status: 'failed',
           lastError: e.message,
-          nextRetryAfter: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+          nextRetryAfter: new Date(Date.now() + 30 * 1000), // 30 seconds // 5 minutes
           retryCount: 1,
           eventHistory: [{ status: 'failed', at: new Date(), raw: { error: e.message, details: e?.raw } }],
         });
@@ -1364,28 +1366,30 @@ router.post('/create-order', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Invalid orderData.items (missing productId/name/price/quantity)' });
       }
 
-      orderDoc = await Order.create({
-        user: new mongoose.Types.ObjectId(req.userId),
-        orderNumber: makeOrderNumber(),
-        status: 'new',
-        currency: String(orderData.currency || currency || 'INR'),
-        subtotal: Number(orderData.subtotal ?? 0),
-        shipping: Number(orderData.shipping ?? 0),
-        tax: Number(orderData.tax ?? 0),
-        codCharge: Number(orderData.codCharge ?? 0),
-        total: Number(orderData.total ?? amount ?? 0),
-        paymentMethod: String(orderData.paymentMethod || provider || 'upi'),
-        items: normalizedItems,
-        customer: orderData.customer || {},
-        address: orderData.address || {},
-        createdAtIso: nowIso,
-      });
-      orderObjectId = orderDoc._id;
-
-      // Emit order placed notifications only for COD orders created immediately.
-      // For online payments (PhonePe etc.), notify on payment completion.
-      const pm = String(orderDoc?.paymentMethod || '').trim().toLowerCase();
+      // For online payments (PhonePe, UPI, etc.), DON'T create order now
+      // Order will be created AFTER payment success in the callback/webhook
+      // Only COD orders are created immediately
+      const pm = String(orderData?.paymentMethod || provider || '').trim().toLowerCase();
       if (pm === 'cod') {
+        orderDoc = await Order.create({
+          user: new mongoose.Types.ObjectId(req.userId),
+          orderNumber: makeOrderNumber(),
+          status: 'new',
+          currency: String(orderData.currency || currency || 'INR'),
+          subtotal: Number(orderData.subtotal ?? 0),
+          shipping: Number(orderData.shipping ?? 0),
+          tax: Number(orderData.tax ?? 0),
+          codCharge: Number(orderData.codCharge ?? 0),
+          total: Number(orderData.total ?? amount ?? 0),
+          paymentMethod: 'cod',
+          items: normalizedItems,
+          customer: orderData.customer || {},
+          address: orderData.address || {},
+          createdAtIso: nowIso,
+        });
+        orderObjectId = orderDoc._id;
+
+        // Emit order placed notifications for COD orders
         try {
           const io = req.app.get('io');
           const user = await UserModel.findById(req.userId);
@@ -1394,6 +1398,7 @@ router.post('/create-order', authenticateToken, async (req, res) => {
           console.error('Order placed notification emit error:', e);
         }
       }
+      // For online payments, orderObjectId remains null - order will be created after payment
     }
 
     const providerOrderId = makeProviderOrderId(provider);

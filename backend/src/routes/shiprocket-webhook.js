@@ -90,7 +90,11 @@ async function handleShiprocketWebhook(req, res) {
     };
 
     const update = {
-      $set: { status: currentStatus, updatedAt: now },
+      $set: { 
+        status: currentStatus, 
+        shiprocketRawStatus: String(body.status || body.current_status || body.shipment_status || ''),
+        updatedAt: now 
+      },
       $push: { eventHistory: historyItem },
     };
 
@@ -206,15 +210,19 @@ function normalizeShiprocketStatus(raw) {
   const base = String(raw ?? '').trim().toLowerCase();
   const map = {
     'new': 'new',
+    'ready to ship': 'processing',
     'pickup scheduled': 'processing',
-    'picked up': 'processing',
+    'pickups & manifests': 'processing',
+    'picked up': 'shipped',
     'in transit': 'shipped',
     'out for delivery': 'shipped',
     'delivered': 'delivered',
     'cancelled': 'cancelled',
     'rto initiated': 'returned',
+    'rto': 'returned',
     'rto delivered': 'returned',
     'returned': 'returned',
+    'failed': 'failed',
   };
   return map[base] || 'new';
 }

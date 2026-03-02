@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Search, Filter, CreditCard, Calendar, User, IndianRupee, ExternalLink, RefreshCw, Download } from 'lucide-react';
+import { Search, Filter, CreditCard, Calendar, User, IndianRupee, ExternalLink, RefreshCw, Download, Truck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { paymentAPI, type PaymentTransaction } from '@/api/payment';
 
@@ -16,13 +16,18 @@ const PaymentsManagementPage = () => {
   const { toast } = useToast();
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('completed');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'phonepe' | 'cod'>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
   const [payments, setPayments] = useState<Payment[]>([]); 
 
-  const loadPayments = async (status?: string) => {
-    const response = await paymentAPI.getAllTransactions({ status: status || undefined });
+  const loadPayments = async (status?: string, method?: 'all' | 'phonepe' | 'cod') => {
+    const filters: any = {};
+    if (status && status !== 'all') filters.status = status;
+    if (method && method !== 'all') filters.paymentMethod = method;
+    
+    const response = await paymentAPI.getAllTransactions(filters);
     if (response?.success) {
       setPayments(Array.isArray(response.data) ? response.data : []);
       return;
@@ -31,9 +36,9 @@ const PaymentsManagementPage = () => {
   };
 
   useEffect(() => {
-    void loadPayments(statusFilter === 'all' ? undefined : statusFilter);
+    void loadPayments(statusFilter, paymentMethodFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, [statusFilter, paymentMethodFilter]);
 
   const filteredPayments = useMemo(() => {
     return payments.filter(payment => {
@@ -59,7 +64,7 @@ const PaymentsManagementPage = () => {
 
   const handleRefresh = async () => {
     try {
-      await loadPayments(statusFilter === 'all' ? undefined : statusFilter);
+      await loadPayments(statusFilter, paymentMethodFilter);
       toast({
         title: 'Payments refreshed',
         description: 'Payment data has been updated.',
@@ -150,7 +155,7 @@ const PaymentsManagementPage = () => {
                 <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(
-                    payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0),
+                    payments.filter(p => p.status === 'completed' && isPhonePe(p)).reduce((sum, p) => sum + p.amount, 0),
                     'INR'
                   )}
                 </p>
@@ -176,12 +181,15 @@ const PaymentsManagementPage = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                <p className="text-sm font-medium text-muted-foreground">COD Total</p>
                 <p className="text-2xl font-bold">
-                  {payments.filter(p => p.status === 'pending').length}
+                  {formatCurrency(
+                    payments.filter(p => isCod(p)).reduce((sum, p) => sum + p.amount, 0),
+                    'INR'
+                  )}
                 </p>
               </div>
-              <Calendar className="h-8 w-8 text-yellow-600" />
+              <Truck className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -189,12 +197,12 @@ const PaymentsManagementPage = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Failed</p>
+                <p className="text-sm font-medium text-muted-foreground">COD Pending</p>
                 <p className="text-2xl font-bold">
-                  {payments.filter(p => p.status === 'failed').length}
+                  {payments.filter(p => isCod(p) && p.status === 'pending').length}
                 </p>
               </div>
-              <RefreshCw className="h-8 w-8 text-red-600" />
+              <Calendar className="h-8 w-8 text-yellow-600" />
             </div>
           </CardContent>
         </Card>
@@ -216,6 +224,17 @@ const PaymentsManagementPage = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <Select value={paymentMethodFilter} onValueChange={(v) => setPaymentMethodFilter(v as 'all' | 'phonepe' | 'cod')}>
+                <SelectTrigger className="w-[150px]">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Methods</SelectItem>
+                  <SelectItem value="phonepe">PhonePe</SelectItem>
+                  <SelectItem value="cod">COD</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[150px]">
                   <Filter className="mr-2 h-4 w-4" />
@@ -312,6 +331,40 @@ const PaymentsManagementPage = () => {
                       <div className="text-sm text-muted-foreground">Shiprocket</div>
                       <div className="font-mono text-sm">AWB: {payment.shipment.awbNumber || '-'}</div>
                       <div className="text-sm">{payment.shipment.courierName || ''}</div>
+                      {payment.shipment.shiprocketRawStatus && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          Status: {payment.shipment.shiprocketRawStatus}
+                        </div>
+                      )}
+                      {!payment.shipment.awbNumber && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={async () => {
+                            try {
+                              console.log('Sync AWB clicked - shipment data:', payment.shipment);
+                              const shipmentId = payment.shipment?.id;
+                              if (!shipmentId) {
+                                console.log('No shipment ID, skipping sync');
+                                return;
+                              }
+                              const result = await paymentAPI.syncShipmentAwb(shipmentId);
+                              toast({
+                                title: 'AWB Synced',
+                                description: `AWB ${result.data?.awbNumber} synced successfully`,
+                              });
+                              handleRefresh();
+                            } catch (error: any) {
+                              console.error('Sync AWB error:', error);
+                              // Silent fail - management view should work regardless
+                            }
+                          }}
+                        >
+                          <RefreshCw className="mr-2 h-3 w-3" />
+                          Sync AWB
+                        </Button>
+                      )}
                     </div>
                   )}
                   <div className="space-y-1">

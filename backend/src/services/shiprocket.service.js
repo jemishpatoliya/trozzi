@@ -153,6 +153,72 @@ async function schedulePickup({ shipmentId }) {
   return res.data;
 }
 
+async function getShiprocketOrderDetails(orderId) {
+  const url = `${SHIPROCKET_BASE_URL}/orders/show/${encodeURIComponent(String(orderId || ''))}`;
+  const res = await shiprocketRequest({ method: 'GET', url });
+  return res.data;
+}
+
+async function syncShipmentAwbFromShiprocket(shipment) {
+  try {
+    if (!shipment?.shiprocketOrderId) {
+      throw new Error('No Shiprocket order ID found');
+    }
+    
+    console.log(`[Shiprocket] Fetching order details for ${shipment.shiprocketOrderId}`);
+    const orderDetails = await getShiprocketOrderDetails(shipment.shiprocketOrderId);
+    
+    // Debug: log full response structure
+    console.log('[Shiprocket] Order details response:', JSON.stringify(orderDetails, null, 2).slice(0, 2000));
+    
+    // Extract AWB from response (handle different response structures)
+    const shipments = orderDetails?.shipments || [];
+    const firstShipment = shipments[0] || {};
+    
+    let awbNumber = firstShipment?.awb_code || orderDetails?.awb_code || null;
+    let courierName = firstShipment?.courier_name || orderDetails?.courier_name || null;
+    let trackingUrl = firstShipment?.tracking_url || orderDetails?.tracking_url || null;
+    const shipmentId = firstShipment?.shipment_id || orderDetails?.shipment_id || null;
+    
+    // If no AWB found but we have shipment_id, try to generate AWB
+    if (!awbNumber && shipmentId) {
+      console.log(`[Shiprocket] No AWB found, attempting to generate for shipment ${shipmentId}`);
+      const courierIdRaw = process.env.SHIPROCKET_DEFAULT_COURIER_ID;
+      const courierId = Number(courierIdRaw);
+      console.log(`[Shiprocket] Default courier ID: ${courierIdRaw}, parsed: ${courierId}`);
+      if (Number.isFinite(courierId) && courierId > 0) {
+        try {
+          const awbRes = await generateAwb({ shipmentId, courierId });
+          console.log('[Shiprocket] AWB generation response:', awbRes);
+          if (awbRes?.awb_code) {
+            awbNumber = awbRes.awb_code;
+            courierName = awbRes.courier_name || courierName;
+            console.log(`[Shiprocket] AWB generated: ${awbNumber}`);
+          } else if (awbRes?.response?.awb_code) {
+            awbNumber = awbRes.response.awb_code;
+            courierName = awbRes.response.courier_name || courierName;
+            console.log(`[Shiprocket] AWB generated from response: ${awbNumber}`);
+          }
+        } catch (awbError) {
+          console.error('[Shiprocket] AWB generation failed:', awbError?.response?.data || awbError.message);
+        }
+      } else {
+        console.error(`[Shiprocket] Invalid courier ID: ${courierIdRaw}. Please set SHIPROCKET_DEFAULT_COURIER_ID env variable.`);
+      }
+    }
+    
+    if (!awbNumber) {
+      throw new Error('No AWB found in Shiprocket response and failed to generate');
+    }
+    
+    console.log(`[Shiprocket] AWB synced: ${awbNumber}, Courier: ${courierName}`);
+    return { awbNumber, courierName, trackingUrl };
+  } catch (error) {
+    console.error('[Shiprocket] Failed to sync AWB:', error?.response?.data || error.message);
+    throw error;
+  }
+}
+
 async function cancelShiprocketOrders({ ids }) {
   const list = Array.isArray(ids) ? ids : [];
   const clean = list.map((v) => String(v || '').trim()).filter(Boolean);
@@ -252,25 +318,45 @@ async function createShipmentForOrder(order, { paymentMethod }) {
     const payload = buildAdhocOrderPayloadFromOrder(order, { paymentMethod });
     const result = await createAdhocOrder(payload);
 
-    // Optional: if AWB not returned, generate AWB using default courier.
+    // If AWB not returned, generate AWB using default courier.
     if (!result?.awb_code && result?.shipment_id) {
       const courierIdRaw = process.env.SHIPROCKET_DEFAULT_COURIER_ID;
       const courierId = Number(courierIdRaw);
       if (Number.isFinite(courierId) && courierId > 0) {
-        const awbRes = await generateAwb({ shipmentId: result.shipment_id, courierId });
-        result.awb_code = awbRes?.awb_code || result.awb_code;
-        result.courier_name = awbRes?.courier_name || result.courier_name;
+        try {
+          console.log(`[Shiprocket] Generating AWB for shipment ${result.shipment_id} with courier ${courierId}`);
+          const awbRes = await generateAwb({ shipmentId: result.shipment_id, courierId });
+          console.log('[Shiprocket] AWB generation response:', awbRes);
+          
+          // Assign AWB from response (handle different response structures)
+          if (awbRes?.awb_code) {
+            result.awb_code = awbRes.awb_code;
+            result.courier_name = awbRes.courier_name || result.courier_name;
+            console.log(`[Shiprocket] AWB assigned: ${result.awb_code}`);
+          } else if (awbRes?.response?.awb_code) {
+            result.awb_code = awbRes.response.awb_code;
+            result.courier_name = awbRes.response.courier_name || result.courier_name;
+            console.log(`[Shiprocket] AWB assigned from response: ${result.awb_code}`);
+          } else {
+            console.error('[Shiprocket] AWB generation succeeded but no AWB code in response:', awbRes);
+          }
+        } catch (awbError) {
+          console.error('[Shiprocket] AWB generation failed:', awbError?.response?.data || awbError.message);
+        }
       }
     }
 
-    // Optional: auto schedule pickup once shipment exists.
-    if (result?.shipment_id) {
+    // Only schedule pickup if AWB is assigned
+    if (result?.shipment_id && result?.awb_code) {
       try {
+        console.log(`[Shiprocket] Scheduling pickup for shipment ${result.shipment_id} with AWB ${result.awb_code}`);
         await schedulePickup({ shipmentId: result.shipment_id });
+        console.log('[Shiprocket] Pickup scheduled successfully');
       } catch (e) {
-        // Don’t fail the whole flow if pickup scheduling fails.
         console.error('[Shiprocket] Pickup scheduling failed:', e?.response?.data || e.message);
       }
+    } else if (result?.shipment_id && !result?.awb_code) {
+      console.error('[Shiprocket] Cannot schedule pickup - AWB not assigned for shipment:', result.shipment_id);
     }
 
     return result;
@@ -292,6 +378,8 @@ module.exports = {
   createAdhocOrder,
   generateAwb,
   schedulePickup,
+  getShiprocketOrderDetails,
+  syncShipmentAwbFromShiprocket,
   cancelShiprocketOrders,
   buildOrderItemsFromOrder,
   buildAdhocOrderPayloadFromOrder,
