@@ -1562,6 +1562,9 @@ router.post('/create-order', authenticateToken, async (req, res) => {
 router.post('/verify', authenticateToken, async (req, res) => {
   try {
     const { paymentId, status, orderData } = req.body;
+    
+    console.log('[VERIFY] Received:', { paymentId, status, hasOrderData: !!orderData, userId: req.userId });
+    console.log('[VERIFY] orderData:', JSON.stringify(orderData, null, 2));
 
     if (!paymentId) return res.status(400).json({ error: 'paymentId is required' });
     if (!['completed', 'failed'].includes(status)) {
@@ -1569,7 +1572,12 @@ router.post('/verify', authenticateToken, async (req, res) => {
     }
 
     const payment = await Payment.findOne({ _id: paymentId, user: req.userId });
-    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    if (!payment) {
+      console.log('[VERIFY] Payment not found:', paymentId);
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    console.log('[VERIFY] Found payment:', { id: payment._id, status: payment.status, hasOrder: !!payment.order });
 
     payment.status = status;
 
@@ -1577,32 +1585,53 @@ router.post('/verify', authenticateToken, async (req, res) => {
 
     // Optional: create an order document if Order model exists and orderData provided
     // IMPORTANT: For completed payments, mark order as paid so it shows up in admin paid filters.
+    console.log('[VERIFY] Check order creation:', { 
+      statusIsCompleted: status === 'completed', 
+      hasOrderData: !!orderData, 
+      hasPaymentOrder: !!payment.order 
+    });
+    
     if (status === 'completed' && orderData && !payment.order) {
+      console.log('[VERIFY] Creating order...');
+      
       const part = Math.random().toString(16).slice(2, 8).toUpperCase();
       const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${part}`;
 
       const normalizedItems = await normalizeAndHydrateOrderItems(orderData.items);
+      console.log('[VERIFY] Normalized items:', normalizedItems.length);
 
-      const createdOrder = await Order.create({
-        user: new mongoose.Types.ObjectId(req.userId),
-        orderNumber,
-        status: 'paid',
-        currency: orderData.currency || 'INR',
-        subtotal: Number(orderData.subtotal ?? 0),
-        shipping: Number(orderData.shipping ?? 0),
-        tax: Number(orderData.tax ?? 0),
-        codCharge: Number(orderData.codCharge ?? 0),
-        total: Number(orderData.total ?? 0),
-        paymentMethod: String(orderData.paymentMethod || payment.paymentMethod || payment.provider || 'upi'),
-        items: normalizedItems,
-        customer: orderData.customer || {},
-        address: orderData.address || {},
-        createdAtIso: nowIso,
-        statusHistory: [{ status: 'paid', at: nowIso, source: String(payment.provider || 'payment') }],
-        statusTimestamps: { paid: nowIso },
+      try {
+        const createdOrder = await Order.create({
+          user: new mongoose.Types.ObjectId(req.userId),
+          orderNumber,
+          status: 'paid',
+          currency: orderData.currency || 'INR',
+          subtotal: Number(orderData.subtotal ?? 0),
+          shipping: Number(orderData.shipping ?? 0),
+          tax: Number(orderData.tax ?? 0),
+          codCharge: Number(orderData.codCharge ?? 0),
+          total: Number(orderData.total ?? 0),
+          paymentMethod: String(orderData.paymentMethod || payment.paymentMethod || payment.provider || 'upi'),
+          items: normalizedItems,
+          customer: orderData.customer || {},
+          address: orderData.address || {},
+          createdAtIso: nowIso,
+          statusHistory: [{ status: 'paid', at: nowIso, source: String(payment.provider || 'payment') }],
+          statusTimestamps: { paid: nowIso },
+        });
+        
+        payment.order = createdOrder._id;
+        console.log('[VERIFY] Order created successfully:', createdOrder._id, 'OrderNumber:', orderNumber);
+      } catch (orderError) {
+        console.error('[VERIFY] Order creation error:', orderError.message, orderError.stack);
+        throw orderError;
+      }
+    } else {
+      console.log('[VERIFY] Skipping order creation:', { 
+        statusNotCompleted: status !== 'completed',
+        noOrderData: !orderData,
+        alreadyHasOrder: !!payment.order
       });
-
-      payment.order = createdOrder._id;
     }
 
     if (status === 'completed' && payment.order) {

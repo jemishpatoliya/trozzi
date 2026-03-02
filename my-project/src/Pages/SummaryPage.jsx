@@ -15,6 +15,7 @@ const SummaryPage = () => {
     const [paymentMessage, setPaymentMessage] = useState('');
     const [checking, setChecking] = useState(false);
     const [cartCleared, setCartCleared] = useState(false);
+    const [createdOrder, setCreatedOrder] = useState(null);
 
     const getLastMerchantOrderId = () => {
         try {
@@ -79,6 +80,12 @@ const SummaryPage = () => {
                             orderData
                         });
                         console.log('[SummaryPage] Order created successfully after payment');
+                        
+                        // Store created order info to display in UI
+                        setCreatedOrder({
+                            orderId: paymentId,
+                            orderNumber: orderData.orderNumber || ''
+                        });
                     }
                 } catch (verifyError) {
                     console.error('[SummaryPage] Failed to create order after payment:', verifyError);
@@ -261,10 +268,10 @@ const SummaryPage = () => {
                             {paymentStatus === 'completed' ? (
                                 <>
                                     <div className="text-sm font-semibold text-gray-900">Order placed</div>
-                                    {data.orderNumber ? (
-                                        <div className="text-xs text-gray-500 mt-1">Order #: <span className="font-mono">{data.orderNumber}</span></div>
-                                    ) : data.orderId ? (
-                                        <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{data.orderId}</span></div>
+                                    {(createdOrder?.orderNumber || data.orderNumber) ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order #: <span className="font-mono">{createdOrder?.orderNumber || data.orderNumber}</span></div>
+                                    ) : (createdOrder?.orderId || data.orderId) ? (
+                                        <div className="text-xs text-gray-500 mt-1">Order ID: <span className="font-mono">{createdOrder?.orderId || data.orderId}</span></div>
                                     ) : null}
                                     {data.paymentMethod ? (
                                         <div className="text-xs text-gray-500 mt-1">Payment: {data.paymentMethod.toUpperCase()}</div>

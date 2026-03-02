@@ -62,11 +62,12 @@ const OrderSchema = new mongoose.Schema(
     },
     customer: {
       type: {
-        name: { type: String, required: true },
-        email: { type: String, required: true },
-        phone: { type: String, required: false },
+        name: { type: String, required: false, default: '' },
+        email: { type: String, required: false, default: '' },
+        phone: { type: String, required: false, default: '' },
       },
-      required: true,
+      required: false,
+      default: () => ({ name: '', email: '', phone: '' }),
     },
     address: {
       type: {
