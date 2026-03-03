@@ -212,7 +212,7 @@ const Productsdetailsh = () => {
 
     return (
         <>
-            <div className="py-3 sm:py-5 pb-0">
+            <div className="pb-0">
                 <div className="container">
                     <Breadcrumbs aria-label="breadcrumb" className="text-[12px] sm:text-[13px] text-gray-600">
                         <Link underline="hover" color="inherit" href="/" className="link transition text-[12px] sm:text-[13px]">
@@ -225,7 +225,7 @@ const Productsdetailsh = () => {
                 </div>
             </div>
 
-            <section className='bg-white mt-40 py-3 sm:py-5'>
+            <section className='bg-white py-3 sm:py-5'>
                 {loading && (
                     <div className='container py-6 text-center text-gray-600'>Loading...</div>
                 )}

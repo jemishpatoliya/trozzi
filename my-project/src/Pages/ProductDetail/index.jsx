@@ -372,7 +372,8 @@ const ProductDetail = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="container mx-auto px-4" style={{ marginTop: '250px' }}>
+            {/* Adjusted spacing: removed hard-coded margin */}
+            <div className="container mx-auto px-4 pt-0">
                 {/* Product Header */}
                 <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

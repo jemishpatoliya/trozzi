@@ -33,7 +33,7 @@ export default function ShopLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-8">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-8">
         <Outlet />
       </main>
 

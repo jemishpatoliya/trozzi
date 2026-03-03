@@ -526,7 +526,7 @@ function App() {
                                             <main
                                                 ref={mainScrollRef}
                                                 className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-[#f7f7f7] pb-16 md:pb-0 relative"
-                                                style={{ paddingTop: headerHeight + 8, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight + 8}px` }}
+                                                style={{ paddingTop: window.innerWidth >= 768 ? headerHeight : 0, transition: 'padding-top 280ms ease-out', '--app-header-height': `${headerHeight}px` }}
                                             >
                                                 <Suspense fallback={
                                                     <div className="flex items-center justify-center h-64">

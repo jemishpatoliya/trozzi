@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FaGem, FaTshirt, FaUtensils } from 'react-icons/fa'
+import { FaGem, FaTshirt, FaUtensils, FaHome, FaPlug, FaHeart } from 'react-icons/fa'
 import Homeslider from '../../components/Homeslider'
 import Adsbennerslider from '../../components/Adsbannerslider'
 import PopularProducts from '../../components/product/popularproduct'
@@ -100,8 +100,7 @@ const Home = () => {
         }
       })
 
-    if (apiItems.length) return apiItems
-
+    // Always show default 6 categories (ignore API count)
     const buildTo = (name) => {
       const param = resolveCategoryToParam(name)
       return param ? `/ProductListing?category=${encodeURIComponent(param)}` : '/ProductListing'
@@ -115,6 +114,14 @@ const Home = () => {
         color: 'border-blue-600',
         bg: 'bg-blue-50',
         to: buildTo('Kitchen'),
+      },
+      {
+        name: 'Home & Decor',
+        icon: FaHome,
+        img: 'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=200&h=200&fit=crop',
+        color: 'border-orange-600',
+        bg: 'bg-orange-50',
+        to: buildTo('Home & Decor'),
       },
       {
         name: 'Jewellery',
@@ -132,70 +139,89 @@ const Home = () => {
         bg: 'bg-pink-50',
         to: buildTo('Fashion'),
       },
+      {
+        name: 'Electronics',
+        icon: FaPlug,
+        img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT9D8i3L8V7yRq8vR1rE3vH9fG5jK2mN4pQwR&s',
+        color: 'border-green-600',
+        bg: 'bg-green-50',
+        to: buildTo('Electronics'),
+      },
+      {
+        name: 'Beauty',
+        icon: FaHeart,
+        img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8W5E7F8G9H0I1J2K3L4M5N6O7P8Q9R0S1T2&s',
+        color: 'border-red-600',
+        bg: 'bg-red-50',
+        to: buildTo('Beauty'),
+      },
     ]
   }, [apiCategories, resolveCategoryToParam])
 
   return (
-    <div className="home-page bg-[#f7f7f7] mt-40">
-      {/* Hero Section */}
-      <section className="hero-section pt-1">
+    <div className="home-page bg-[#f7f7f7] mt-0 lg:mt-40">
+      {/* Categories Section - Always Visible */}
+      <section className="categories-section bg-white mt-24 pt-4 pb-4 sm:pt-5 sm:pb-5 border-b">
         <div className="container mx-auto px-3 sm:px-4">
-          <div className="px-2 sm:px-4 py-1 sm:py-2 mb-1">
-            <div className="relative">
-              <button
-                type="button"
-                aria-label="Scroll categories left"
-                onClick={() => categoryStripRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
-                className={`${canScrollCategories ? 'hidden sm:flex' : 'hidden'} absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-50`}
-              >
-                <span className="text-xl leading-none">‹</span>
-              </button>
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="Scroll categories left"
+              onClick={() => categoryStripRef.current?.scrollBy({ left: -320, behavior: 'smooth' })}
+              className={`${canScrollCategories ? 'hidden sm:flex' : 'hidden'} absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-50`}
+            >
+              <span className="text-xl leading-none">‹</span>
+            </button>
 
-              <button
-                type="button"
-                aria-label="Scroll categories right"
-                onClick={() => categoryStripRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
-                className={`${canScrollCategories ? 'hidden sm:flex' : 'hidden'} absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-50`}
-              >
-                <span className="text-xl leading-none">›</span>
-              </button>
+            <button
+              type="button"
+              aria-label="Scroll categories right"
+              onClick={() => categoryStripRef.current?.scrollBy({ left: 320, behavior: 'smooth' })}
+              className={`${canScrollCategories ? 'hidden sm:flex' : 'hidden'} absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full bg-white shadow border border-gray-200 hover:bg-gray-50`}
+            >
+              <span className="text-xl leading-none">›</span>
+            </button>
 
-              <div
-                ref={categoryStripRef}
-                className={`flex w-full items-start gap-3 overflow-x-auto whitespace-nowrap scrollbar-hide ${canScrollCategories ? 'sm:px-12' : 'sm:justify-center sm:overflow-x-visible sm:px-0 sm:whitespace-normal'}`}
-                style={{ scrollSnapType: 'x mandatory' }}
-              >
-              {categories.map((c) => {
-                const Icon = c.icon
-                return (
-                  <Link
-                    key={c.name}
-                    to={c.to}
-                    className="flex flex-col items-center min-w-[78px] sm:min-w-[96px]"
-                    style={{ scrollSnapAlign: 'start' }}
-                  >
-                    <div className={`h-16 w-16 sm:h-20 sm:w-20 rounded-full border-2 ${c.color} ${c.bg} flex items-center justify-center overflow-hidden`}>
-                      {c.img ? (
-                        <img
-                          src={c.img}
-                          alt={c.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <Icon className="text-gray-800 text-2xl sm:text-3xl" />
-                      )}
-                    </div>
-                    <div className="mt-2 text-[12px] sm:text-sm font-semibold text-gray-900 text-center">
-                      {c.name}
-                    </div>
-                  </Link>
-                )
-              })}
-              </div>
+            <div
+              ref={categoryStripRef}
+              className="flex w-full items-start justify-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-hide px-2 sm:px-0"
+              style={{ scrollSnapType: 'x mandatory' }}
+            >
+            {categories.map((c) => {
+              const Icon = c.icon
+              return (
+                <Link
+                  key={c.name}
+                  to={c.to}
+                  className="flex flex-col items-center min-w-[70px] sm:min-w-[80px]"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  <div className={`h-12 w-12 sm:h-14 sm:w-14 rounded-full border-2 ${c.color} ${c.bg} flex items-center justify-center overflow-hidden bg-gray-50 shrink-0`}>
+                    {c.img ? (
+                      <img
+                        src={c.img}
+                        alt={c.name}
+                        className="w-full h-full object-cover"
+                        style={{ aspectRatio: '1/1' }}
+                        loading="eager"
+                      />
+                    ) : (
+                      <Icon className="text-gray-800 text-lg sm:text-xl" />
+                    )}
+                  </div>
+                  <div className="mt-2 text-[12px] sm:text-sm font-semibold text-gray-900 text-center">
+                    {c.name}
+                  </div>
+                </Link>
+              )
+            })}
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Hero Section - Slider Only */}
+      <section className="hero-section pt-1">
         <Homeslider />
         <div data-scroll-top-trigger="1" />
         {/* <Homecatslider /> */}
