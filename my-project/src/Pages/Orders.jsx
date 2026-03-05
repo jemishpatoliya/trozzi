@@ -14,6 +14,7 @@ const Orders = () => {
   const [error, setError] = useState('');
   const [orders, setOrders] = useState([]);
   const [cancellingId, setCancellingId] = useState('');
+  const [dateFilter, setDateFilter] = useState('all'); // all, today, week, month
 
   const showOrderHistory = Boolean(settings?.showOrderHistory);
 
@@ -107,7 +108,7 @@ const Orders = () => {
   };
 
   const normalizedOrders = useMemo(() => {
-    return (Array.isArray(orders) ? orders : []).map((o) => {
+    const allOrders = (Array.isArray(orders) ? orders : []).map((o) => {
       const items = Array.isArray(o?.itemsDetail) ? o.itemsDetail : [];
       const rawStatus = String(o?.orderStatus || o?.status || 'new').toLowerCase();
       // Hide paid_but_shipment_failed from users - show as processing
@@ -124,7 +125,36 @@ const Orders = () => {
         items,
       };
     });
-  }, [orders]);
+
+    // Apply date filter
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    return allOrders.filter((order) => {
+      if (!order.createdAtIso) return true; // Show orders without date
+      
+      const orderDate = new Date(order.createdAtIso);
+      
+      switch (dateFilter) {
+        case 'today':
+          return orderDate >= today;
+        case 'week':
+          return orderDate >= weekStart;
+        case 'month':
+          return orderDate >= monthStart;
+        default:
+          return true; // 'all'
+      }
+    }).sort((a, b) => {
+      // Sort by date descending (newest first)
+      const dateA = a.createdAtIso ? new Date(a.createdAtIso) : new Date(0);
+      const dateB = b.createdAtIso ? new Date(b.createdAtIso) : new Date(0);
+      return dateB - dateA;
+    });
+  }, [orders, dateFilter]);
 
   const formatCurrency = (value) => {
     const n = Number(value ?? 0) || 0;
@@ -144,8 +174,52 @@ const Orders = () => {
 
   return (
     <div className="container mx-auto px-4 mt-52 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
+        
+        {/* Date Filter Buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDateFilter('all')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              dateFilter === 'all' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setDateFilter('today')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              dateFilter === 'today' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setDateFilter('week')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              dateFilter === 'week' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => setDateFilter('month')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              dateFilter === 'month' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            This Month
+          </button>
+        </div>
       </div>
 
       {error ? (

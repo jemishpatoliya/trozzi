@@ -36,6 +36,11 @@ const sizeGuidesRouter = require('./src/routes/size-guides');
 const shiprocketWebhookRouter = require('./src/routes/shiprocket-webhook');
 const adminOverridesRouter = require('./src/routes/adminOverrides');
 const notificationsRouter = require('./src/routes/notifications');
+const shiprocketDataRouter = require('./src/routes/shiprocketData');
+const shiprocketSyncRouter = require('./src/routes/shiprocketSync');
+
+// Initialize scheduled services
+require('./src/services/shiprocketSync');
 
 const { AdminModel } = require('./src/models/admin');
 const { UserModel } = require('./src/models/user');
@@ -172,6 +177,8 @@ app.use('/api/cart', cartRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/size-guides', sizeGuidesRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/admin', shiprocketDataRouter);
+app.use('/api/admin', shiprocketSyncRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1133,10 +1133,16 @@ router.put('/:id/status', async (req, res) => {
     }
 
     const currentStatus = normalizeStatus(existing.status);
-    try {
-      validateTransition('order', currentStatus, status);
-    } catch (e) {
-      return res.status(400).json({ success: false, message: e.message });
+    
+    // Allow cancelled to delivered transition
+    if (currentStatus === 'cancelled' && status === 'delivered') {
+      // Skip validation for this specific transition
+    } else {
+      try {
+        validateTransition('order', currentStatus, status);
+      } catch (e) {
+        return res.status(400).json({ success: false, message: e.message });
+      }
     }
 
     const result = await db.collection('orders').findOneAndUpdate(

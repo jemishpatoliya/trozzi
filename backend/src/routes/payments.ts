@@ -305,6 +305,17 @@ router.post('/verify', authenticateToken, async (req: AuthenticatedRequest, res:
       });
 
       payment.order = createdOrder._id;
+
+      // Adjust stock for payment order
+      try {
+        const db = mongoose.connection.db;
+        if (db) {
+          const { adjustStockForOrderOnce } = require('./simple-orders');
+          await adjustStockForOrderOnce(db, createdOrder._id, orderData.items);
+        }
+      } catch (e) {
+        console.error('Stock deduction error (Payment):', e);
+      }
     }
 
     if (payment.order) {

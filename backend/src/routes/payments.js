@@ -1630,6 +1630,17 @@ router.post('/verify', authenticateToken, async (req, res) => {
         
         payment.order = createdOrder._id;
         console.log('[VERIFY] Order created successfully:', createdOrder._id, 'OrderNumber:', orderNumber);
+
+        // Adjust stock for webhook payment order
+        try {
+          const db = mongoose.connection.db;
+          if (db) {
+            const { adjustStockForOrderOnce } = require('./simple-orders');
+            await adjustStockForOrderOnce(db, createdOrder._id, normalizedItems);
+          }
+        } catch (e) {
+          console.error('Stock deduction error (Webhook Payment):', e);
+        }
       } catch (orderError) {
         console.error('[VERIFY] Order creation error:', orderError.message, orderError.stack);
         throw orderError;

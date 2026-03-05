@@ -116,14 +116,36 @@ async function handleShiprocketWebhook(req, res) {
     };
 
     const orderStatus = orderStatusMap[currentStatus] || 'processing';
-    // State machine: validate order status transition
+    
+    // Get current order status
     const order = await Order.findById(shipment.order);
     if (order) {
+      // Allow admin manual override - only update if status is different and not manually changed
+      const lastManualChange = order.statusHistory?.find(h => h.source === 'admin');
+      const lastShiprocketChange = order.statusHistory?.find(h => h.source === 'shiprocket');
+      
+      // If admin changed status recently, prioritize admin change
+      if (lastManualChange && lastShiprocketChange) {
+        const manualTime = new Date(lastManualChange.at);
+        const shiprocketTime = new Date(lastShiprocketChange.at);
+        
+        if (manualTime > shiprocketTime) {
+          console.log(`[WEBHOOK] Admin manual change detected, skipping Shiprocket update for order ${order.orderNumber}`);
+          return res.status(200).json({ ok: true, received: true, updated: false, message: 'Admin manual change prioritized' });
+        }
+      }
+      
+      // State machine: validate order status transition
       try {
         validateTransition('order', order.status, orderStatus);
       } catch (e) {
         console.error('Invalid order transition:', e.message);
-        // Optionally: reject or allow with warning
+        // Allow admin override for invalid transitions
+        if (lastManualChange && (new Date() - new Date(lastManualChange.at)) < 5 * 60 * 1000) {
+          console.log(`[WEBHOOK] Recent admin change, allowing transition override`);
+        } else {
+          return res.status(200).json({ ok: true, received: true, updated: false, message: 'Invalid transition' });
+        }
       }
     }
     await Order.updateOne(
