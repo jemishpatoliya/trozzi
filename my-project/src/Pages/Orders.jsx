@@ -72,15 +72,12 @@ const Orders = () => {
     return ['new', 'processing', 'paid'].includes(s);
   };
 
-  const formatStatusLabel = (status) => {
-    const s = String(status || '').trim();
+  const formatStatusLabel = (status, adminStatus) => {
+    const s = String(adminStatus || status || '').trim();
     if (!s) return 'New';
     return s
       .replace(/_/g, ' ')
-      .split(' ')
-      .filter(Boolean)
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   };
 
   const handleCancelOrder = async (order) => {
@@ -260,7 +257,7 @@ const Orders = () => {
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-sm text-gray-500">Status</div>
-                  <div className="font-medium text-gray-900">{formatStatusLabel(order.status)}</div>
+                  <div className="font-medium text-gray-900">{formatStatusLabel(order.status, order.adminStatus)}</div>
                   <div className="text-sm text-gray-500">Total: <span className="font-semibold text-gray-900">{formatCurrency(order.total)}</span></div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 justify-start sm:justify-end">
                     <button

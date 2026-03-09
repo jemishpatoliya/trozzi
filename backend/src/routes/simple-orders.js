@@ -567,7 +567,10 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: docs.map(toOrderRow),
+      data: docs.map(doc => ({
+        ...toOrderRow(doc),
+        adminStatus: doc.adminStatus || normalizeStatus(doc.status), // Add admin status for display
+      })),
     });
   } catch (error) {
     console.error('Error loading orders:', error);
@@ -1403,6 +1406,7 @@ router.get('/my', async (req, res) => {
         createdAtIso: doc.createdAtIso || (doc.createdAt ? new Date(doc.createdAt).toISOString() : ''),
         itemsDetail: Array.isArray(doc.items) ? doc.items.map((it) => normalizeOrderItemSnapshot(req, it)) : [],
         orderStatus: normalizeStatus(doc.status),
+        adminStatus: doc.adminStatus || normalizeStatus(doc.status), // Add admin status for display
         payment: doc.payment ? {
           provider: String(doc.payment.provider || ''),
           paymentMethod: String(doc.payment.paymentMethod || doc.payment.provider || ''),
@@ -1473,6 +1477,7 @@ router.get('/', async (req, res) => {
         createdAtIso: doc.createdAtIso || (doc.createdAt ? new Date(doc.createdAt).toISOString() : ''),
         itemsDetail: Array.isArray(doc.items) ? doc.items.map((it) => normalizeOrderItemSnapshot(req, it)) : [],
         orderStatus: normalizeStatus(doc.status),
+        adminStatus: doc.adminStatus || normalizeStatus(doc.status), // Add admin status for display
         payment: doc.payment ? {
           provider: String(doc.payment.provider || ''),
           paymentMethod: String(doc.payment.paymentMethod || doc.payment.provider || ''),
@@ -1604,6 +1609,7 @@ router.get('/:id', async (req, res) => {
         ...doc,
         id: String(doc._id),
         status: normalizeStatus(doc.status),
+        adminStatus: doc.adminStatus || normalizeStatus(doc.status), // Add admin status for display
         items: enrichedItems,
         trackingNumber: String(shipment?.awbNumber || ''),
         courierName: String(shipment?.courierName || ''),

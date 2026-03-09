@@ -2,212 +2,312 @@ const cron = require('node-cron');
 const mongoose = require('mongoose');
 const { Shipment } = require('../models/shipment');
 const { Order } = require('../models/order');
-const { validateTransition } = require('../middleware/stateMachine');
-const { syncOrderFromShiprocket } = require('./shiprocketApi');
+const axios = require('axios');
 
-// Sync Shiprocket status every 1 minute via API
-cron.schedule('*/1 * * * *', async () => {
-  console.log('[CRON] Starting Shiprocket API status sync (every 1 minute)...');
+// ========== CONFIGURATION ==========
+const CONFIG = {
+  CRON_INTERVAL: '*/1 * * * *', // Every 1 minute
+  TOKEN_CACHE_MINUTES: 10,
+  MAX_RETRIES: 3,
+  RETRY_DELAY_BASE: 1000, // 1 second
+  RATE_LIMIT_PER_MINUTE: 30,
+  LOCK_TIMEOUT_MS: 55000, // 55 seconds (cron runs every 60s)
+};
+
+// ========== STATE ==========
+let cachedToken = null;
+let tokenExpiry = null;
+let isCronRunning = false;
+let lastCronStart = null;
+const apiCallHistory = new Map();
+
+// ========== TOKEN MANAGEMENT ==========
+async function getShiprocketToken() {
+  const email = process.env.SHIPROCKET_EMAIL;
+  const password = process.env.SHIPROCKET_PASSWORD;
+  
+  if (!email || !password) {
+    throw new Error('Shiprocket credentials not configured');
+  }
+  
+  const response = await axios.post(
+    'https://apiv2.shiprocket.in/v1/external/auth/login',
+    { email, password },
+    { timeout: 30000 }
+  );
+  
+  const token = response.data.token;
+  if (!token) throw new Error('No token received from Shiprocket');
+  
+  // Cache token for 10 minutes
+  cachedToken = token;
+  tokenExpiry = Date.now() + (CONFIG.TOKEN_CACHE_MINUTES * 60 * 1000);
+  
+  return token;
+}
+
+async function getValidToken() {
+  // Return cached token if still valid
+  if (cachedToken && tokenExpiry && Date.now() < tokenExpiry - 60000) {
+    return cachedToken;
+  }
+  
+  // Generate new token
+  return await getShiprocketToken();
+}
+
+// ========== RATE LIMITING ==========
+function checkRateLimit(key) {
+  const now = Date.now();
+  const lastCall = apiCallHistory.get(key);
+  const minDelay = (60 * 1000) / CONFIG.RATE_LIMIT_PER_MINUTE; // 2 seconds between calls
+  
+  if (lastCall && (now - lastCall) < minDelay) {
+    return false;
+  }
+  
+  apiCallHistory.set(key, now);
+  
+  // Clean old entries
+  apiCallHistory.forEach((timestamp, k) => {
+    if (now - timestamp > 60000) apiCallHistory.delete(k);
+  });
+  
+  return true;
+}
+
+// ========== RETRY SYSTEM ==========
+async function withRetry(operation, context) {
+  for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      const isRetryable = error.response?.status === 429 || 
+                         error.response?.status >= 500 || 
+                         error.code === 'ECONNRESET' ||
+                         error.code === 'ETIMEDOUT';
+      
+      if (!isRetryable || attempt === CONFIG.MAX_RETRIES) {
+        throw error;
+      }
+      
+      const delay = CONFIG.RETRY_DELAY_BASE * Math.pow(2, attempt - 1);
+      console.log(`[CRON] Retry ${attempt}/${CONFIG.MAX_RETRIES} for ${context} in ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
+// ========== API CALLS ==========
+async function getStatusByAWB(awb) {
+  return withRetry(async () => {
+    const token = await getValidToken();
+    
+    const response = await axios.get(
+      `https://apiv2.shiprocket.in/v1/external/courier/track/awb/${awb}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000
+      }
+    );
+    
+    const trackData = response.data?.tracking_data?.shipment_track?.[0];
+    const activities = response.data?.tracking_data?.shipment_track_activities;
+    
+    if (!trackData?.current_status) {
+      return null;
+    }
+    
+    const status = trackData.current_status;
+    const adminStatus = activities?.[0]?.['sr-status-label'] || status;
+    
+    return { status, adminStatus, source: 'awb' };
+  }, `AWB:${awb}`);
+}
+
+async function getStatusByOrderId(orderId) {
+  return withRetry(async () => {
+    const token = await getValidToken();
+    
+    const response = await axios.get(
+      `https://apiv2.shiprocket.in/v1/external/orders/show/${orderId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000
+      }
+    );
+    
+    const orderData = response.data?.data;
+    if (!orderData) return null;
+    
+    const shiprocketStatus = orderData.status || orderData.shipment_status || 'NEW';
+    const awbCode = orderData.awb_code || orderData.shipments?.[0]?.awb_code;
+    
+    return {
+      status: shiprocketStatus,
+      adminStatus: shiprocketStatus,
+      awbCode,
+      source: 'order_id'
+    };
+  }, `Order:${orderId}`);
+}
+
+// ========== STATUS NORMALIZATION ==========
+const STATUS_MAP = {
+  'NEW': 'new',
+  'PICKED_UP': 'processing',
+  'IN_TRANSIT': 'shipped',
+  'OUT_FOR_DELIVERY': 'shipped',
+  'DELIVERED': 'delivered',
+  'CANCELLED': 'cancelled',
+  'RTO': 'returned',
+  'RETURNED': 'returned',
+  'RTO DELIVERED': 'returned'
+};
+
+function normalizeStatus(shiprocketStatus) {
+  const key = String(shiprocketStatus || '').toUpperCase().trim();
+  return STATUS_MAP[key] || key.toLowerCase();
+}
+
+// ========== CRON LOCK ==========
+function acquireCronLock() {
+  const now = Date.now();
+  
+  if (isCronRunning && lastCronStart && (now - lastCronStart) < CONFIG.LOCK_TIMEOUT_MS) {
+    console.log('[CRON] Previous cron still running, skipping this cycle');
+    return false;
+  }
+  
+  isCronRunning = true;
+  lastCronStart = now;
+  return true;
+}
+
+function releaseCronLock() {
+  isCronRunning = false;
+}
+
+// ========== MAIN CRON JOB ==========
+cron.schedule(CONFIG.CRON_INTERVAL, async () => {
+  if (!acquireCronLock()) return;
+  
+  const startTime = Date.now();
   
   try {
-    const db = mongoose.connection.db;
-    if (!db) {
-      console.log('[CRON] Database not ready, skipping sync');
+    // Fetch only pending orders (optimization: exclude final states)
+    const orders = await Order.find({
+      status: { $nin: ['delivered', 'cancelled', 'returned'] }
+    }).select('orderNumber status shiprocket').sort({ updatedAt: 1 }).limit(100);
+
+    if (orders.length === 0) {
       return;
     }
-
-    // Get active orders with AWB numbers (not delivered/cancelled/returned)
-    console.log(`[CRON] Querying orders with AWB...`);
-    const activeOrders = await Order.find({
-      awb: { $exists: true, $ne: '' },
-      status: { $nin: ['delivered', 'cancelled', 'returned'] }
-    }).sort({ createdAt: -1 });
-
-    console.log(`[CRON] Found ${activeOrders.length} active orders with AWB to sync via API`);
     
-    // Debug: Show all orders without AWB
-    const allOrders = await Order.find({
-      status: { $nin: ['delivered', 'cancelled', 'returned'] }
-    }).select('orderNumber awb status').limit(10);
-    console.log(`[CRON] Sample orders (first 10):`);
-    allOrders.forEach(order => {
-      console.log(`  - ${order.orderNumber}: AWB=${order.awb || 'NULL'}, Status=${order.status}`);
-    });
+    let synced = 0;
+    let failed = 0;
+    let skipped = 0;
+    let awbDiscovered = 0;
 
-    // Force sync ORD-120678-BFCA33 specifically
-    console.log(`[CRON] Looking for target order ORD-120678-BFCA33...`);
-    const targetOrder = await Order.findOne({ orderNumber: 'ORD-120678-BFCA33' });
-    
-    if (targetOrder) {
-      console.log(`[CRON] Found target order: ${targetOrder.orderNumber}, AWB=${targetOrder.awb || 'NULL'}, Status=${targetOrder.status}`);
-      
-      // Update AWB if not present
-      if (!targetOrder.awb) {
-        console.log(`[CRON] Updating AWB for target order ORD-120678-BFCA33`);
-        await Order.updateOne(
-          { _id: targetOrder._id },
-          { $set: { awb: '1319450866699' } }
-        );
-        targetOrder.awb = '1319450866699';
-        console.log(`[CRON] AWB updated: ${targetOrder.awb}`);
-      } else {
-        console.log(`[CRON] AWB already exists: ${targetOrder.awb}`);
-      }
-      
-      console.log(`[CRON] Force syncing target order ORD-120678-BFCA33 (AWB: ${targetOrder.awb})`);
+    for (const order of orders) {
       try {
-        const shiprocketSync = await syncOrderFromShiprocket(targetOrder.awb);
-        if (shiprocketSync) {
-          console.log(`[CRON] Target order Shiprocket status: ${shiprocketSync.status}, Local: ${targetOrder.status}`);
-          
-          if (shiprocketSync.status !== targetOrder.status) {
-            console.log(`[CRON] FORCE UPDATING target order ORD-120678-BFCA33: ${targetOrder.status} → ${shiprocketSync.status} (${shiprocketSync.adminStatus})`);
-            
-            // Update order status immediately
-            await Order.updateOne(
-              { _id: targetOrder._id },
-              {
-                $set: { 
-                  status: shiprocketSync.status,
-                  adminStatus: shiprocketSync.adminStatus, // Add admin status for display
-                  'shiprocket.lastSyncAt': new Date(),
-                  'shiprocket.lastStatus': shiprocketSync.status,
-                  'shiprocket.adminStatus': shiprocketSync.adminStatus,
-                  'shiprocket.forceSynced': true
-                },
-                $push: {
-                  statusHistory: {
-                    status: shiprocketSync.status,
-                    at: new Date(),
-                    source: 'shiprocket_force_sync'
-                  }
-                }
-              }
-            );
-
-            // Update shipment if exists
-            await Shipment.updateOne(
-              { order: targetOrder._id },
-              {
-                $set: { 
-                  status: shiprocketSync.status,
-                  lastSyncAt: new Date(),
-                  forceSynced: true
-                },
-                $push: {
-                  eventHistory: {
-                    status: shiprocketSync.status,
-                    at: new Date(),
-                    source: 'shiprocket_force_sync'
-                  }
-                }
-              }
-            );
-
-            console.log(`[CRON] Successfully force updated target order ORD-120678-BFCA33 to ${shiprocketSync.status}`);
-          }
-        }
-      } catch (e) {
-        console.error(`[CRON] Target order sync error:`, e.message);
-      }
-    }
-
-    for (const order of activeOrders) {
-      try {
-        console.log(`[CRON] Processing order ${order.orderNumber} (AWB: ${order.awb})`);
-
-        // Check if admin changed status recently (within 5 minutes)
-        const lastManualChange = order.statusHistory?.find(h => h.source === 'admin');
-        if (lastManualChange) {
-          const minutesSinceManualChange = (new Date() - new Date(lastManualChange.at)) / (1000 * 60);
-          if (minutesSinceManualChange < 5) {
-            console.log(`[CRON] Skipping order ${order.orderNumber} - admin changed status recently (${minutesSinceManualChange.toFixed(1)} min ago)`);
-            continue;
-          }
-        }
-
-        // Get status from Shiprocket API using AWB
-        console.log(`[CRON] Fetching Shiprocket status for order ${order.orderNumber} (AWB: ${order.awb})`);
-        const shiprocketSync = await syncOrderFromShiprocket(order.awb);
-        if (!shiprocketSync) {
-          console.log(`[CRON] Failed to sync order ${order.orderNumber} - no Shiprocket data`);
+        // Rate limit check
+        if (!checkRateLimit(`order:${order._id}`)) {
+          skipped++;
           continue;
         }
-
-        console.log(`[CRON] Shiprocket status for ${order.orderNumber}: ${shiprocketSync.status} (${shiprocketSync.adminStatus}), Local: ${order.status}`);
-
-        // Only update if status is different
-        if (shiprocketSync.status !== order.status) {
-          console.log(`[CRON] Updating order ${order.orderNumber}: ${order.status} → ${shiprocketSync.status}`);
-          
-          // Validate transition
-          try {
-            validateTransition('order', order.status, shiprocketSync.status);
-          } catch (e) {
-            console.error(`[CRON] Invalid transition for order ${order.orderNumber}:`, e.message);
-            // Force update anyway for delivered orders
-            if (shiprocketSync.status === 'delivered') {
-              console.log(`[CRON] Forcing delivered status update for order ${order.orderNumber}`);
-            } else {
-              continue;
-            }
+        
+        // Find shipment
+        const shipment = await Shipment.findOne({ order: order._id })
+          .select('awbNumber shiprocketOrderId status');
+        
+        let trackingResult = null;
+        
+        // Method 1: AWB tracking
+        if (shipment?.awbNumber) {
+          if (checkRateLimit(`awb:${shipment.awbNumber}`)) {
+            trackingResult = await getStatusByAWB(shipment.awbNumber);
           }
-
-          // Update order status immediately
-          await Order.updateOne(
-            { _id: order._id },
-            {
-              $set: { 
-                status: shiprocketSync.status,
-                adminStatus: shiprocketSync.adminStatus, // Add admin status for display
-                'shiprocket.lastSyncAt': new Date(),
-                'shiprocket.lastStatus': shiprocketSync.status,
-                'shiprocket.adminStatus': shiprocketSync.adminStatus,
-                'shiprocket.forceSynced': true
-              },
-              $push: {
-                statusHistory: {
-                  status: shiprocketSync.status,
-                  at: new Date(),
-                  source: 'shiprocket_api'
-                }
-              }
-            }
-          );
-
-          // Update shipment if exists
-          await Shipment.updateOne(
-            { order: order._id },
-            {
-              $set: { 
-                status: shiprocketSync.status,
-                lastSyncAt: new Date(),
-                forceSynced: true
-              },
-              $push: {
-                eventHistory: {
-                  status: shiprocketSync.status,
-                  at: new Date(),
-                  source: 'shiprocket_api'
-                }
-              }
-            }
-          );
-
-          console.log(`[CRON] Successfully updated order ${order.orderNumber} to ${shiprocketSync.status}`);
-        } else {
-          console.log(`[CRON] Order ${order.orderNumber} status unchanged`);
         }
         
-      } catch (e) {
-        console.error(`[CRON] Error syncing order ${order.orderNumber}:`, e.message);
+        // Method 2: Order ID fallback
+        if (!trackingResult && shipment?.shiprocketOrderId) {
+          if (checkRateLimit(`oid:${shipment.shiprocketOrderId}`)) {
+            trackingResult = await getStatusByOrderId(shipment.shiprocketOrderId);
+            
+            // Auto-discover AWB
+            if (trackingResult?.awbCode && !shipment.awbNumber) {
+              await Shipment.updateOne(
+                { _id: shipment._id },
+                { $set: { awbNumber: trackingResult.awbCode } }
+              );
+              awbDiscovered++;
+            }
+          }
+        }
+        
+        if (!trackingResult) {
+          failed++;
+          continue;
+        }
+        
+        const normalizedStatus = normalizeStatus(trackingResult.status);
+        
+        // Skip if no change
+        if (normalizedStatus === order.status) {
+          continue;
+        }
+        
+        // Update order
+        await Order.updateOne(
+          { _id: order._id },
+          {
+            $set: {
+              status: normalizedStatus,
+              adminStatus: trackingResult.adminStatus,
+              'shiprocket.lastSyncAt': new Date(),
+              'shiprocket.trackingSource': trackingResult.source
+            },
+            $push: {
+              statusHistory: {
+                status: normalizedStatus,
+                at: new Date(),
+                source: 'shiprocket_api'
+              }
+            }
+          }
+        );
+        
+        // Update shipment
+        if (shipment) {
+          await Shipment.updateOne(
+            { _id: shipment._id },
+            {
+              $set: {
+                status: normalizedStatus,
+                lastSyncAt: new Date()
+              }
+            }
+          );
+        }
+        
+        console.log(`[CRON] ${order.orderNumber}: ${order.status} → ${normalizedStatus}`);
+        synced++;
+        
+      } catch (error) {
+        console.error(`[CRON] Failed ${order.orderNumber}: ${error.message}`);
+        failed++;
       }
     }
-
-    console.log('[CRON] Shiprocket API sync completed');
-  } catch (e) {
-    console.error('[CRON] Shiprocket API sync error:', e);
+    
+    const duration = Date.now() - startTime;
+    console.log(`[CRON] ${orders.length} orders: ${synced} synced, ${failed} failed, ${skipped} skipped, ${awbDiscovered} AWBs (${duration}ms)`);
+    
+  } catch (error) {
+    console.error('[CRON] Fatal error:', error.message);
+  } finally {
+    releaseCronLock();
   }
 });
 
-console.log('[CRON] Shiprocket API sync scheduler initialized (every 1 minute)');
+console.log('[CRON] Production Shiprocket sync initialized');

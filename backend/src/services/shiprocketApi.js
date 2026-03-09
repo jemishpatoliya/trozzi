@@ -86,8 +86,11 @@ async function getShiprocketOrders(page = 0, limit = 100) {
   }
 }
 
-// Sync order status from Shiprocket API using AWB
-async function syncOrderFromShiprocket(awbNumber) {
+// Sync order status from Shiprocket API using AWB with retry mechanism
+async function syncOrderFromShiprocket(awbNumber, retryCount = 0) {
+  const maxRetries = 3;
+  const baseDelay = 1000; // 1 second
+  
   try {
     const token = await getValidShiprocketToken();
     
@@ -98,7 +101,8 @@ async function syncOrderFromShiprocket(awbNumber) {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 10000 // 10 second timeout
       }
     );
 
@@ -194,7 +198,7 @@ async function syncOrderFromShiprocket(awbNumber) {
       console.log(`[Shiprocket API] Detected delivered status - forcing to 'delivered'`);
       return {
         status: 'delivered',
-        adminStatus: adminStatus, // For admin panel display
+        adminStatus: adminStatus || 'DELIVERED', // For admin panel display
         trackingData: response.data,
         lastUpdated: new Date()
       };
@@ -208,6 +212,17 @@ async function syncOrderFromShiprocket(awbNumber) {
     };
   } catch (error) {
     console.error(`[Shiprocket] Sync failed for AWB ${awbNumber}:`, error.response?.data || error.message);
+    
+    // Retry logic with exponential backoff
+    if (retryCount < maxRetries) {
+      const delay = baseDelay * Math.pow(2, retryCount);
+      console.log(`[Shiprocket] Retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return await syncOrderFromShiprocket(awbNumber, retryCount + 1);
+    }
+    
+    console.error(`[Shiprocket] Max retries reached for AWB ${awbNumber}`);
     return null;
   }
 }

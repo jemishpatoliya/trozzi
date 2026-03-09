@@ -27,6 +27,7 @@ interface Order {
   payerVpa?: string;
   transactionId?: string;
   status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  adminStatus?: string; // Add admin status from Shiprocket
 }
 
 type OrderDetailItem = {
@@ -44,6 +45,7 @@ type OrderDetail = {
   id: string;
   orderNumber: string;
   status: Order['status'];
+  adminStatus?: string; // Add admin status from Shiprocket
   currency?: string;
   subtotal?: number;
   shipping?: number;
@@ -350,7 +352,7 @@ const OrdersPage = () => {
     {
       key: 'status',
       header: 'Status',
-      render: (order: Order) => <StatusBadge status={order.status} />,
+      render: (order: Order) => <StatusBadge status={order.adminStatus || order.status} />,
     },
     {
       key: 'actions',
