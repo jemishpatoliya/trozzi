@@ -219,8 +219,8 @@ const SummaryPage = () => {
     }, [paymentStatus, cartCleared, clearCart]);
 
     return (
-        <div className="min-h-screen bg-[#F1F3F6] overflow-x-hidden">
-            <div className="w-full max-w-5xl mx-auto py-4 sm:py-8 px-3 sm:px-6 lg:px-8 overflow-x-hidden">
+        <div className="relative min-h-screen bg-[#F1F3F6]">
+            <div className="pt-32 sm:pt-36 pb-8 px-3 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between mb-3 sm:mb-6">
                     <button
                         type="button"
@@ -234,26 +234,26 @@ const SummaryPage = () => {
                     <div className="w-10" />
                 </div>
 
-                <div className="mb-3 sm:mb-6">
-                    <div className="bg-white border border-gray-200 rounded-lg px-3 sm:px-4 py-2.5">
-                        <div className="flex items-center justify-between text-[10px] sm:text-[13px]">
-                            <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-bold bg-emerald-600 text-white">1</div>
+                <div className="mb-3 sm:mb-6 overflow-x-auto">
+                    <div className="bg-white border border-gray-200 rounded-lg px-2 sm:px-4 py-2.5 min-w-[320px]">
+                        <div className="flex items-center justify-between text-[9px] sm:text-[13px] whitespace-nowrap">
+                            <div className="flex items-center gap-1 sm:gap-2 text-emerald-600">
+                                <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[11px] font-bold bg-emerald-600 text-white">1</div>
                                 <span className="font-semibold">Cart</span>
                             </div>
-                            <div className="flex-1 h-[2px] mx-1.5 sm:mx-4 bg-emerald-200" />
-                            <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-bold bg-emerald-600 text-white">2</div>
+                            <div className="flex-1 h-[2px] mx-1 sm:mx-4 bg-emerald-200 min-w-[20px]" />
+                            <div className="flex items-center gap-1 sm:gap-2 text-emerald-600">
+                                <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[11px] font-bold bg-emerald-600 text-white">2</div>
                                 <span className="font-semibold">Address</span>
                             </div>
-                            <div className="flex-1 h-[2px] mx-1.5 sm:mx-4 bg-emerald-200" />
-                            <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-600">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-bold bg-emerald-600 text-white">3</div>
+                            <div className="flex-1 h-[2px] mx-1 sm:mx-4 bg-emerald-200 min-w-[20px]" />
+                            <div className="flex items-center gap-1 sm:gap-2 text-emerald-600">
+                                <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[11px] font-bold bg-emerald-600 text-white">3</div>
                                 <span className="font-semibold">Payment</span>
                             </div>
-                            <div className="flex-1 h-[2px] mx-1.5 sm:mx-4 bg-gray-200" />
-                            <div className="flex items-center gap-1.5 sm:gap-2 text-[#5A0B5A]">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-bold bg-[#5A0B5A] text-white">4</div>
+                            <div className="flex-1 h-[2px] mx-1 sm:mx-4 bg-gray-200 min-w-[20px]" />
+                            <div className="flex items-center gap-1 sm:gap-2 text-[#5A0B5A]">
+                                <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[9px] sm:text-[11px] font-bold bg-[#5A0B5A] text-white">4</div>
                                 <span className="font-semibold">Summary</span>
                             </div>
                         </div>
