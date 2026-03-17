@@ -159,9 +159,9 @@ const Home = () => {
   }, [apiCategories, resolveCategoryToParam])
 
   return (
-    <div className="home-page bg-[#f7f7f7] mt-0 lg:mt-40">
+    <div className="home-page bg-[#f7f7f7] mt-24 lg:mt-40">
       {/* Categories Section - Always Visible */}
-      <section className="categories-section bg-white mt-0 lg:mt-40 pt-4 pb-4 sm:pt-5 sm:pb-5 border-b">
+      <section className="categories-section bg-white mt-24 lg:mt-40 pt-4 pb-4 sm:pt-5 sm:pb-5 border-b">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="relative">
             <button
