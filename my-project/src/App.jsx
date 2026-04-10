@@ -187,6 +187,27 @@ const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
 
+const MetaPixelRouteTracker = () => {
+    const location = useLocation();
+    const lastTrackedRef = useRef('');
+
+    useEffect(() => {
+        const path = `${location.pathname}${location.search || ''}`;
+        if (lastTrackedRef.current === path) return;
+
+        const fbq = (typeof window !== 'undefined' && typeof window.fbq === 'function')
+            ? window.fbq
+            : null;
+
+        if (!fbq) return;
+
+        lastTrackedRef.current = path;
+        fbq('track', 'PageView');
+    }, [location.pathname, location.search]);
+
+    return null;
+};
+
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -516,6 +537,7 @@ function App() {
                                         v7_relativeSplatPath: true,
                                     }}
                                 >
+                                    <MetaPixelRouteTracker />
                                     <div className="App flex h-screen overflow-hidden">
                                         {/* Right Content Area */}
                                         <div className="flex-1 flex flex-col overflow-hidden">

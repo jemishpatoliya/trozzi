@@ -7,6 +7,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const jwt = require('jsonwebtoken');
+const dns = require('node:dns');
 require('dotenv').config();
 
 // Import routes
@@ -291,6 +292,15 @@ startServer(BASE_PORT);
 
 const mongoUri = process.env.MONGODB_URI;
 const mongoUriStandard = process.env.MONGODB_URI_STANDARD;
+
+const dnsServers = String(process.env.DNS_SERVERS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+if (dnsServers.length) {
+  dns.setServers(dnsServers);
+}
 
 const isSrvLookupError = (err) => {
   const msg = String(err?.message || '');
