@@ -8,7 +8,7 @@ import { FaArrowLeft } from 'react-icons/fa';
 import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
 
 const CheckoutPage = () => {
-    const { items, fetchCart, clearCart } = useCart();
+    const { items, fetchCart, clearCart, cartSynced, loading: cartLoading } = useCart();
     const { user } = useAuth();
     const { settings } = useContentSettings();
     const location = useLocation();
@@ -129,6 +129,14 @@ const CheckoutPage = () => {
         }
     }, [user, normalizedItems.length, navigate]);
 
+    // Fetch fresh cart data on load to ensure shipping fields are populated
+    useEffect(() => {
+        if (user && !isBuyNowMode) {
+            fetchCart();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, isBuyNowMode]);
+
     const handleChange = (e) => {
         setFormData({
             ...formData,
@@ -152,18 +160,32 @@ const CheckoutPage = () => {
     const computeShipping = (cartItems) => {
         const minBase = 4.99;
         if (!Array.isArray(cartItems) || cartItems.length === 0) return 0;
-        return cartItems.reduce((sum, item) => {
+
+        let totalShipping = 0;
+        const processedProductIds = new Set(); // Track products with flat shipping
+
+        for (const item of cartItems) {
             const qty = Number(item?.quantity ?? 0) || 0;
             const p = item?.product || {};
+            const productId = p?._id;
             const free = typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(p?.management?.shipping?.freeShipping);
-            if (free) return sum;
+            if (free) continue;
 
-            // Use custom shipping charge if set, otherwise calculate based on weight/dimensions
-            const customShippingCharge = Number(p?.shippingCharge ?? p?.management?.shipping?.shippingCharge ?? 0) || 0;
+            // Check for custom flat shipping charge (handle explicit 0 correctly)
+            const topLevelCharge = Number(p?.shippingCharge ?? 0);
+            const mgmtCharge = Number(p?.management?.shipping?.shippingCharge ?? 0);
+            const customShippingCharge = topLevelCharge > 0 ? topLevelCharge : (mgmtCharge > 0 ? mgmtCharge : 0);
             if (customShippingCharge > 0) {
-                return sum + customShippingCharge * qty;
+                // Flat shipping - apply once per product type, not per unit
+                // Only add if we haven't processed this product yet
+                if (productId && !processedProductIds.has(productId)) {
+                    totalShipping += customShippingCharge;
+                    processedProductIds.add(productId);
+                }
+                continue;
             }
 
+            // Calculate based on weight/dimensions (per unit)
             const weightKg = Number(p?.weight ?? p?.management?.shipping?.weightKg ?? 0) || 0;
             const dims = p?.dimensions ?? p?.management?.shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
             const length = Number(dims?.length ?? 0) || 0;
@@ -172,8 +194,10 @@ const CheckoutPage = () => {
             const volumetric = (length * width * height) / 5000;
             const chargeable = Math.max(weightKg, volumetric);
             const costPerItem = Math.max(minBase, chargeable * 1.2);
-            return sum + costPerItem * qty;
-        }, 0);
+            totalShipping += costPerItem * qty;
+        }
+
+        return totalShipping;
     };
 
     const SHIPPING_AMOUNT = roundMoney(computeShipping(normalizedItems));
@@ -243,6 +267,9 @@ const CheckoutPage = () => {
             // ignore
         }
 
+        // Track which products have flat shipping to avoid duplication
+        const flatShippingProductIds = new Set();
+
         const orderItems = normalizedItems
             .map((it) => {
                 const p = it?.product || {};
@@ -251,6 +278,42 @@ const CheckoutPage = () => {
                 const price = Number(it?.price ?? p?.price ?? 0) || 0;
                 const quantity = Number(it?.quantity ?? 0) || 0;
                 if (!productId || !name || !price || !quantity) return null;
+
+                // Calculate per-product shipping charge
+                const free = typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(p?.management?.shipping?.freeShipping);
+                let shippingCharge = 0;
+                let isFlatShipping = false;
+
+                if (!free) {
+                    // Check for custom shipping (handle explicit 0 correctly)
+                    const topLevelCharge = Number(p?.shippingCharge ?? 0);
+                    const mgmtCharge = Number(p?.management?.shipping?.shippingCharge ?? 0);
+                    const customShipping = topLevelCharge > 0 ? topLevelCharge : (mgmtCharge > 0 ? mgmtCharge : 0);
+                    if (customShipping > 0) {
+                        // Custom flat shipping - only apply once per product type
+                        if (!flatShippingProductIds.has(productId)) {
+                            shippingCharge = customShipping;
+                            flatShippingProductIds.add(productId);
+                            isFlatShipping = true;
+                        } else {
+                            // Same product already counted for flat shipping
+                            shippingCharge = 0;
+                            isFlatShipping = true;
+                        }
+                    } else {
+                        // Calculate based on weight/dimensions (per unit)
+                        const weightKg = Number(p?.weight ?? p?.management?.shipping?.weightKg ?? 0) || 0;
+                        const dims = p?.dimensions ?? p?.management?.shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
+                        const length = Number(dims?.length ?? 0) || 0;
+                        const width = Number(dims?.width ?? 0) || 0;
+                        const height = Number(dims?.height ?? 0) || 0;
+                        const volumetric = (length * width * height) / 5000;
+                        const chargeable = Math.max(weightKg, volumetric);
+                        shippingCharge = Math.max(4.99, chargeable * 1.2);
+                        isFlatShipping = false;
+                    }
+                }
+
                 return {
                     productId: String(productId),
                     name: String(name),
@@ -259,6 +322,8 @@ const CheckoutPage = () => {
                     selectedSize: it?.selectedSize || it?.size || '',
                     selectedColor: it?.selectedColor || it?.color || '',
                     selectedImage: it?.selectedImage || it?.image || p?.image || '',
+                    shippingCharge: Math.round(shippingCharge * 100) / 100,
+                    isFlatShipping,
                 };
             })
             .filter(Boolean);
@@ -416,6 +481,18 @@ const CheckoutPage = () => {
             setLoading(false);
         }
     };
+
+    // Show loading while cart data is syncing from server (not for buy now mode)
+    if (!isBuyNowMode && cartLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 mt-16 py-6 px-3 sm:px-6 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5A0B5A] mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading cart...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 mt-16 py-6 px-3 sm:px-6">

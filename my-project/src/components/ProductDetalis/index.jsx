@@ -211,6 +211,14 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
         : Boolean(product?.management?.shipping?.codAvailable);
       const codCharge = Number(product?.codCharge ?? product?.management?.shipping?.codCharge ?? 0) || 0;
 
+      // Prepare complete product data including all shipping fields
+      const freeShipping = typeof product?.freeShipping === 'boolean'
+        ? product.freeShipping
+        : Boolean(product?.management?.shipping?.freeShipping);
+      const shippingCharge = Number(product?.shippingCharge ?? product?.management?.shipping?.shippingCharge ?? 0) || 0;
+      const weight = Number(product?.weight ?? product?.management?.shipping?.weightKg ?? 0) || 0;
+      const dimensions = product?.dimensions ?? product?.management?.shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 };
+
       const buyNowItem = {
         _id: productId,
         product: {
@@ -224,6 +232,10 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
           color: hasColorVariants ? (currentVariant?.colorName || '') : (selectedSimpleColor || ''),
           codAvailable,
           codCharge,
+          freeShipping,
+          shippingCharge,
+          weight,
+          dimensions,
           management: product?.management,
         },
         price: currentPrice ?? product?.price ?? 0,

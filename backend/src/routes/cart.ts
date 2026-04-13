@@ -75,7 +75,7 @@ function mapCartItemsForResponse(items: any[]) {
 router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const cart = await CartModel.findOne({ user: req.userId })
-      .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+      .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
     
     if (!cart) {
       return res.json({ items: [], totalAmount: 0 });
@@ -159,7 +159,7 @@ router.post('/add', authenticateToken, async (req: AuthenticatedRequest, res: Re
 
     // Return updated cart with populated product details
     const updatedCart = await CartModel.findOne({ user: req.userId })
-      .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+      .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
     if (!updatedCart) {
       return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -211,7 +211,7 @@ router.put('/update', authenticateToken, async (req: AuthenticatedRequest, res: 
 
     // Return updated cart with populated product details
     const updatedCart = await CartModel.findOne({ user: req.userId })
-      .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+      .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
     if (!updatedCart) {
       return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -260,7 +260,7 @@ router.delete(
 
     // Return updated cart with populated product details
     const updatedCart = await CartModel.findOne({ user: req.userId })
-      .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+      .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
     if (!updatedCart) {
       return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -297,7 +297,7 @@ router.delete('/remove', authenticateToken, async (req: AuthenticatedRequest, re
     await cart.save();
 
     const updatedCart = await CartModel.findOne({ user: req.userId })
-      .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+      .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
     if (!updatedCart) {
       return res.status(500).json({ error: 'Failed to retrieve updated cart' });

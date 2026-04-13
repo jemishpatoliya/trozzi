@@ -39,6 +39,8 @@ type OrderDetailItem = {
   selectedSize?: string;
   selectedColor?: string;
   selectedImage?: string;
+  shippingCharge?: number;
+  isFlatShipping?: boolean;
 };
 
 type OrderDetail = {
@@ -770,9 +772,31 @@ const OrdersPage = () => {
                               {it.selectedColor ? `Color: ${it.selectedColor}` : ''}
                             </div>
                           ) : null}
+                          {(it as any).isFlatShipping ? (
+                            <div className="text-xs text-muted-foreground">
+                              Shipping: {formatMoney(Number(it.shippingCharge ?? 0))} (flat)
+                            </div>
+                          ) : it.shippingCharge !== undefined && it.shippingCharge > 0 ? (
+                            <div className="text-xs text-muted-foreground">
+                              Shipping: {formatMoney(Number(it.shippingCharge ?? 0))} per unit
+                            </div>
+                          ) : it.shippingCharge === 0 ? (
+                            <div className="text-xs text-success">Free Shipping</div>
+                          ) : null}
                         </div>
-                        <div className="text-sm font-medium">
-                          {formatMoney((Number(it.price ?? 0) || 0) * (Number(it.quantity ?? 0) || 0))}
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            {formatMoney((Number(it.price ?? 0) || 0) * (Number(it.quantity ?? 0) || 0))}
+                          </div>
+                          {(it as any).isFlatShipping ? (
+                            <div className="text-xs text-muted-foreground">
+                              + {formatMoney(Number(it.shippingCharge ?? 0) || 0)} shipping
+                            </div>
+                          ) : it.shippingCharge !== undefined && it.shippingCharge > 0 ? (
+                            <div className="text-xs text-muted-foreground">
+                              + {formatMoney((Number(it.shippingCharge ?? 0) || 0) * (Number(it.quantity ?? 0) || 0))} shipping
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ))}

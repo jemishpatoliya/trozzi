@@ -10,6 +10,7 @@ const { AdminModel } = require('../models/admin');
 const { UserModel } = require('../models/user');
 const { ProductModel } = require('../models/product');
 const domainEvents = require('../services/domainEvents');
+const { calculateOrderTotals } = require('../services/shippingCalculator');
 
 const router = express.Router();
 
@@ -1127,16 +1128,37 @@ router.post('/webhook/phonepe', express.raw({ type: 'application/json' }), async
         const part = Math.random().toString(16).slice(2, 8).toUpperCase();
         const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${part}`;
 
+        // Server-side calculation of order totals using shared utility
+        const items = Array.isArray(orderData.items) ? orderData.items : [];
+
+        // Fetch products for validation
+        const productIds = items
+          .map((it) => String(it?.productId || '').trim())
+          .filter((id) => mongoose.Types.ObjectId.isValid(id));
+        const products = productIds.length
+          ? await ProductModel.find({ _id: { $in: productIds } })
+              .select({ price: 1, shippingCharge: 1, freeShipping: 1, weight: 1, dimensions: 1, management: 1 })
+              .lean()
+          : [];
+        const productById = new Map(products.map((p) => [String(p._id), p]));
+
+        // Use shared utility for consistent calculations
+        const { subtotal, shipping, tax, total, items: enrichedItems } = calculateOrderTotals(
+          items,
+          productById,
+          { isCod: false, taxRate: 0.18 }
+        );
+
         const createdOrder = await Order.create({
           user: payment.user,
           orderNumber,
           status: 'paid',
           currency: orderData.currency || 'INR',
-          subtotal: Number(orderData.subtotal ?? 0),
-          shipping: Number(orderData.shipping ?? 0),
-          tax: Number(orderData.tax ?? 0),
-          total: Number(orderData.total ?? payment.amount ?? 0),
-          items: Array.isArray(orderData.items) ? orderData.items.map(normalizeOrderItemSnapshot) : [],
+          subtotal,
+          shipping,
+          tax,
+          total,
+          items: enrichedItems,
           customer: orderData.customer || {},
           address: orderData.address || {},
           createdAtIso: nowIso,

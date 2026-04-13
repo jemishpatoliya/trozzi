@@ -93,6 +93,7 @@ function applyManagementToProduct(product) {
     if (typeof seo.metaDescription === "string") next.metaDescription = seo.metaDescription;
 
     if (typeof shipping.weightKg === "number" && Number.isFinite(shipping.weightKg)) next.weight = shipping.weightKg;
+    if (typeof shipping.shippingCharge === "number" && Number.isFinite(shipping.shippingCharge)) next.shippingCharge = shipping.shippingCharge;
     if (shipping.dimensionsCm && typeof shipping.dimensionsCm === "object") next.dimensions = shipping.dimensionsCm;
 
     // Fallback: derive sizes/colors from attribute sets when missing on the catalog product.

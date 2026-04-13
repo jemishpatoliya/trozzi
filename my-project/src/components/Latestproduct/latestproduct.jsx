@@ -10,11 +10,16 @@ const FeaturedSlider = ({ title, hideAddToCart = false }) => {
     let cancelled = false;
     async function load() {
       try {
+        console.log('[LatestProducts] Fetching products...');
         const data = await fetchProducts({ mode: "public", page: 1, limit: 12 });
+        console.log('[LatestProducts] API response:', data);
         if (cancelled) return;
         const list = Array.isArray(data) ? data : (data.items || []);
+        console.log('[LatestProducts] Products list:', list);
+        console.log('[LatestProducts] Products count:', list.length);
         setItems(list);
       } catch (e) {
+        console.error('[LatestProducts] Error fetching products:', e);
         if (!cancelled) setItems([]);
       }
     }

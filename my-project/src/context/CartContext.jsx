@@ -20,6 +20,7 @@ export const CartProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [itemCount, setItemCount] = useState(0);
     const [isHydrated, setIsHydrated] = useState(false);
+    const [cartSynced, setCartSynced] = useState(false);
 
     const getUserId = useCallback(() => {
         const uid = user?._id || user?.id || user?.userId;
@@ -121,11 +122,13 @@ export const CartProvider = ({ children }) => {
                 const matchedServer = serverByKey.get(key) || (localId ? serverItems.find((s) => getComparableId(s) === localId) : null);
 
                 if (matchedServer) {
-                    // Upgrade local item with server product snapshot (contains codCharge/codAvailable)
+                    // Upgrade local item with server product snapshot (contains shipping/cod data)
                     const idx = mergedItems.findIndex((m) => makeLineKey(m) === key);
                     if (idx >= 0) {
                         const localPrice = localItem?.price ?? localItem?.product?.price;
                         const localSku = localItem?.sku ?? localItem?.product?.sku;
+                        const serverProduct = matchedServer?.product || {};
+                        const localProduct = localItem?.product || {};
                         mergedItems[idx] = {
                             ...localItem,
                             ...matchedServer,
@@ -133,9 +136,19 @@ export const CartProvider = ({ children }) => {
                             price: localItem?.price ?? matchedServer?.price,
                             sku: localItem?.sku ?? matchedServer?.sku,
                             product: {
-                                ...(matchedServer.product || localItem.product),
-                                price: localPrice ?? (matchedServer?.product?.price ?? matchedServer?.price),
-                                sku: localSku ?? (matchedServer?.product?.sku ?? matchedServer?.sku),
+                                // Merge server product data with local, preserving shipping fields from server
+                                ...localProduct,
+                                ...serverProduct,
+                                price: localPrice ?? serverProduct?.price ?? matchedServer?.price,
+                                sku: localSku ?? serverProduct?.sku ?? matchedServer?.sku,
+                                // Ensure shipping fields from server are preserved
+                                freeShipping: serverProduct?.freeShipping ?? localProduct?.freeShipping,
+                                shippingCharge: serverProduct?.shippingCharge ?? localProduct?.shippingCharge,
+                                weight: serverProduct?.weight ?? localProduct?.weight ?? serverProduct?.management?.shipping?.weightKg ?? localProduct?.management?.shipping?.weightKg,
+                                dimensions: serverProduct?.dimensions ?? localProduct?.dimensions ?? serverProduct?.management?.shipping?.dimensionsCm ?? localProduct?.management?.shipping?.dimensionsCm,
+                                codAvailable: serverProduct?.codAvailable ?? localProduct?.codAvailable,
+                                codCharge: serverProduct?.codCharge ?? localProduct?.codCharge,
+                                management: serverProduct?.management ?? localProduct?.management,
                             },
                         };
                     }
@@ -148,9 +161,11 @@ export const CartProvider = ({ children }) => {
             });
             setItems(mergedItems);
             setTotalAmount(calculateTotalAmount(mergedItems));
+            setCartSynced(true);
         } catch (error) {
             console.error('Failed to fetch cart:', error);
             loadCartFromStorage();
+            setCartSynced(false);
         } finally {
             setLoading(false);
         }
@@ -445,6 +460,7 @@ export const CartProvider = ({ children }) => {
         totalAmount,
         loading,
         itemCount,
+        cartSynced,
         fetchCart,
         addToCart,
         updateQuantity,

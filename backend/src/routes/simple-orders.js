@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const { getOrCreateContentSettings } = require('../models/contentSettings');
 const domainEvents = require('../services/domainEvents');
 const { validateTransition } = require('../middleware/stateMachine');
+const { calculateOrderTotals, roundMoney } = require('../services/shippingCalculator');
 
 const router = express.Router();
 
@@ -104,7 +105,7 @@ router.post('/cod', async (req, res) => {
     const products = await db
       .collection('products')
       .find({ _id: { $in: productIds.map((id) => new mongoose.Types.ObjectId(id)) } })
-      .project({ codAvailable: 1, codCharge: 1, management: 1 })
+      .project({ codAvailable: 1, codCharge: 1, management: 1, shippingCharge: 1, freeShipping: 1, weight: 1, dimensions: 1, price: 1 })
       .toArray();
 
     const productById = new Map(products.map((p) => [String(p._id), p]));
@@ -121,19 +122,20 @@ router.post('/cod', async (req, res) => {
       }
     }
 
+    // Server-side calculation of order totals using shared utility
+    const { subtotal, shipping, codCharge, tax, total, items: enrichedItems } = calculateOrderTotals(
+      items,
+      productById,
+      { isCod: true, taxRate: 0.18 }
+    );
+
+    const safeNum = (v) => Number(v ?? 0) || 0;
     const nowIso = new Date().toISOString();
     const part = Math.random().toString(16).slice(2, 8).toUpperCase();
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${part}`;
 
     const customer = req.body?.customer && typeof req.body.customer === 'object' ? req.body.customer : {};
     const address = req.body?.address && typeof req.body.address === 'object' ? req.body.address : {};
-
-    const safeNum = (v) => Number(v ?? 0) || 0;
-    const subtotal = safeNum(req.body?.subtotal);
-    const shipping = safeNum(req.body?.shipping);
-    const tax = safeNum(req.body?.tax);
-    const codCharge = safeNum(req.body?.codCharge);
-    const total = safeNum(req.body?.total);
 
     const insert = await db.collection('orders').insertOne({
       user: new mongoose.Types.ObjectId(auth.userId),
@@ -148,15 +150,7 @@ router.post('/cod', async (req, res) => {
       codCharge,
       total,
       paymentMethod: 'cod',
-      items: items.map((it) => ({
-        productId: String(it?.productId || ''),
-        name: String(it?.name || ''),
-        price: safeNum(it?.price),
-        quantity: Math.max(1, Number(it?.quantity ?? 1) || 1),
-        selectedImage: String(it?.selectedImage || ''),
-        selectedColor: String(it?.selectedColor || ''),
-        selectedSize: String(it?.selectedSize || ''),
-      })),
+      items: enrichedItems,
       customer: {
         name: String(customer?.name || ''),
         email: String(customer?.email || '').toLowerCase(),
@@ -420,6 +414,8 @@ function normalizeOrderItemSnapshot(req, rawItem) {
     selectedSize,
     selectedColor,
     selectedImage,
+    shippingCharge: Number(item.shippingCharge ?? 0) || 0,
+    isFlatShipping: Boolean(item.isFlatShipping),
   };
 }
 
@@ -565,12 +561,65 @@ router.get('/', async (req, res) => {
 
     const docs = await db.collection('orders').aggregate(pipeline).toArray();
 
+    // Get all product IDs from orders to fetch fresh product data
+    const allProductIds = docs.flatMap(doc =>
+      Array.isArray(doc.items)
+        ? doc.items.map(it => String(it?.productId || '')).filter(id => id && mongoose.Types.ObjectId.isValid(id))
+        : []
+    );
+    const uniqueProductIds = [...new Set(allProductIds)];
+
+    // Fetch fresh product data with shipping charges
+    const freshProducts = uniqueProductIds.length > 0
+      ? await db.collection('products')
+          .find({ _id: { $in: uniqueProductIds.map(id => new mongoose.Types.ObjectId(id)) } })
+          .project({ shippingCharge: 1, freeShipping: 1, weight: 1, dimensions: 1, management: 1 })
+          .toArray()
+      : [];
+    const freshProductById = new Map(freshProducts.map(p => [String(p._id), p]));
+
+    // Helper to get custom shipping from fresh product data
+    const getFreshCustomShipping = (productId) => {
+      const p = freshProductById.get(productId);
+      if (!p) return 0;
+      const topLevelCharge = Number(p?.shippingCharge ?? 0);
+      if (topLevelCharge > 0) return topLevelCharge;
+      const mgmtCharge = Number(p?.management?.shipping?.shippingCharge ?? 0);
+      if (mgmtCharge > 0) return mgmtCharge;
+      return 0;
+    };
+
     res.json({
       success: true,
-      data: docs.map(doc => ({
-        ...toOrderRow(doc),
-        adminStatus: doc.adminStatus || normalizeStatus(doc.status), // Add admin status for display
-      })),
+      data: docs.map(doc => {
+        // Recalculate shipping from fresh product data
+        const itemsArr = Array.isArray(doc.items) ? doc.items : [];
+        const processedProductIds = new Set();
+        const calculatedShipping = itemsArr.reduce((sum, it) => {
+          const pid = String(it?.productId || '');
+          const qty = Number(it?.quantity ?? 0) || 0;
+          const customShipping = getFreshCustomShipping(pid);
+
+          if (customShipping > 0) {
+            // Custom flat shipping - apply once per product type
+            if (!processedProductIds.has(pid)) {
+              processedProductIds.add(pid);
+              return sum + customShipping;
+            }
+            return sum; // Already counted this product
+          }
+
+          // No custom shipping - use stored value (minimum 4.99)
+          const storedCharge = Number(it?.shippingCharge ?? 0) || 0;
+          return sum + (storedCharge * qty);
+        }, 0);
+
+        return {
+          ...toOrderRow(doc),
+          shipping: calculatedShipping > 0 ? calculatedShipping : Number(doc.shipping ?? 0),
+          adminStatus: doc.adminStatus || normalizeStatus(doc.status),
+        };
+      }),
     });
   } catch (error) {
     console.error('Error loading orders:', error);
@@ -934,6 +983,8 @@ router.post('/receipt', async (req, res) => {
           name: String(item?.name || product?.name || ''),
           quantity: Number(item?.quantity ?? 0) || 0,
           price: Number(item?.price ?? 0) || 0,
+          shippingCharge: Number(item?.shippingCharge ?? 0) || 0,
+          isFlatShipping: Boolean(item?.isFlatShipping),
           selectedSize,
           selectedColor,
           selectedImage,
@@ -981,6 +1032,18 @@ router.post('/receipt', async (req, res) => {
         }
         if (it.selectedImage) {
           pdf.fontSize(10).fillColor('gray').text(`Image: ${String(it.selectedImage)}`);
+          pdf.fillColor('black');
+        }
+        // Show per-product shipping
+        if (it.shippingCharge > 0) {
+          if (it.isFlatShipping) {
+            pdf.fontSize(10).fillColor('gray').text(`Shipping: ${Number(it.shippingCharge).toFixed(2)} (flat)`);
+          } else {
+            pdf.fontSize(10).fillColor('gray').text(`Shipping: ${Number(it.shippingCharge).toFixed(2)} per unit (Total: ${(it.shippingCharge * Number(it.quantity || 0)).toFixed(2)})`);
+          }
+          pdf.fillColor('black');
+        } else if (it.shippingCharge === 0) {
+          pdf.fontSize(10).fillColor('green').text('Free Shipping');
           pdf.fillColor('black');
         }
         pdf.moveDown(0.5);
@@ -1569,6 +1632,8 @@ router.get('/:id', async (req, res) => {
         selectedSize,
         selectedColor,
         selectedImage,
+        shippingCharge: Number(item?.shippingCharge ?? 0) || 0,
+        isFlatShipping: Boolean(item?.isFlatShipping),
         product: product
           ? {
               id: String(product._id),

@@ -110,7 +110,7 @@ const Home = () => {
       {
         name: 'Kitchen',
         icon: FaUtensils,
-        img: 'https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcRFdI3ATGFPb2lunhXsbYK6wK0olgpZpdLOta5nANWUicn5JDx6727CDwv1fPr2K_bIeEb1lcTw3AHHbkBXMELGMcM2V0YGqXASHk9yFGTjUW6rv840QKcflg',
+        img: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=200&h=200&fit=crop',
         color: 'border-blue-600',
         bg: 'bg-blue-50',
         to: buildTo('Kitchen'),
@@ -134,7 +134,7 @@ const Home = () => {
       {
         name: 'Fashion',
         icon: FaTshirt,
-        img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQE2Dz7mEITlAqH6kezKmNnjzecmOa73VOiaw&s',
+        img: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop',
         color: 'border-pink-600',
         bg: 'bg-pink-50',
         to: buildTo('Fashion'),
@@ -142,7 +142,7 @@ const Home = () => {
       {
         name: 'Electronics',
         icon: FaPlug,
-        img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT9D8i3L8V7yRq8vR1rE3vH9fG5jK2mN4pQwR&s',
+        img: 'https://images.unsplash.com/photo-1498049860654-af1a5c5668ba?w=200&h=200&fit=crop',
         color: 'border-green-600',
         bg: 'bg-green-50',
         to: buildTo('Electronics'),
@@ -150,7 +150,7 @@ const Home = () => {
       {
         name: 'Beauty',
         icon: FaHeart,
-        img: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8W5E7F8G9H0I1J2K3L4M5N6O7P8Q9R0S1T2&s',
+        img: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=200&h=200&fit=crop',
         color: 'border-red-600',
         bg: 'bg-red-50',
         to: buildTo('Beauty'),

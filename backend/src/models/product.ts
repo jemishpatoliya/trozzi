@@ -83,6 +83,7 @@ export type ProductDoc = {
   badge: string;
   brand: string;
   freeShipping?: boolean;
+  shippingCharge?: number;
   rating?: number;
   questions?: ProductQuestion[];
   reviews?: ProductReview[];
@@ -177,6 +178,7 @@ const ProductSchema = new Schema<ProductDoc>(
     badge: { type: String, default: "" },
     brand: { type: String, default: "" },
     freeShipping: { type: Boolean, required: true, default: false },
+    shippingCharge: { type: Number, required: true, default: 0 },
     rating: { type: Number, required: true, default: 0 },
     questions: { type: [QuestionSchema], required: true, default: [] },
     reviews: { type: [ReviewSchema], required: true, default: [] },

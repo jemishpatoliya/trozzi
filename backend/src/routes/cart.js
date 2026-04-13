@@ -89,7 +89,7 @@ const Cart = mongoose.models.Cart || mongoose.model('Cart', CartSchema);
 router.get('/', authenticateUser, requireUser, async (req, res) => {
     try {
         const cart = await Cart.findOne({ user: req.user._id })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions management');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions management');
 
         if (!cart) {
             return res.json({ items: [], totalAmount: 0 });
@@ -206,7 +206,7 @@ router.post('/add', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -270,7 +270,7 @@ router.put('/update', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -316,7 +316,7 @@ router.delete('/remove/:productId', authenticateUser, requireUser, async (req, r
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -375,7 +375,7 @@ router.delete('/remove', authenticateUser, requireUser, async (req, res) => {
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -447,7 +447,7 @@ router.delete('/remove-by-object', authenticateUser, requireUser, async (req, re
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });
@@ -530,7 +530,7 @@ router.put('/update-by-object', authenticateUser, requireUser, async (req, res) 
 
         // Return updated cart with populated product details
         const updatedCart = await Cart.findOne({ user: req.userId })
-            .populate('items.product', 'name sku image price codAvailable codCharge freeShipping weight dimensions');
+            .populate('items.product', 'name sku image price codAvailable codCharge shippingCharge freeShipping weight dimensions');
 
         if (!updatedCart) {
             return res.status(500).json({ error: 'Failed to retrieve updated cart' });

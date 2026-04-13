@@ -84,6 +84,7 @@ const ProductSchema = new mongoose.Schema({
     freeShipping: { type: Boolean, required: true, default: false },
     codAvailable: { type: Boolean, required: true, default: false },
     codCharge: { type: Number, required: true, default: 0 },
+    shippingCharge: { type: Number, required: true, default: 0 },
     rating: { type: Number, required: true, default: 0 },
     questions: { type: [QuestionSchema], required: true, default: [] },
     reviews: { type: [ReviewSchema], required: true, default: [] },

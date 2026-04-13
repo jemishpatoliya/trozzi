@@ -216,6 +216,7 @@ function mapProduct(req, p) {
         freeShipping: typeof p?.freeShipping === 'boolean' ? p.freeShipping : Boolean(shipping?.freeShipping),
         codAvailable: typeof p?.codAvailable === 'boolean' ? p.codAvailable : Boolean(shipping?.codAvailable),
         codCharge: Number(p?.codCharge ?? shipping?.codCharge ?? 0) || 0,
+        shippingCharge: Number(p?.shippingCharge ?? shipping?.shippingCharge ?? 0) || 0,
         weight: Number(p?.weight ?? shipping?.weightKg ?? 0) || 0,
         dimensions: p?.dimensions ?? (shipping?.dimensionsCm ?? { length: 0, width: 0, height: 0 }),
         sizes: Array.isArray(p.sizes) && p.sizes.length ? p.sizes : derivedSizes,
@@ -267,6 +268,7 @@ router.get('/', async (req, res) => {
         if (mode !== 'admin') {
             // public mode: only active products
             filter.status = { $in: ['active', 'published'] };
+            console.log('[Products API] Public mode - filtering by status:', filter.status);
             filter.$or = [
                 { visibility: 'public' },
                 { visibility: { $exists: false } },
@@ -387,6 +389,7 @@ router.get('/', async (req, res) => {
         }
 
         const docs = await db.collection('products').find(filter).sort(sortSpec).toArray();
+        console.log(`[Products API] Found ${docs.length} products, filter:`, JSON.stringify(filter));
         res.json(docs.map((p) => mapProduct(req, p)));
     } catch (error) {
         console.error('Error fetching products:', error);
@@ -573,6 +576,7 @@ router.post('/draft', authenticateAdmin, requireAdmin, async (req, res) => {
             freeShipping: !!shipping.freeShipping,
             codAvailable: !!shipping.codAvailable,
             codCharge: Number(shipping.codCharge ?? 0) || 0,
+            shippingCharge: Number(shipping.shippingCharge ?? 0) || 0,
             weight: Number(shipping.weightKg ?? 0) || 0,
             dimensions,
             management: values,
@@ -643,6 +647,7 @@ router.post('/publish', authenticateAdmin, requireAdmin, async (req, res) => {
             freeShipping: !!shipping.freeShipping,
             codAvailable: !!shipping.codAvailable,
             codCharge: Number(shipping.codCharge ?? 0) || 0,
+            shippingCharge: Number(shipping.shippingCharge ?? 0) || 0,
             weight: Number(shipping.weightKg ?? 0) || 0,
             dimensions,
             management: values,
@@ -723,6 +728,7 @@ router.put('/:id', authenticateAdmin, requireAdmin, async (req, res) => {
                     freeShipping: !!shipping.freeShipping,
                     codAvailable: !!shipping.codAvailable,
                     codCharge: Number(shipping.codCharge ?? 0) || 0,
+                    shippingCharge: Number(shipping.shippingCharge ?? 0) || 0,
                     weight: Number(shipping.weightKg ?? 0) || 0,
                     dimensions,
                     updatedAt: now,

@@ -147,6 +147,7 @@ router.get('/:productId/details', async (req, res) => {
       saleStartDate: product.saleStartDate,
       saleEndDate: product.saleEndDate,
       freeShipping: product.freeShipping,
+      shippingCharge: Number(product?.shippingCharge ?? product?.management?.shipping?.shippingCharge ?? 0) || 0,
       metaTitle: product.metaTitle,
       metaDescription: product.metaDescription,
       createdAt: product.createdAt,
