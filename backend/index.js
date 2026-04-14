@@ -39,6 +39,7 @@ const adminOverridesRouter = require('./src/routes/adminOverrides');
 const notificationsRouter = require('./src/routes/notifications');
 const shiprocketDataRouter = require('./src/routes/shiprocketData');
 const shiprocketSyncRouter = require('./src/routes/shiprocketSync');
+const feedRouter = require('./src/routes/feed');
 
 // Initialize scheduled services
 require('./src/services/shiprocketSync');
@@ -180,6 +181,7 @@ app.use('/api/size-guides', sizeGuidesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/admin', shiprocketDataRouter);
 app.use('/api/admin', shiprocketSyncRouter);
+app.use('/feed', feedRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
