@@ -122,4 +122,7 @@ module.exports = function (app) {
     app.use('/products', mkProxy({ pathRewrite: { '^/': '/api/products' } }));
     app.use('/categories', mkProxy({ pathRewrite: { '^/': '/api/categories' } }));
     app.use('/content-settings', mkProxy({ pathRewrite: { '^/': '/api/content-settings' } }));
+
+    // Feed routes for XML/CSV product feeds
+    app.use('/feed', mkProxy({ pathRewrite: { '^/feed': '/feed' } }));
 };

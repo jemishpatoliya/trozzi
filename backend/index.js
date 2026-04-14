@@ -182,6 +182,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/admin', shiprocketDataRouter);
 app.use('/api/admin', shiprocketSyncRouter);
 app.use('/feed', feedRouter);
+app.use('/api/feed', feedRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
