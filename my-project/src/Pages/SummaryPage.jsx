@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 import { apiClient } from '../api/client';
 import { useCart } from '../context/CartContext';
+import { trackPurchase } from '../utils/metaPixel';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
@@ -77,6 +78,13 @@ const SummaryPage = () => {
                         if (orderFromResponse) {
                             console.log('[SummaryPage] Using order from verify response:', orderFromResponse);
                             setFetchedOrder(orderFromResponse);
+                            
+                            // Meta Pixel: Track Purchase event (fired only once due to deduplication)
+                            trackPurchase({
+                                orderId: orderFromResponse._id || orderFromResponse.orderId || verifyResp.data?.orderId || paymentId,
+                                items: orderFromResponse.items || [],
+                                total: orderFromResponse.total || orderFromResponse.totalAmount || data.total
+                            });
                         }
                         
                         // Store created order info to display in UI
@@ -210,13 +218,30 @@ const SummaryPage = () => {
                     localStorage.removeItem('lastPaymentProviderOrderId');
                     localStorage.removeItem('lastPaymentId');
                     localStorage.removeItem('lastOrderId');
-                    localStorage.removeItem('trozzi_lastOrderData'); // Clean up order data
+                    localStorage.removeItem('trozzi_lastOrderData'); // Clear cart once after successful payment
                 } catch (_e2) {
                     // ignore
                 }
             }
         })();
     }, [paymentStatus, cartCleared, clearCart]);
+
+    useEffect(() => {
+        if (paymentStatus === 'completed' && !cartCleared) {
+            clearCart();
+            setCartCleared(true);
+            
+            // Meta Pixel: Track Purchase as fallback (if not tracked from backend response)
+            // Uses data from localStorage/session state for backup tracking
+            if (data.orderId && data.items.length > 0 && data.total > 0) {
+                trackPurchase({
+                    orderId: data.orderId,
+                    items: data.items,
+                    total: data.total
+                });
+            }
+        }
+    }, [paymentStatus, cartCleared, clearCart, data]);
 
     return (
         <div className="relative min-h-screen bg-[#F1F3F6]">

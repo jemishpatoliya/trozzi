@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { normalizeColorKey, normalizeToken } from '../../utils/colorVariants';
 import { fetchSizeGuide } from '../../api/sizeGuides';
+import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../../utils/metaPixel';
 
 const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect, useVariantImages = true }) => {
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || 'M');
@@ -46,6 +47,13 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
   useEffect(() => {
     setSelectedSimpleColor(product?.colors?.[0] || '');
   }, [product?.id, product?._id, product?.colors]);
+
+  // Meta Pixel: Track ViewContent when product is loaded
+  useEffect(() => {
+    if (product && (product._id || product.id)) {
+      trackViewContent(product);
+    }
+  }, [product?._id, product?.id]);
 
   useEffect(() => {
     const sizes = Array.isArray(product?.sizes) ? product.sizes.filter(Boolean) : [];
@@ -184,6 +192,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     }
     setIsAdding(true);
     try {
+      // Track AddToCart event for Meta Pixel
+      trackAddToCart(product, quantity);
+
       await addToCart(productId, quantity, {
         name: currentName,
         image: currentImages?.[0],
@@ -261,6 +272,9 @@ const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect,
     if (isAdding || !productId) return;
     setIsAdding(true);
     try {
+      // Track AddToWishlist event for Meta Pixel
+      trackAddToWishlist(product);
+
       await toggleWishlist(productId, {
         name: product?.name,
         image: currentImages?.[0],

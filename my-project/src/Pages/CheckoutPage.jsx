@@ -6,6 +6,7 @@ import { useContentSettings } from '../context/ContentSettingsContext';
 import { apiClient } from '../api/client';
 import { FaArrowLeft } from 'react-icons/fa';
 import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
+import { trackInitiateCheckout } from '../utils/metaPixel';
 
 const CheckoutPage = () => {
     const { items, fetchCart, clearCart, cartSynced, loading: cartLoading } = useCart();
@@ -136,6 +137,13 @@ const CheckoutPage = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, isBuyNowMode]);
+
+    // Meta Pixel: Track InitiateCheckout when checkout page loads with items
+    useEffect(() => {
+        if (normalizedItems.length > 0) {
+            trackInitiateCheckout(normalizedItems);
+        }
+    }, []);
 
     const handleChange = (e) => {
         setFormData({

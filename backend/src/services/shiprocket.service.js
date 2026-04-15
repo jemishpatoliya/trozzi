@@ -270,6 +270,15 @@ function buildAdhocOrderPayloadFromOrder(order, { paymentMethod }) {
   const customerName = String(order?.customer?.name || '');
   const address = order?.address || {};
 
+  // Validate and format pincode - must be exactly 6 digits
+  const rawPincode = String(address?.postalCode || address?.pincode || '').trim();
+  const digitsOnly = rawPincode.replace(/\D/g, ''); // Remove non-digits
+  const validPincode = digitsOnly.length === 6 ? digitsOnly : '';
+  
+  if (!validPincode) {
+    console.error('[Shiprocket] Invalid pincode:', rawPincode, '- Order:', order?.orderNumber);
+  }
+
   // NOTE: For single warehouse, pickup_location must match Shiprocket panel pickup name exactly.
   const payload = {
     order_id: String(order?.orderNumber || ''),
@@ -284,7 +293,7 @@ function buildAdhocOrderPayloadFromOrder(order, { paymentMethod }) {
     billing_address_2: String(address?.line2 || ''),
     billing_city: String(address?.city || ''),
     billing_state: String(address?.state || ''),
-    billing_pincode: String(address?.postalCode || ''),
+    billing_pincode: validPincode || '000000', // Default if invalid
     billing_country: String(address?.country || 'India'),
     billing_email: String(order?.customer?.email || ''),
     billing_phone: String(order?.customer?.phone || ''),
