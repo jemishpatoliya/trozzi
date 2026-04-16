@@ -56,16 +56,74 @@ function getClientIp(req) {
 }
 
 /**
+ * Extract fbp (Facebook Pixel browser ID) from request
+ * Looks for _fbp cookie or fbp header
+ */
+function getFbp(req) {
+  // Check cookies first
+  const cookies = req.cookies || {};
+  if (cookies._fbp) return cookies._fbp;
+  
+  // Check headers (sent from frontend)
+  if (req.headers['x-fbp']) return req.headers['x-fbp'];
+  if (req.body?.fbp) return req.body.fbp;
+  
+  // Parse cookie header if no cookie parser
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const fbpMatch = cookieHeader.match(/_fbp=([^;]+)/);
+    if (fbpMatch) return fbpMatch[1];
+  }
+  
+  return null;
+}
+
+/**
+ * Extract fbc (Facebook click ID) from request
+ */
+function getFbc(req) {
+  // Check cookies
+  const cookies = req.cookies || {};
+  if (cookies._fbc) return cookies._fbc;
+  
+  // Check headers
+  if (req.headers['x-fbc']) return req.headers['x-fbc'];
+  if (req.body?.fbc) return req.body.fbc;
+  
+  // Parse cookie header
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const fbcMatch = cookieHeader.match(/_fbc=([^;]+)/);
+    if (fbcMatch) return fbcMatch[1];
+  }
+  
+  return null;
+}
+
+/**
  * Build user data object with hashed fields
  */
 function buildUserData(req, userInfo = {}) {
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'] || '';
+  const fbp = userInfo.fbp || getFbp(req);
+  const fbc = userInfo.fbc || getFbc(req);
+  
+  // Get external_id - prioritize userInfo, then try to extract from various sources
+  let externalId = userInfo.externalId || userInfo.userId;
+  if (!externalId && req.body?.userId) externalId = req.body.userId;
+  if (!externalId && req.body?.externalId) externalId = req.body.externalId;
   
   const userData = {
     // Client data (not hashed)
     client_ip_address: clientIp,
     client_user_agent: userAgent,
+    
+    // Facebook browser ID (from _fbp cookie) - CRITICAL for matching
+    ...(fbp && { fbp: fbp }),
+    
+    // Facebook click ID (from _fbc cookie)
+    ...(fbc && { fbc: fbc }),
     
     // Hashed user data (if available)
     ...(userInfo.email && { em: hashData(userInfo.email) }),
@@ -80,8 +138,8 @@ function buildUserData(req, userInfo = {}) {
     // FB Login ID (if user logged in with Facebook)
     ...(userInfo.fbLoginId && { fb_login_id: userInfo.fbLoginId }),
     
-    // External ID (your internal user ID)
-    ...(userInfo.externalId && { external_id: hashData(userInfo.externalId) }),
+    // External ID (your internal user ID) - CRITICAL for cross-device matching
+    ...(externalId && { external_id: hashData(String(externalId)) }),
   };
   
   return userData;

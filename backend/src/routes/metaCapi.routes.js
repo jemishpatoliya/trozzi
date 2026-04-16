@@ -64,6 +64,8 @@ router.post('/page-view', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     } = req.body;
 
     const result = await MetaCapiService.trackPageView(req, {
@@ -76,6 +78,8 @@ router.post('/page-view', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     });
 
     res.json({
@@ -112,6 +116,8 @@ router.post('/view-content', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     } = req.body;
     
     // Validation
@@ -133,6 +139,8 @@ router.post('/view-content', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     });
     
     res.json({
@@ -171,6 +179,8 @@ router.post('/add-to-cart', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     } = req.body;
     
     if (!productId) {
@@ -200,6 +210,8 @@ router.post('/add-to-cart', async (req, res) => {
       phone,
       userId,
       fbLoginId,
+      fbp,
+      fbc,
     });
     
     res.json({
@@ -244,6 +256,8 @@ router.post('/add-payment-info', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     } = req.body;
 
     if (!orderId) {
@@ -276,6 +290,8 @@ router.post('/add-payment-info', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     });
 
     res.json({
@@ -318,6 +334,8 @@ router.post('/initiate-checkout', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     } = req.body;
     
     if (!value && (!contents || !contents.length)) {
@@ -347,6 +365,8 @@ router.post('/initiate-checkout', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     });
     
     res.json({
@@ -392,6 +412,8 @@ router.post('/purchase', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     } = req.body;
     
     if (!orderId) {
@@ -430,6 +452,8 @@ router.post('/purchase', async (req, res) => {
       state,
       country,
       postalCode,
+      fbp,
+      fbc,
     });
     
     res.json({
@@ -456,7 +480,7 @@ router.post('/purchase', async (req, res) => {
 router.post('/custom/:eventName', async (req, res) => {
   try {
     const { eventName } = req.params;
-    const { eventId, value, currency, customData, userId, email, phone } = req.body;
+    const { eventId, value, currency, customData, userId, email, phone, fbp, fbc } = req.body;
     
     const result = await MetaCapiService.trackCustomEvent(req, eventName, {
       eventId,
@@ -466,6 +490,8 @@ router.post('/custom/:eventName', async (req, res) => {
       userId,
       email,
       phone,
+      fbp,
+      fbc,
     });
     
     res.json({
