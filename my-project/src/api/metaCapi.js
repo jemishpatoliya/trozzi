@@ -41,12 +41,20 @@ async function sendEvent(endpoint, data) {
   const token = getAuthToken();
   const user = getUserInfo();
   
+  // Extract fbp (Facebook Pixel browser ID) from cookie
+  const getFbpCookie = () => {
+    const match = document.cookie.match(/_fbp=([^;]+)/);
+    return match ? match[1] : null;
+  };
+  
   const payload = {
     ...data,
     // Add user data if available
     ...(user?.email && { email: user.email }),
     ...(user?.phone && { phone: user.phone }),
     ...(user?._id && { userId: user._id }),
+    // Add fbp cookie for matching
+    fbp: getFbpCookie(),
     // Add source URL
     sourceUrl: window.location.href,
   };
