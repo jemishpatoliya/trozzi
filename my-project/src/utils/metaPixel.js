@@ -1,16 +1,28 @@
 /**
  * Meta Pixel Event Tracking Utility
  * Production-ready eCommerce event tracking with deduplication support
+ * Includes Conversions API (CAPI) integration for server-side tracking
  */
+
+import {
+  trackViewContentCAPI,
+  trackAddToCartCAPI,
+  trackInitiateCheckoutCAPI,
+  trackPurchaseCAPI,
+  checkCAPIHealth,
+} from '../api/metaCapi';
 
 const PIXEL_ID = '1851696042154850';
 
-// Generate unique event ID for deduplication
+// Generate unique event ID for deduplication (shared between Pixel and CAPI)
 const generateEventId = (eventName, identifier = '') => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substr(2, 9);
   return `evt_${eventName}_${identifier}_${timestamp}_${random}`;
 };
+
+// Enable/disable CAPI integration
+const CAPI_ENABLED = process.env.REACT_APP_META_CAPI_ENABLED !== 'false';
 
 // Check if Meta Pixel is loaded
 const isPixelLoaded = () => {
@@ -86,11 +98,18 @@ export const trackViewContent = (product, options = {}) => {
   const eventId = generateEventId('ViewContent', productId);
   const success = safeTrack('ViewContent', params, eventId);
   
+  // Send to CAPI (server-side) with same eventId for deduplication
+  if (CAPI_ENABLED) {
+    trackViewContentCAPI(product, eventId).catch(err => {
+      console.warn('[Meta Pixel] CAPI ViewContent failed:', err.message);
+    });
+  }
+  
   if (success) {
     markEventFired(eventKey);
   }
   
-  return success;
+  return { success, eventId };
 };
 
 /**
@@ -118,6 +137,13 @@ export const trackAddToCart = (product, quantity = 1, options = {}) => {
   const eventId = generateEventId('AddToCart', productId);
   const success = safeTrack('AddToCart', params, eventId);
   
+  // Send to CAPI (server-side) with same eventId for deduplication
+  if (CAPI_ENABLED) {
+    trackAddToCartCAPI(product, quantity, eventId).catch(err => {
+      console.warn('[Meta Pixel] CAPI AddToCart failed:', err.message);
+    });
+  }
+  
   if (success && options.persist !== false) {
     // Store cart item for checkout tracking
     const cartSnapshot = JSON.parse(sessionStorage.getItem('pixel_cart_snapshot') || '[]');
@@ -137,7 +163,7 @@ export const trackAddToCart = (product, quantity = 1, options = {}) => {
     sessionStorage.setItem('pixel_cart_snapshot', JSON.stringify(cartSnapshot));
   }
   
-  return success;
+  return { success, eventId };
 };
 
 /**
@@ -187,11 +213,18 @@ export const trackInitiateCheckout = (cartItems, options = {}) => {
   const eventId = generateEventId('InitiateCheckout', contentIds.join('_'));
   const success = safeTrack('InitiateCheckout', params, eventId);
   
+  // Send to CAPI (server-side) with same eventId for deduplication
+  if (CAPI_ENABLED) {
+    trackInitiateCheckoutCAPI(cartItems, totalValue, eventId).catch(err => {
+      console.warn('[Meta Pixel] CAPI InitiateCheckout failed:', err.message);
+    });
+  }
+  
   if (success) {
     markEventFired(eventKey, 60); // 60 min TTL for checkout
   }
   
-  return success;
+  return { success, eventId };
 };
 
 /**
@@ -256,6 +289,13 @@ export const trackPurchase = (order, options = {}) => {
   const eventId = generateEventId('Purchase', orderId);
   const success = safeTrack('Purchase', params, eventId);
   
+  // Send to CAPI (server-side) with same eventId for deduplication
+  if (CAPI_ENABLED) {
+    trackPurchaseCAPI(order, eventId).catch(err => {
+      console.warn('[Meta Pixel] CAPI Purchase failed:', err.message);
+    });
+  }
+  
   if (success) {
     // Mark as fired in both storage types
     firedPurchases.push(orderId);
@@ -265,7 +305,7 @@ export const trackPurchase = (order, options = {}) => {
     console.log(`[Meta Pixel] Purchase tracked for order ${orderId}`);
   }
   
-  return success;
+  return { success, eventId };
 };
 
 /**
@@ -329,7 +369,9 @@ window.__metaPixelUtils = {
   trackInitiateCheckout,
   trackPurchase,
   resetAllTracking,
-  isPixelLoaded
+  isPixelLoaded,
+  checkCAPIHealth,
+  isCAPIEnabled: () => CAPI_ENABLED,
 };
 
 export default {
