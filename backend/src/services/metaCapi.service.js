@@ -300,6 +300,7 @@ const MetaCapiService = {
       phone: data.phone,
       externalId: data.userId,
       fbLoginId: data.fbLoginId,
+      fbp: data.fbp,
     });
   },
 
@@ -324,6 +325,7 @@ const MetaCapiService = {
       phone: data.phone,
       externalId: data.userId,
       fbLoginId: data.fbLoginId,
+      fbp: data.fbp,
     });
   },
   
@@ -353,6 +355,7 @@ const MetaCapiService = {
       phone: data.phone,
       externalId: data.userId,
       fbLoginId: data.fbLoginId,
+      fbp: data.fbp,
     });
   },
   
@@ -381,6 +384,7 @@ const MetaCapiService = {
       state: data.state,
       country: data.country,
       postalCode: data.postalCode,
+      fbp: data.fbp,
     });
   },
   
@@ -412,6 +416,7 @@ const MetaCapiService = {
       state: data.state,
       country: data.country,
       postalCode: data.postalCode,
+      fbp: data.fbp,
     });
   },
 
@@ -443,6 +448,7 @@ const MetaCapiService = {
       state: data.state,
       country: data.country,
       postalCode: data.postalCode,
+      fbp: data.fbp,
     });
   },
   
@@ -460,6 +466,7 @@ const MetaCapiService = {
       email: data.email,
       phone: data.phone,
       externalId: data.userId,
+      fbp: data.fbp,
     });
   },
   
