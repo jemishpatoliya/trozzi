@@ -13,7 +13,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 // Meta Graph API Configuration
-const META_API_VERSION = 'v18.0'; // Use latest stable version
+const META_API_VERSION = 'v19.0'; // Use latest stable version
 const META_API_BASE_URL = `https://graph.facebook.com/${META_API_VERSION}`;
 
 /**
@@ -134,6 +134,9 @@ async function sendEventToMeta(eventName, eventData, req, userInfo = {}) {
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
   
   if (!pixelId || !accessToken) {
+    console.error('[Meta CAPI] Configuration Error:');
+    console.error('  META_PIXEL_ID:', pixelId ? 'Set (hidden)' : 'NOT SET');
+    console.error('  META_CAPI_ACCESS_TOKEN:', accessToken ? 'Set (hidden)' : 'NOT SET');
     throw new Error('Missing META_PIXEL_ID or META_CAPI_ACCESS_TOKEN in environment variables');
   }
   
@@ -172,8 +175,10 @@ async function sendEventToMeta(eventName, eventData, req, userInfo = {}) {
   try {
     console.log(`[Meta CAPI] Sending ${eventName} event:`, {
       eventId,
+      pixelId: pixelId.substring(0, 4) + '****',
       value: eventData.value,
       currency: eventData.currency,
+      hasTestCode: !!process.env.META_CAPI_TEST_EVENT_CODE,
     });
     
     const response = await axios.post(url, payload, {
@@ -201,12 +206,19 @@ async function sendEventToMeta(eventName, eventData, req, userInfo = {}) {
       eventName,
       eventId,
       status: error.response?.status,
+      statusText: error.response?.statusText,
       message: error.response?.data?.error?.message || error.message,
       type: error.response?.data?.error?.type,
       code: error.response?.data?.error?.code,
+      fbtrace_id: error.response?.data?.fbtrace_id,
+      fullResponse: error.response?.data,
     };
     
     console.error('[Meta CAPI] Event failed:', errorDetails);
+    console.error('[Meta CAPI] Full error:', error.message);
+    if (error.response?.data) {
+      console.error('[Meta CAPI] Response data:', JSON.stringify(error.response.data, null, 2));
+    }
     
     throw {
       success: false,
@@ -257,6 +269,27 @@ async function sendEventWithRetry(eventName, eventData, req, userInfo = {}, maxR
  */
 
 const MetaCapiService = {
+  /**
+   * Track PageView event
+   */
+  async trackPageView(req, data) {
+    const eventData = {
+      eventId: data.eventId,
+      entityId: data.pageId || 'page',
+      value: data.value || 0,
+      currency: data.currency || 'INR',
+      actionSource: 'website',
+      eventSourceUrl: data.sourceUrl || req.headers.referer,
+    };
+    
+    return sendEventWithRetry('PageView', eventData, req, {
+      email: data.email,
+      phone: data.phone,
+      externalId: data.userId,
+      fbLoginId: data.fbLoginId,
+    });
+  },
+
   /**
    * Track ViewContent event (product page view)
    */
@@ -338,6 +371,37 @@ const MetaCapiService = {
     });
   },
   
+  /**
+   * Track AddPaymentInfo event
+   */
+  async trackAddPaymentInfo(req, data) {
+    const eventData = {
+      eventId: data.eventId,
+      entityId: data.paymentId || data.orderId,
+      orderId: data.orderId,
+      contentIds: data.contentIds,
+      contentType: 'product',
+      value: data.value,
+      currency: data.currency || 'INR',
+      contents: data.contents,
+      actionSource: 'website',
+      eventSourceUrl: data.sourceUrl,
+    };
+    
+    return sendEventWithRetry('AddPaymentInfo', eventData, req, {
+      email: data.email,
+      phone: data.phone,
+      externalId: data.userId,
+      fbLoginId: data.fbLoginId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      city: data.city,
+      state: data.state,
+      country: data.country,
+      postalCode: data.postalCode,
+    });
+  },
+
   /**
    * Track Purchase event (most important)
    */

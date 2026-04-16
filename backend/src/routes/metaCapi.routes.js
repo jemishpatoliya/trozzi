@@ -48,6 +48,53 @@ const authenticateCAPI = async (req, res, next) => {
 router.use(authenticateCAPI);
 
 /**
+ * @route   POST /api/meta-capi/page-view
+ * @desc    Track PageView event
+ * @access  Public (with optional auth)
+ */
+router.post('/page-view', async (req, res) => {
+  try {
+    const {
+      eventId,
+      pageId,
+      value,
+      currency,
+      sourceUrl,
+      email,
+      phone,
+      userId,
+      fbLoginId,
+    } = req.body;
+
+    const result = await MetaCapiService.trackPageView(req, {
+      eventId,
+      pageId,
+      value,
+      currency,
+      sourceUrl,
+      email,
+      phone,
+      userId,
+      fbLoginId,
+    });
+
+    res.json({
+      success: true,
+      eventId: result.eventId,
+      message: 'PageView event tracked successfully',
+    });
+
+  } catch (error) {
+    console.error('[Meta CAPI Route] PageView error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.error?.message || error.message || 'Failed to track PageView',
+      eventId: error.eventId,
+    });
+  }
+});
+
+/**
  * @route   POST /api/meta-capi/view-content
  * @desc    Track ViewContent event (product page view)
  * @access  Public (with optional auth)
@@ -166,6 +213,82 @@ router.post('/add-to-cart', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.error?.message || error.message || 'Failed to track AddToCart',
+      eventId: error.eventId,
+    });
+  }
+});
+
+/**
+ * @route   POST /api/meta-capi/add-payment-info
+ * @desc    Track AddPaymentInfo event
+ * @access  Public
+ */
+router.post('/add-payment-info', async (req, res) => {
+  try {
+    const {
+      eventId,
+      paymentId,
+      orderId,
+      value,
+      currency,
+      contents,
+      contentIds,
+      sourceUrl,
+      email,
+      phone,
+      userId,
+      fbLoginId,
+      firstName,
+      lastName,
+      city,
+      state,
+      country,
+      postalCode,
+    } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'orderId is required',
+      });
+    }
+
+    const result = await MetaCapiService.trackAddPaymentInfo(req, {
+      eventId,
+      paymentId,
+      orderId,
+      value,
+      currency,
+      contents: contents?.map(item => ({
+        id: item.productId || item.id,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      contentIds: contentIds || contents?.map(item => item.productId || item.id),
+      sourceUrl,
+      email,
+      phone,
+      userId,
+      fbLoginId,
+      firstName,
+      lastName,
+      city,
+      state,
+      country,
+      postalCode,
+    });
+
+    res.json({
+      success: true,
+      eventId: result.eventId,
+      message: 'AddPaymentInfo event tracked successfully',
+    });
+
+  } catch (error) {
+    console.error('[Meta CAPI Route] AddPaymentInfo error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.error?.message || error.message || 'Failed to track AddPaymentInfo',
       eventId: error.eventId,
     });
   }
@@ -363,9 +486,9 @@ router.post('/custom/:eventName', async (req, res) => {
 /**
  * @route   GET /api/meta-capi/health
  * @desc    Check CAPI configuration health
- * @access  Admin only
+ * @access  Public
  */
-router.get('/health', authenticateAdmin, (req, res) => {
+router.get('/health', (req, res) => {
   const pixelId = process.env.META_PIXEL_ID;
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
   const testCode = process.env.META_CAPI_TEST_EVENT_CODE;
