@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { apiClient } from '../api/client';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
+import { trackAddToCart } from '../utils/metaPixel';
 
 const CartContext = createContext();
 
@@ -33,6 +34,16 @@ export const CartProvider = ({ children }) => {
     }, [getUserId]);
 
     const roundMoney = useCallback((v) => Math.round((Number(v ?? 0) || 0) * 100) / 100, []);
+
+    // Helper to track AddToCart event consistently
+    const trackAddToCartEvent = useCallback((productId, productName, price, quantity) => {
+        trackAddToCart({
+            _id: productId,
+            id: productId,
+            name: productName || 'Product',
+            price: Number(price || 0),
+        }, quantity);
+    }, []);
 
     const getComparableId = (item) => item?.product?._id || item?.product || item?._id;
 
@@ -221,6 +232,10 @@ export const CartProvider = ({ children }) => {
 
                 setItems(patchedItems);
                 setTotalAmount(calculateTotalAmount(patchedItems));
+
+                // Meta Pixel: Track AddToCart
+                trackAddToCartEvent(productId, detailObject.name, detailObject.price, quantity);
+
                 toast.success('Item added to cart');
                 return { success: true, message: response.data.message };
             } catch (error) {
@@ -313,6 +328,10 @@ export const CartProvider = ({ children }) => {
 
             setItems(patchedItems);
             setTotalAmount(calculateTotalAmount(patchedItems));
+
+            // Meta Pixel: Track AddToCart
+            trackAddToCartEvent(productId, detailObject.name, detailObject.price, quantity);
+
             toast.success('Item added to cart');
             return { success: true, message: response.data.message };
         } catch (error) {
@@ -350,6 +369,10 @@ export const CartProvider = ({ children }) => {
             const newTotal = calculateTotalAmount(newItems);
             setItems(newItems);
             setTotalAmount(newTotal);
+
+            // Meta Pixel: Track AddToCart (fallback when server fails)
+            trackAddToCartEvent(productId, detailObject.name, detailObject.price, quantity);
+
             toast.success('Item added to cart');
             return { success: true, message: 'Item added to cart' };
         } finally {

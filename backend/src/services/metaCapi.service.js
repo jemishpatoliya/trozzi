@@ -126,11 +126,22 @@ function buildUserData(req, userInfo = {}) {
  * Build custom data for events
  */
 function buildCustomData(eventData) {
+  // Ensure value is a number (not string)
+  const rawValue = eventData.value;
+  let numericValue = 0;
+  if (typeof rawValue === 'number') {
+    numericValue = rawValue;
+  } else if (typeof rawValue === 'string') {
+    numericValue = parseFloat(rawValue) || 0;
+  } else if (rawValue != null) {
+    numericValue = Number(rawValue) || 0;
+  }
+
   const customData = {
-    value: Number(eventData.value || 0),
-    currency: eventData.currency || 'INR',
+    value: numericValue,
+    currency: 'INR', // Always INR as required
   };
-  
+
   // Add content data if available
   if (eventData.contentIds?.length) {
     customData.content_ids = eventData.contentIds;
@@ -139,25 +150,34 @@ function buildCustomData(eventData) {
     customData.contents = eventData.contents?.map(item => ({
       id: String(item.id || ''),
       quantity: Number(item.quantity || 1),
-      item_price: Number(item.price || 0),
+      item_price: Number(item.price || item.item_price || 0),
     })) || [];
   }
-  
+
   // Order ID for Purchase events
   if (eventData.orderId) {
     customData.order_id = String(eventData.orderId);
   }
-  
+
   // Predicted LTV (for high-value customers)
   if (eventData.predictedLtv) {
     customData.predicted_ltv = Number(eventData.predictedLtv);
   }
-  
+
   // Status for checkout events
   if (eventData.status) {
     customData.status = eventData.status;
   }
-  
+
+  // Debug logging
+  console.log('[Meta CAPI] buildCustomData:', {
+    originalValue: rawValue,
+    type: typeof rawValue,
+    finalValue: numericValue,
+    currency: customData.currency,
+    contentIds: customData.content_ids,
+  });
+
   return customData;
 }
 
@@ -167,52 +187,55 @@ function buildCustomData(eventData) {
 async function sendEventToMeta(eventName, eventData, req, userInfo = {}) {
   const pixelId = process.env.META_PIXEL_ID;
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
-  
+
   if (!pixelId || !accessToken) {
     console.error('[Meta CAPI] Configuration Error:');
     console.error('  META_PIXEL_ID:', pixelId ? 'Set (hidden)' : 'NOT SET');
     console.error('  META_CAPI_ACCESS_TOKEN:', accessToken ? 'Set (hidden)' : 'NOT SET');
     throw new Error('Missing META_PIXEL_ID or META_CAPI_ACCESS_TOKEN in environment variables');
   }
-  
-  // Generate or use provided event_id
+
+  // Generate or use provided event_id (CRITICAL for deduplication)
   const eventId = eventData.eventId || generateEventId(eventName, eventData.entityId || 'unknown');
-  
+
+  // Get event source URL with fallback
+  const eventSourceUrl = eventData.eventSourceUrl ||
+                         req.headers?.referer ||
+                         req.headers?.origin ||
+                         'https://trozzi.in';
+
   // Build the event payload
   const event = {
     event_name: eventName,
     event_time: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
     event_id: eventId,
     action_source: eventData.actionSource || 'website',
+    event_source_url: eventSourceUrl, // REQUIRED for deduplication
     user_data: buildUserData(req, userInfo),
     custom_data: buildCustomData(eventData),
   };
-  
-  // Optional: Add original event data for deduplication
-  if (eventData.eventSourceUrl) {
-    event.event_source_url = eventData.eventSourceUrl;
-  }
-  
+
   // Optional: Add data processing options
   if (process.env.META_CAPI_DATA_OPTIONS) {
     event.data_processing_options = JSON.parse(process.env.META_CAPI_DATA_OPTIONS);
   }
-  
+
   const payload = {
     data: [event],
     ...(process.env.META_CAPI_TEST_EVENT_CODE && {
       test_event_code: process.env.META_CAPI_TEST_EVENT_CODE,
     }),
   };
-  
+
   const url = `${META_API_BASE_URL}/${pixelId}/events?access_token=${accessToken}`;
-  
+
   try {
     console.log(`[Meta CAPI] Sending ${eventName} event:`, {
       eventId,
       pixelId: pixelId.substring(0, 4) + '****',
       value: eventData.value,
-      currency: eventData.currency,
+      currency: eventData.currency || 'INR',
+      eventSourceUrl,
       hasTestCode: !!process.env.META_CAPI_TEST_EVENT_CODE,
     });
     

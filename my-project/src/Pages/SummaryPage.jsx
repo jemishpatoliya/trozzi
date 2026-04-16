@@ -7,6 +7,23 @@ import { trackPurchase } from '../utils/metaPixel';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
+// Helper to build Purchase tracking payload from order data
+const buildPurchasePayload = (order, fallbackData = {}) => ({
+    orderId: order._id || order.orderId || fallbackData.orderId,
+    items: order.items || [],
+    total: order.total || order.totalAmount || fallbackData.total,
+    // User data for advanced matching
+    email: order.customer?.email || order.email || fallbackData.customer?.email,
+    phone: order.customer?.phone || order.phone || fallbackData.customer?.phone,
+    firstName: order.customer?.firstName || order.customer?.name?.split(' ')[0] || fallbackData.customer?.firstName,
+    lastName: order.customer?.lastName || order.customer?.name?.split(' ').slice(1).join(' ') || fallbackData.customer?.lastName,
+    // Address info
+    city: order.address?.city || fallbackData.address?.city,
+    state: order.address?.state || fallbackData.address?.state,
+    country: order.address?.country || fallbackData.address?.country,
+    postalCode: order.address?.postalCode || order.address?.pincode || fallbackData.address?.postalCode || fallbackData.address?.pincode
+});
+
 const SummaryPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -80,11 +97,7 @@ const SummaryPage = () => {
                             setFetchedOrder(orderFromResponse);
                             
                             // Meta Pixel: Track Purchase event (fired only once due to deduplication)
-                            trackPurchase({
-                                orderId: orderFromResponse._id || orderFromResponse.orderId || verifyResp.data?.orderId || paymentId,
-                                items: orderFromResponse.items || [],
-                                total: orderFromResponse.total || orderFromResponse.totalAmount || data.total
-                            });
+                            trackPurchase(buildPurchasePayload(orderFromResponse, { orderId: verifyResp.data?.orderId || paymentId, total: data.total }));
                         }
                         
                         // Store created order info to display in UI
@@ -233,15 +246,16 @@ const SummaryPage = () => {
             
             // Meta Pixel: Track Purchase as fallback (if not tracked from backend response)
             // Uses data from localStorage/session state for backup tracking
-            if (data.orderId && data.items.length > 0 && data.total > 0) {
-                trackPurchase({
-                    orderId: data.orderId,
-                    items: data.items,
-                    total: data.total
-                });
+            // Only track if we have valid order data and haven't already tracked from API response
+            const hasOrderData = data?.orderId && Array.isArray(data.items) && data.items.length > 0 && Number(data.total) > 0;
+            if (hasOrderData && !fetchedOrder) {
+                trackPurchase(buildPurchasePayload(
+                    { orderId: data.orderId, items: data.items, total: data.total },
+                    { customer: data.customer, address: data.address }
+                ));
             }
         }
-    }, [paymentStatus, cartCleared, clearCart, data]);
+    }, [paymentStatus, cartCleared, clearCart, data, fetchedOrder]);
 
     return (
         <div className="relative min-h-screen bg-[#F1F3F6]">

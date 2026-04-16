@@ -6,6 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { normalizeColorKey, normalizeProductForColorVariants, normalizeToken } from '../../utils/colorVariants';
+import { trackViewContent } from '../../utils/metaPixel';
 
 const ProductDetail = () => {
     const { productId } = useParams();
@@ -104,6 +105,29 @@ const ProductDetail = () => {
             loadReviews();
         }
     }, [productId]);
+
+    // Meta Pixel: Track ViewContent when product is loaded (only once)
+    const hasTrackedViewContent = React.useRef(false);
+    const previousProductId = React.useRef(null);
+    useEffect(() => {
+        // Reset flag when product ID changes
+        if (previousProductId.current !== productId) {
+            hasTrackedViewContent.current = false;
+            previousProductId.current = productId;
+        }
+        // Track only when product loaded and not yet tracked
+        if (product && !loading && !hasTrackedViewContent.current) {
+            const price = pricing?.displaySelling || product.price || product.sellingPrice || 0;
+            trackViewContent({
+                _id: product._id || product.id,
+                id: product._id || product.id,
+                name: product.name,
+                price: Number(price),
+            });
+            hasTrackedViewContent.current = true;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [product, loading, productId]);
 
     const loadProductDetails = async ({ silent = false } = {}) => {
         try {
