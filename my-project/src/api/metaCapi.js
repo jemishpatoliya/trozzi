@@ -25,6 +25,44 @@ function getUserInfo() {
 }
 
 /**
+ * Get visitor ID (external_id) - persistent across sessions
+ */
+function getVisitorId() {
+  // 1. Try logged in user ID first
+  const user = getUserInfo();
+  if (user?._id) return user._id;
+  
+  // 2. Generate/Use persistent visitor ID
+  let visitorId = localStorage.getItem('visitorId');
+  if (!visitorId) {
+    visitorId = 'vid_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('visitorId', visitorId);
+  }
+  return visitorId;
+}
+
+/**
+ * Get fbp from fbq object (Meta Pixel browser ID)
+ */
+function getFbpFromFbq() {
+  // Try to get from fbq state first
+  if (window.fbq && window.fbq.getState) {
+    try {
+      const state = window.fbq.getState();
+      const pixelId = Object.keys(state.pixels || {})[0];
+      if (pixelId && state.pixels[pixelId].userData?._fbp) {
+        return state.pixels[pixelId].userData._fbp;
+      }
+    } catch (e) {
+      console.log('[Meta CAPI] fbq state error:', e);
+    }
+  }
+  // Fallback: _fbp from cookie
+  const match = document.cookie.match(/_fbp=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+/**
  * Generate unique event ID for deduplication
  * Same ID will be sent to both Pixel (browser) and CAPI (server)
  */
@@ -41,20 +79,21 @@ async function sendEvent(endpoint, data) {
   const token = getAuthToken();
   const user = getUserInfo();
   
-  // Extract fbp (Facebook Pixel browser ID) from cookie
-  const getFbpCookie = () => {
-    const match = document.cookie.match(/_fbp=([^;]+)/);
-    return match ? match[1] : null;
-  };
+  // Get external_id and fbp for Meta Pixel matching
+  const externalId = data.externalId || getVisitorId();
+  const fbp = data.fbp || getFbpFromFbq();
   
   const payload = {
     ...data,
+    // Add external_id for advanced matching
+    externalId: externalId,
     // Add user data if available
     ...(user?.email && { email: user.email }),
     ...(user?.phone && { phone: user.phone }),
-    ...(user?._id && { userId: user._id }),
-    // Add fbp cookie for matching
-    fbp: getFbpCookie(),
+    // userId same as externalId for consistency
+    userId: externalId,
+    // Add fbp for browser matching
+    fbp: fbp,
     // Add source URL
     sourceUrl: window.location.href,
   };

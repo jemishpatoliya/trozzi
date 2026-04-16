@@ -113,6 +113,7 @@ router.post('/view-content', async (req, res) => {
       email,
       phone,
       userId,
+      externalId,
       fbLoginId,
       fbp,
     } = req.body;
@@ -135,6 +136,7 @@ router.post('/view-content', async (req, res) => {
       email,
       phone,
       userId,
+      externalId,
       fbLoginId,
       fbp,
     });

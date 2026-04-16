@@ -57,12 +57,17 @@ function getClientIp(req) {
 
 /**
  * Extract fbp (Facebook Pixel browser ID) from request
+ * Priority: body.fbp > headers > cookies
  */
 function getFbp(req) {
+  // Priority 1: Body fbp (from frontend)
+  if (req.body?.fbp) return req.body.fbp;
+  // Priority 2: Header
+  if (req.headers['x-fbp']) return req.headers['x-fbp'];
+  // Priority 3: Cookies (parsed)
   const cookies = req.cookies || {};
   if (cookies._fbp) return cookies._fbp;
-  if (req.headers['x-fbp']) return req.headers['x-fbp'];
-  if (req.body?.fbp) return req.body.fbp;
+  // Priority 4: Raw cookie header
   const cookieHeader = req.headers.cookie;
   if (cookieHeader) {
     const fbpMatch = cookieHeader.match(/_fbp=([^;]+)/);
@@ -77,9 +82,23 @@ function getFbp(req) {
 function buildUserData(req, userInfo = {}) {
   const clientIp = getClientIp(req);
   const userAgent = req.headers['user-agent'] || '';
+  
+  // Get fbp with priority: userInfo > body > cookies
   const fbp = userInfo.fbp || getFbp(req);
   
-  let externalId = userInfo.externalId || userInfo.userId || req.body?.userId || req.body?.externalId;
+  // Get external_id with priority: userInfo > body
+  let externalId = userInfo.externalId || 
+                   userInfo.userId || 
+                   req.body?.externalId || 
+                   req.body?.userId ||
+                   req.body?.external_id;
+  
+  // DEBUG: Log what we're receiving
+  console.log('[Meta CAPI] buildUserData debug:', {
+    fbpReceived: fbp ? fbp.substring(0, 10) + '...' : 'NOT FOUND',
+    externalIdReceived: externalId ? externalId.toString().substring(0, 20) : 'NOT FOUND',
+    bodyFields: Object.keys(req.body || {}),
+  });
   
   const userData = {
     client_ip_address: clientIp,
@@ -96,6 +115,9 @@ function buildUserData(req, userInfo = {}) {
     ...(userInfo.fbLoginId && { fb_login_id: userInfo.fbLoginId }),
     ...(externalId && { external_id: hashData(String(externalId)) }),
   };
+  
+  // Log final userData (without hashes for readability)
+  console.log('[Meta CAPI] Final userData keys:', Object.keys(userData));
   
   return userData;
 }
