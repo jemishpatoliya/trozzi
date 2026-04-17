@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { normalizeColorKey, normalizeToken } from '../../utils/colorVariants';
 import { fetchSizeGuide } from '../../api/sizeGuides';
-import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../../utils/metaPixel';
+import { trackViewContent, trackAddToCart, trackAddToWishlist } from '../../utils/metaPixelSdk';
 
 const ProductDetalisComponent = ({ product, selectedColorVariant, onColorSelect, useVariantImages = true }) => {
   const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || 'M');

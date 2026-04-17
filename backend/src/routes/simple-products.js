@@ -772,7 +772,13 @@ router.get('/:id', async (req, res) => {
         const db = mongoose.connection.db;
         const { ObjectId } = require('mongodb');
 
-        const filter = { _id: new ObjectId(req.params.id) };
+        // Validate ObjectId format before creating instance
+        const id = req.params.id;
+        if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+            return res.status(400).json({ success: false, message: 'Invalid product ID format' });
+        }
+
+        const filter = { _id: new ObjectId(id) };
         if (mode !== 'admin') {
             filter.status = { $in: ['active', 'published'] };
             filter.$or = [

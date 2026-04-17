@@ -6,7 +6,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { normalizeColorKey, normalizeProductForColorVariants, normalizeToken } from '../../utils/colorVariants';
-import { trackViewContent } from '../../utils/metaPixel';
+import { trackViewContent } from '../../utils/metaPixelSdk';
 
 const ProductDetail = () => {
     const { productId } = useParams();

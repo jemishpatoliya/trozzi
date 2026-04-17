@@ -6,7 +6,7 @@ import { useContentSettings } from '../context/ContentSettingsContext';
 import { apiClient } from '../api/client';
 import { FaArrowLeft } from 'react-icons/fa';
 import { FiShoppingCart, FiUser, FiCheck, FiMapPin } from 'react-icons/fi';
-import { trackInitiateCheckout } from '../utils/metaPixel';
+import { trackInitiateCheckout } from '../utils/metaPixelSdk';
 
 const CheckoutPage = () => {
     const { items, fetchCart, clearCart, cartSynced, loading: cartLoading } = useCart();

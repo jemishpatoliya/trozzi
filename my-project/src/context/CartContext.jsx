@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { apiClient } from '../api/client';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthContext';
-import { trackAddToCart } from '../utils/metaPixel';
+import { trackAddToCart } from '../utils/metaPixelSdk';
 
 const CartContext = createContext();
 

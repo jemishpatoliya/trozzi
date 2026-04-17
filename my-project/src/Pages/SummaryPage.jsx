@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa';
 import { apiClient } from '../api/client';
 import { useCart } from '../context/CartContext';
-import { trackPurchase } from '../utils/metaPixel';
+import { trackPurchase } from '../utils/metaPixelSdk';
 
 const FALLBACK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 

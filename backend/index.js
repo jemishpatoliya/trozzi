@@ -40,7 +40,7 @@ const notificationsRouter = require('./src/routes/notifications');
 const shiprocketDataRouter = require('./src/routes/shiprocketData');
 const shiprocketSyncRouter = require('./src/routes/shiprocketSync');
 const feedRouter = require('./src/routes/feed');
-const metaCapiRouter = require('./src/routes/metaCapi.routes');
+const metaCapiRouter = require('./src/routes/metaCapiSdk.routes');
 
 // Initialize scheduled services
 require('./src/services/shiprocketSync');
