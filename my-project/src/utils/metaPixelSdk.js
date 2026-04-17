@@ -44,6 +44,56 @@ const getFbp = () => {
 };
 
 /**
+ * Get _fbc (Facebook Click ID) from cookie - CRITICAL for match quality
+ */
+const getFbc = () => {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(/_fbc=([^;]+)/);
+    return match ? match[1] : null;
+};
+
+/**
+ * Get complete user data for advanced matching
+ * Returns: email, phone, firstName, lastName, city, state, country, zip, external_id
+ */
+const getUserFullData = () => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const address = user.address || user.shippingAddress || {};
+        
+        // Split name into first and last
+        const fullName = user.name || user.fullName || '';
+        const nameParts = fullName.split(' ');
+        const firstName = user.firstName || nameParts[0] || '';
+        const lastName = user.lastName || nameParts.slice(1).join(' ') || '';
+        
+        return {
+            email: user.email || null,
+            phone: user.phone || user.mobile || null,
+            firstName: firstName,
+            lastName: lastName,
+            city: address.city || user.city || null,
+            state: address.state || user.state || null,
+            country: address.country || user.country || 'IN',
+            zip: address.postalCode || address.pincode || user.postalCode || user.pincode || null,
+            external_id: user._id || user.id || localStorage.getItem('visitorId') || null
+        };
+    } catch {
+        return {
+            email: null,
+            phone: null,
+            firstName: '',
+            lastName: '',
+            city: null,
+            state: null,
+            country: 'IN',
+            zip: null,
+            external_id: localStorage.getItem('visitorId') || null
+        };
+    }
+};
+
+/**
  * Get visitor/user ID for tracking
  */
 const getUserId = () => {
@@ -105,6 +155,7 @@ const safeTrack = (eventName, params, eventId) => {
 
 /**
  * Send event to CAPI via backend
+ * Includes ALL user data and tracking parameters for 8+ match quality
  */
 const sendToCapi = async (endpoint, data) => {
     if (!CAPI_ENABLED) {
@@ -113,17 +164,37 @@ const sendToCapi = async (endpoint, data) => {
     }
 
     try {
+        const userData = getUserFullData();
+        
         const payload = {
             ...data,
+            // Facebook tracking cookies (CRITICAL for match quality)
             fbp: getFbp(),
-            userId: getUserId(),
-            email: getUserEmail(),
-            phone: getUserPhone(),
+            fbc: getFbc(), // Click ID from ads
+            
+            // Complete user data for advanced matching
+            userId: userData.external_id,
+            externalId: userData.external_id,
+            email: userData.email,
+            phone: userData.phone,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            city: userData.city,
+            state: userData.state,
+            country: userData.country,
+            postalCode: userData.zip,
+            
+            // Browser info (backend will extract IP and user agent from headers)
             sourceUrl: window.location.href,
+            userAgent: navigator.userAgent,
         };
 
         if (DEBUG_MODE) {
-            console.log('[Meta CAPI] Sending to backend:', endpoint, payload);
+            console.log('[Meta CAPI] Sending to backend:', endpoint, {
+                ...payload,
+                email: payload.email ? '***@***.com' : null,
+                phone: payload.phone ? '***' : null
+            });
         }
 
         const response = await apiClient.post(`/meta-capi${endpoint}`, payload);
@@ -135,7 +206,6 @@ const sendToCapi = async (endpoint, data) => {
         return response.data;
     } catch (error) {
         console.error('[Meta CAPI] Backend error:', error.message);
-        // Don't throw - CAPI failures shouldn't break user experience
         return null;
     }
 };

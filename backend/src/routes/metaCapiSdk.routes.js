@@ -70,9 +70,10 @@ router.post('/page-view', async (req, res) => {
             phone,
             userId,
             fbp,
+            fbc,
         } = req.body;
 
-        console.log('[Meta CAPI Route] PageView:', { eventId, pageId, sourceUrl });
+        console.log('[Meta CAPI Route] PageView:', { eventId, pageId, sourceUrl, hasFbc: !!fbc });
 
         const result = await MetaCapiSdkService.trackPageView(req, {
             eventId,
@@ -139,6 +140,7 @@ router.post('/view-content', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         } = req.body;
 
         // Validation
@@ -190,6 +192,7 @@ router.post('/view-content', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         });
 
         res.json({
@@ -249,6 +252,7 @@ router.post('/add-to-cart', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         } = req.body;
 
         if (!productId) {
@@ -303,6 +307,7 @@ router.post('/add-to-cart', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         });
 
         res.json({
@@ -354,6 +359,7 @@ router.post('/initiate-checkout', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         } = req.body;
 
         console.log('[Meta CAPI Route] InitiateCheckout:', { 
@@ -451,6 +457,7 @@ router.post('/purchase', async (req, res) => {
             userId,
             externalId,
             fbp,
+            fbc,
         } = req.body;
 
         if (!orderId) {
@@ -505,6 +512,7 @@ router.post('/purchase', async (req, res) => {
             postalCode,
             street,
             fbp,
+            fbc,
         });
 
         res.json({
