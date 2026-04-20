@@ -36,6 +36,7 @@ const isPixelLoaded = () => {
 
 /**
  * Get _fbp (Facebook Browser ID) from cookie
+ * Format: fb.1.{timestamp}.{random}
  */
 const getFbp = () => {
     if (typeof document === 'undefined') return null;
