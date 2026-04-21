@@ -189,32 +189,27 @@ export const MyContext = createContext();
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
-    const lastTrackedRef = useRef('');
-    const isFirstRender = useRef(true);
+    const isInitialized = useRef(false);
 
-    // Initialize Meta Pixel once on app load
+    // Initialize Meta Pixel once on app load + track initial PageView
     useEffect(() => {
+        if (isInitialized.current) return;
+        isInitialized.current = true;
+        
         initMetaPixel();
-    }, []);
+        
+        // Small delay to ensure pixel is loaded before firing PageView
+        setTimeout(() => {
+            trackPageView(location.pathname);
+        }, 100);
+        
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track PageView on route changes
+    // Track PageView ONLY on route changes (NOT on initial mount)
     useEffect(() => {
-        const path = `${location.pathname}${location.search || ''}`;
+        // Skip initial mount - only track when location actually changes after mount
+        if (!isInitialized.current) return;
         
-        // Skip if same path (prevents double firing)
-        if (lastTrackedRef.current === path) return;
-        
-        // Skip first render if path is root (let init handle initial PageView)
-        if (isFirstRender.current && path === '/') {
-            isFirstRender.current = false;
-            lastTrackedRef.current = path;
-            return;
-        }
-        
-        isFirstRender.current = false;
-        lastTrackedRef.current = path;
-        
-        // Track PageView using SDK (handles deduplication internally)
         trackPageView(location.pathname);
     }, [location.pathname, location.search]);
 

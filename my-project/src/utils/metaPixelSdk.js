@@ -773,6 +773,10 @@ export const checkCapiHealth = async () => {
     }
 };
 
+// Global flag to track if ANY PageView has been fired this session
+let globalPageViewFired = false;
+let lastPageViewPath = '';
+
 /**
  * Track PageView event - SINGLE FIRE ONLY
  * Uses deduplication guard to prevent duplicates
@@ -782,14 +786,26 @@ export const checkCapiHealth = async () => {
  */
 export const trackPageView = async (pagePath = null) => {
     const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
-    const eventId = generateEventId('PageView', path);
     
-    // Strong deduplication: check if we already fired PageView for this path
-    const dedupKey = `pageview_${path}_${Math.floor(Date.now() / 1000)}`; // 1-second window
+    // ULTRA-STRONG deduplication: Only ONE PageView per path, EVER (within 5 seconds)
+    const now = Date.now();
+    const dedupKey = `pageview_${path}_${Math.floor(now / 5000)}`; // 5-second window
+    
     if (wasEventFired(dedupKey)) {
-        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView - Duplicate prevented for path:', path);
+        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - already fired for this path in last 5s:', path);
         return { success: false, eventId: null, reason: 'duplicate' };
     }
+    
+    // Extra guard: prevent same path firing twice
+    if (globalPageViewFired && lastPageViewPath === path) {
+        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - same path already fired:', path);
+        return { success: false, eventId: null, reason: 'duplicate_path' };
+    }
+    
+    globalPageViewFired = true;
+    lastPageViewPath = path;
+    
+    const eventId = generateEventId('PageView', path);
     
     // Get tracking parameters
     const fbp = getFbp();
