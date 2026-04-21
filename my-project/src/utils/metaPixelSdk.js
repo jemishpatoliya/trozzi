@@ -1,13 +1,12 @@
 /**
- * META PIXEL + CAPI - PRODUCTION READY SOLUTION
+ * META PIXEL + CAPI - BULLETPROOF SINGLE PAGEVIEW SOLUTION
  * 
  * Features:
- * ✅ Bulletproof deduplication (event_id + tracking guard)
- * ✅ Advanced matching (email, phone, external_id, fn, ln - SHA256 hashed)
- * ✅ fbp (browser ID) + fbc (click ID) auto-capture
- * ✅ Both Browser Pixel + Server CAPI
+ * ✅ GUARANTEED single PageView per page load (multiple guard layers)
+ * ✅ Advanced matching (email, phone, external_id - SHA256 hashed)
+ * ✅ fbp + fbc auto-capture
+ * ✅ Browser Pixel + Server CAPI
  * ✅ Event Match Quality: 8-10/10
- * ✅ Duplicate prevention from all sources
  */
 
 import { apiClient } from '../api/client';
@@ -17,50 +16,47 @@ const PIXEL_ID = process.env.REACT_APP_META_PIXEL_ID || '1851696042154850';
 const CAPI_ENABLED = process.env.REACT_APP_META_CAPI_ENABLED !== 'false';
 const DEBUG_MODE = process.env.NODE_ENV === 'development' || window.location.search.includes('meta_debug=1');
 
-// Track fired events to prevent duplicates
+// ========== BULLETPROOF DEDUPLICATION SYSTEM ==========
+
+// Layer 1: Module-level Set for all events
 const firedEvents = new Set();
 const FIRED_EVENTS_MAX_SIZE = 100;
 
-// Track if pixel is initialized
-let pixelInitialized = false;
-
-// Global PageView deduplication - module level survives all React re-renders
-const pageViewTracker = {
+// Layer 2: PageView-specific deduplication (strongest)
+const pageViewState = {
+    fired: false,
     lastPath: '',
-    lastFired: 0,
-    firedPaths: new Set(),
-    isFired: function(path) {
-        const now = Date.now();
-        const key = `${path}`;
-        
-        // Check if fired within last 10 seconds
-        if (this.lastPath === key && (now - this.lastFired) < 10000) {
-            return true;
-        }
-        
-        // Check if this exact path was ever fired
-        if (this.firedPaths.has(key)) {
-            // Still allow if more than 10 seconds passed
-            if ((now - this.lastFired) >= 10000) {
-                this.lastFired = now;
-                this.lastPath = key;
-                return false;
-            }
-            return true;
-        }
-        
-        // First time firing this path
-        this.firedPaths.add(key);
-        this.lastPath = key;
-        this.lastFired = now;
-        return false;
-    }
+    lastTime: 0,
+    windowKey: null
 };
+
+// Get consistent deduplication key
+const getDedupKey = (eventName, identifier = '') => {
+    const timeWindow = Math.floor(Date.now() / 5000); // 5-second window
+    return `${eventName}_${identifier}_${timeWindow}`;
+};
+
+// Check if event was already fired
+const wasEventFired = (eventId) => {
+    if (firedEvents.has(eventId)) return true;
+    
+    firedEvents.add(eventId);
+    
+    // Cleanup old entries
+    if (firedEvents.size > FIRED_EVENTS_MAX_SIZE) {
+        const iterator = firedEvents.values();
+        const first = iterator.next();
+        if (!first.done) firedEvents.delete(first.value);
+    }
+    
+    return false;
+};
+
+// Pixel initialization state
+let pixelInitialized = false;
 
 /**
  * Generate unique event ID for deduplication
- * Same ID sent to both Pixel (browser) and CAPI (server)
- * Format: {event_name}_{entity_id}_{timestamp}_{random}
  */
 const generateEventId = (eventName, entityId = 'unknown') => {
     const timestamp = Date.now();
@@ -243,41 +239,19 @@ const getUserPhone = () => {
 };
 
 /**
- * Check if event was already fired (deduplication guard)
- */
-const wasEventFired = (eventId) => {
-    if (firedEvents.has(eventId)) return true;
-    
-    // Add to set
-    firedEvents.add(eventId);
-    
-    // Cleanup old entries if set is too large
-    if (firedEvents.size > FIRED_EVENTS_MAX_SIZE) {
-        const iterator = firedEvents.values();
-        const first = iterator.next();
-        if (!first.done) firedEvents.delete(first.value);
-    }
-    
-    return false;
-};
-
-/**
  * Safe pixel event firing with deduplication
  */
 const safeTrack = async (eventName, params, eventId) => {
     if (!isPixelLoaded()) {
-        if (DEBUG_MODE) console.warn(`[Meta Pixel] ${eventName} - Pixel not loaded`);
         return false;
     }
 
-    // Create deduplication key from event name + content identifier (without timestamp)
+    // Create deduplication key
     const contentId = params.content_ids?.[0] || params.content_name || params.content_type || 'default';
-    const dedupKey = `${eventName}_${contentId}`;
+    const dedupKey = getDedupKey(eventName, contentId);
     
-    // Check for duplicate event within 5 second window
-    const now = Date.now();
-    const windowKey = `${dedupKey}_${Math.floor(now / 5000)}`;
-    if (wasEventFired(windowKey)) {
+    // Check for duplicate within 5-second window
+    if (wasEventFired(dedupKey)) {
         return false;
     }
 
@@ -811,24 +785,41 @@ export const checkCapiHealth = async () => {
     }
 };
 
-// Global flag to track if ANY PageView has been fired this session
-let globalPageViewFired = false;
-let lastPageViewPath = '';
-
 /**
- * Track PageView event - SINGLE FIRE ONLY
- * Uses deduplication guard to prevent duplicates
+ * Track PageView event - GUARANTEED SINGLE FIRE
+ * Multiple guard layers: module state + window flag + time window
  * 
  * @param {string} pagePath - Optional page path for tracking
  * @returns {Object} { success, eventId }
  */
 export const trackPageView = async (pagePath = null) => {
     const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
+    const now = Date.now();
     
-    // Use module-level pageViewTracker for bulletproof deduplication
-    if (pageViewTracker.isFired(path)) {
-        return { success: false, eventId: null, reason: 'duplicate' };
+    // Guard Layer 1: Module-level state (survives React re-renders)
+    if (pageViewState.fired && pageViewState.lastPath === path && (now - pageViewState.lastTime) < 10000) {
+        return { success: false, eventId: null, reason: 'duplicate_module' };
     }
+    
+    // Guard Layer 2: Window-level flag (cross-component protection)
+    if (typeof window !== 'undefined') {
+        const windowKey = `__pv_${path}`;
+        if (window[windowKey] && (now - window[windowKey]) < 10000) {
+            return { success: false, eventId: null, reason: 'duplicate_window' };
+        }
+        window[windowKey] = now;
+    }
+    
+    // Guard Layer 3: Generic deduplication key
+    const dedupKey = getDedupKey('PageView', path);
+    if (wasEventFired(dedupKey)) {
+        return { success: false, eventId: null, reason: 'duplicate_key' };
+    }
+    
+    // Mark as fired
+    pageViewState.fired = true;
+    pageViewState.lastPath = path;
+    pageViewState.lastTime = now;
     
     const eventId = generateEventId('PageView', path);
     

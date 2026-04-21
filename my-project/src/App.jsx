@@ -187,47 +187,40 @@ const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
 
-// Module-level flag - survives React StrictMode double-mount
+// Module-level flags - survive React StrictMode double-mount
 let pixelInitDone = false;
-let lastTrackedPath = '';
-let isFirstMount = true;
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
+    const hasTracked = useRef(false);
 
-    // Initialize Meta Pixel ONCE only (module-level flag survives StrictMode)
+    // Initialize Meta Pixel and track PageView ONCE
     useEffect(() => {
         if (pixelInitDone) return;
         pixelInitDone = true;
         
+        // Initialize pixel
         initMetaPixel();
         
-        // Track initial PageView after pixel loads
-        setTimeout(() => {
-            const path = location.pathname;
-            if (lastTrackedPath !== path) {
-                lastTrackedPath = path;
-                isFirstMount = false;
-                trackPageView(path);
+        // Track PageView after pixel loads (only once)
+        const timer = setTimeout(() => {
+            if (!hasTracked.current) {
+                hasTracked.current = true;
+                trackPageView(location.pathname);
             }
         }, 100);
         
+        return () => clearTimeout(timer);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track PageView ONLY on actual route changes (NOT initial mount)
+    // Track on route changes only
     useEffect(() => {
-        // Skip on initial mount - first effect handles initial PageView
-        if (isFirstMount) return;
+        // Skip initial render - already tracked above
+        if (!hasTracked.current) return;
         
-        const path = location.pathname;
-        
-        // Skip if same path already tracked
-        if (lastTrackedPath === path) return;
-        
-        lastTrackedPath = path;
-        trackPageView(path);
-        
-    }, [location.pathname, location.search]);
+        // Track the new path
+        trackPageView(location.pathname);
+    }, [location.pathname]);
 
     return null;
 };
