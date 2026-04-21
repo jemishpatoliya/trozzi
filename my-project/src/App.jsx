@@ -190,6 +190,7 @@ export const MyContext = createContext();
 // Module-level flag - survives React StrictMode double-mount
 let pixelInitDone = false;
 let lastTrackedPath = '';
+let isFirstMount = true;
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
@@ -206,14 +207,18 @@ const MetaPixelRouteTracker = () => {
             const path = location.pathname;
             if (lastTrackedPath !== path) {
                 lastTrackedPath = path;
+                isFirstMount = false;
                 trackPageView(path);
             }
         }, 100);
         
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track PageView ONLY on actual route changes
+    // Track PageView ONLY on actual route changes (NOT initial mount)
     useEffect(() => {
+        // Skip on initial mount - first effect handles initial PageView
+        if (isFirstMount) return;
+        
         const path = location.pathname;
         
         // Skip if same path already tracked
