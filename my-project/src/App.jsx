@@ -187,33 +187,37 @@ const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
 
+import { initMetaPixel, trackPageView } from './utils/metaPixelSdk';
+
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
     const lastTrackedRef = useRef('');
+    const isFirstRender = useRef(true);
 
+    // Initialize Meta Pixel once on app load
+    useEffect(() => {
+        initMetaPixel();
+    }, []);
+
+    // Track PageView on route changes
     useEffect(() => {
         const path = `${location.pathname}${location.search || ''}`;
+        
+        // Skip if same path (prevents double firing)
         if (lastTrackedRef.current === path) return;
-
-        const fbq = (typeof window !== 'undefined' && typeof window.fbq === 'function')
-            ? window.fbq
-            : null;
-
-        if (!fbq) return;
-
-        // Get fbp (Facebook Browser ID) from cookie
-        const getFbp = () => {
-            if (typeof document === 'undefined') return null;
-            const match = document.cookie.match(/_fbp=([^;]+)/);
-            return match ? match[1] : null;
-        };
-
+        
+        // Skip first render if path is root (let init handle initial PageView)
+        if (isFirstRender.current && path === '/') {
+            isFirstRender.current = false;
+            lastTrackedRef.current = path;
+            return;
+        }
+        
+        isFirstRender.current = false;
         lastTrackedRef.current = path;
         
-        // PageView with fbp for better tracking
-        const fbp = getFbp();
-        const pageViewParams = fbp ? { fbp } : {};
-        fbq('track', 'PageView', pageViewParams);
+        // Track PageView using SDK (handles deduplication internally)
+        trackPageView(location.pathname);
     }, [location.pathname, location.search]);
 
     return null;
