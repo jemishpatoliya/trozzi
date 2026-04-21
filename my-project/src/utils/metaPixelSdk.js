@@ -140,11 +140,18 @@ const safeTrack = (eventName, params, eventId) => {
     }
 
     try {
+        // Add fbp (Facebook Browser ID) to params for better tracking
+        const fbp = getFbp();
+        const paramsWithFbp = {
+            ...params,
+            ...(fbp && { fbp })
+        };
+        
         // Send to Meta Pixel with eventID for deduplication
-        window.fbq('track', eventName, params, { eventID: eventId });
+        window.fbq('track', eventName, paramsWithFbp, { eventID: eventId });
         
         if (DEBUG_MODE) {
-            console.log(`[Meta Pixel] ${eventName} fired:`, { params, eventId });
+            console.log(`[Meta Pixel] ${eventName} fired:`, { params: paramsWithFbp, eventId, fbp });
         }
         
         return true;
@@ -660,9 +667,9 @@ export const initMetaPixel = () => {
     // Initialize with Pixel ID
     window.fbq('init', PIXEL_ID);
     
-    // Track PageView
-    window.fbq('track', 'PageView');
-
+    // Note: PageView is handled by MetaPixelRouteTracker in App.jsx
+    // to avoid duplicate firing on initial load
+    
     if (DEBUG_MODE) console.log('[Meta Pixel] Initialized with ID:', PIXEL_ID);
 };
 

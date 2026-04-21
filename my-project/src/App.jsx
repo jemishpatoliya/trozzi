@@ -201,8 +201,19 @@ const MetaPixelRouteTracker = () => {
 
         if (!fbq) return;
 
+        // Get fbp (Facebook Browser ID) from cookie
+        const getFbp = () => {
+            if (typeof document === 'undefined') return null;
+            const match = document.cookie.match(/_fbp=([^;]+)/);
+            return match ? match[1] : null;
+        };
+
         lastTrackedRef.current = path;
-        fbq('track', 'PageView');
+        
+        // PageView with fbp for better tracking
+        const fbp = getFbp();
+        const pageViewParams = fbp ? { fbp } : {};
+        fbq('track', 'PageView', pageViewParams);
     }, [location.pathname, location.search]);
 
     return null;
