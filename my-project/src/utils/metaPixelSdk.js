@@ -820,11 +820,15 @@ let lastPageViewPath = '';
 export const trackPageView = async (pagePath = null) => {
     const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
     
+    console.log(`[Meta SDK] trackPageView called for: ${path}`);
+    
     // Use module-level pageViewTracker for bulletproof deduplication
     if (pageViewTracker.isFired(path)) {
-        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - already fired for path:', path);
+        console.warn(`[Meta SDK] PageView BLOCKED for ${path} - already fired`);
         return { success: false, eventId: null, reason: 'duplicate' };
     }
+    
+    console.log(`[Meta SDK] PageView ALLOWED for: ${path}`);
     
     const eventId = generateEventId('PageView', path);
     

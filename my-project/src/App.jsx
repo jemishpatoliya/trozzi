@@ -190,23 +190,35 @@ export const MyContext = createContext();
 // Module-level flag - survives React StrictMode double-mount
 let pixelInitDone = false;
 let lastTrackedPath = '';
+let initAttemptCount = 0;
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
 
     // Initialize Meta Pixel ONCE only (module-level flag survives StrictMode)
     useEffect(() => {
-        if (pixelInitDone) return;
+        initAttemptCount++;
+        console.log(`[Meta Debug] Init attempt #${initAttemptCount}, pixelInitDone=${pixelInitDone}`);
+        
+        if (pixelInitDone) {
+            console.log('[Meta Debug] SKIPPED - already initialized');
+            return;
+        }
         pixelInitDone = true;
         
+        console.log('[Meta Debug] Initializing pixel...');
         initMetaPixel();
         
         // Track initial PageView after pixel loads
         setTimeout(() => {
             const path = location.pathname;
+            console.log(`[Meta Debug] Initial PageView check: path=${path}, lastTracked=${lastTrackedPath}`);
             if (lastTrackedPath !== path) {
                 lastTrackedPath = path;
+                console.log('[Meta Debug] FIRING initial PageView:', path);
                 trackPageView(path);
+            } else {
+                console.log('[Meta Debug] BLOCKED - same path:', path);
             }
         }, 150);
         
@@ -217,8 +229,12 @@ const MetaPixelRouteTracker = () => {
         const path = location.pathname;
         
         // Skip if same path already tracked
-        if (lastTrackedPath === path) return;
+        if (lastTrackedPath === path) {
+            console.log('[Meta Debug] Route change BLOCKED - same path:', path);
+            return;
+        }
         
+        console.log('[Meta Debug] Route change FIRING PageView:', path);
         lastTrackedPath = path;
         trackPageView(path);
         
