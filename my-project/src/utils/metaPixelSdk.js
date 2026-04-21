@@ -1,8 +1,10 @@
 /**
- * META PIXEL + CAPI - BULLETPROOF SINGLE PAGEVIEW SOLUTION
+ * META PIXEL + CAPI - ULTIMATE SINGLE PAGEVIEW SOLUTION
  * 
  * Features:
- * ✅ GUARANTEED single PageView per page load (multiple guard layers)
+ * ✅ GUARANTEED single PageView per page/session
+ * ✅ Global window flag (survives all re-renders)
+ * ✅ 30-second deduplication window
  * ✅ Advanced matching (email, phone, external_id - SHA256 hashed)
  * ✅ fbp + fbc auto-capture
  * ✅ Browser Pixel + Server CAPI
@@ -16,44 +18,34 @@ const PIXEL_ID = process.env.REACT_APP_META_PIXEL_ID || '1851696042154850';
 const CAPI_ENABLED = process.env.REACT_APP_META_CAPI_ENABLED !== 'false';
 const DEBUG_MODE = process.env.NODE_ENV === 'development' || window.location.search.includes('meta_debug=1');
 
-// ========== BULLETPROOF DEDUPLICATION SYSTEM ==========
+// ========== ULTIMATE DEDUPLICATION SYSTEM ==========
 
-// Layer 1: Module-level Set for all events
+// Global window flag - prevents ANY duplicate across entire app
+const GLOBAL_PAGE_VIEW_KEY = '__META_PAGE_VIEW_FIRED__';
+const PAGE_VIEW_TIMEOUT = 30000; // 30 seconds
+
+// Module-level tracking
 const firedEvents = new Set();
 const FIRED_EVENTS_MAX_SIZE = 100;
+let pixelInitialized = false;
 
-// Layer 2: PageView-specific deduplication (strongest)
-const pageViewState = {
-    fired: false,
-    lastPath: '',
-    lastTime: 0,
-    windowKey: null
-};
-
-// Get consistent deduplication key
+// Get deduplication key with time window
 const getDedupKey = (eventName, identifier = '') => {
-    const timeWindow = Math.floor(Date.now() / 5000); // 5-second window
+    const timeWindow = Math.floor(Date.now() / 10000); // 10-second window
     return `${eventName}_${identifier}_${timeWindow}`;
 };
 
 // Check if event was already fired
 const wasEventFired = (eventId) => {
     if (firedEvents.has(eventId)) return true;
-    
     firedEvents.add(eventId);
-    
-    // Cleanup old entries
     if (firedEvents.size > FIRED_EVENTS_MAX_SIZE) {
         const iterator = firedEvents.values();
         const first = iterator.next();
         if (!first.done) firedEvents.delete(first.value);
     }
-    
     return false;
 };
-
-// Pixel initialization state
-let pixelInitialized = false;
 
 /**
  * Generate unique event ID for deduplication
@@ -786,40 +778,49 @@ export const checkCapiHealth = async () => {
 };
 
 /**
- * Track PageView event - GUARANTEED SINGLE FIRE
- * Multiple guard layers: module state + window flag + time window
+ * Track PageView event - ABSOLUTE SINGLE FIRE GUARANTEE
+ * Uses GLOBAL window flag that prevents ANY duplicate from ANY source
  * 
  * @param {string} pagePath - Optional page path for tracking
  * @returns {Object} { success, eventId }
  */
 export const trackPageView = async (pagePath = null) => {
-    const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
+    if (typeof window === 'undefined') return { success: false, eventId: null };
+    
+    const path = pagePath || window.location.pathname;
     const now = Date.now();
     
-    // Guard Layer 1: Module-level state (survives React re-renders)
-    if (pageViewState.fired && pageViewState.lastPath === path && (now - pageViewState.lastTime) < 10000) {
-        return { success: false, eventId: null, reason: 'duplicate_module' };
-    }
+    // DEBUG: Log every call
+    console.log(`[Meta Pixel] trackPageView called for: ${path}`, {
+        globalFlag: window[GLOBAL_PAGE_VIEW_KEY] ? new Date(window[GLOBAL_PAGE_VIEW_KEY]).toISOString() : 'not set',
+        timeSinceLast: window[GLOBAL_PAGE_VIEW_KEY] ? now - window[GLOBAL_PAGE_VIEW_KEY] : 'N/A'
+    });
     
-    // Guard Layer 2: Window-level flag (cross-component protection)
-    if (typeof window !== 'undefined') {
-        const windowKey = `__pv_${path}`;
-        if (window[windowKey] && (now - window[windowKey]) < 10000) {
-            return { success: false, eventId: null, reason: 'duplicate_window' };
+    // CRITICAL: Global window flag - prevents ALL duplicates from ANY source
+    if (window[GLOBAL_PAGE_VIEW_KEY]) {
+        const timeSinceLastFire = now - window[GLOBAL_PAGE_VIEW_KEY];
+        if (timeSinceLastFire < PAGE_VIEW_TIMEOUT) {
+            console.warn(`[Meta Pixel] BLOCKED - PageView already fired ${timeSinceLastFire}ms ago`);
+            return { success: false, eventId: null, reason: 'global_duplicate' };
         }
-        window[windowKey] = now;
     }
     
-    // Guard Layer 3: Generic deduplication key
+    // Set global flag immediately
+    window[GLOBAL_PAGE_VIEW_KEY] = now;
+    console.log(`[Meta Pixel] ALLOWED - PageView firing for: ${path}`);
+    
+    // Additional path-specific check
+    const pathKey = `__PV_${path}`;
+    if (window[pathKey] && (now - window[pathKey]) < 10000) {
+        return { success: false, eventId: null, reason: 'path_duplicate' };
+    }
+    window[pathKey] = now;
+    
+    // Generic deduplication
     const dedupKey = getDedupKey('PageView', path);
     if (wasEventFired(dedupKey)) {
-        return { success: false, eventId: null, reason: 'duplicate_key' };
+        return { success: false, eventId: null, reason: 'key_duplicate' };
     }
-    
-    // Mark as fired
-    pageViewState.fired = true;
-    pageViewState.lastPath = path;
-    pageViewState.lastTime = now;
     
     const eventId = generateEventId('PageView', path);
     

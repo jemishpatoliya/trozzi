@@ -189,10 +189,10 @@ export const MyContext = createContext();
 
 // Module-level flags - survive React StrictMode double-mount
 let pixelInitDone = false;
+let initialPageViewFired = false;
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
-    const hasTracked = useRef(false);
 
     // Initialize Meta Pixel and track PageView ONCE
     useEffect(() => {
@@ -203,23 +203,27 @@ const MetaPixelRouteTracker = () => {
         initMetaPixel();
         
         // Track PageView after pixel loads (only once)
-        const timer = setTimeout(() => {
-            if (!hasTracked.current) {
-                hasTracked.current = true;
+        setTimeout(() => {
+            if (!initialPageViewFired) {
+                initialPageViewFired = true;
                 trackPageView(location.pathname);
             }
         }, 100);
-        
-        return () => clearTimeout(timer);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track on route changes only
+    // Track on route changes only (NOT initial render)
+    const lastPathRef = useRef(location.pathname);
+    
     useEffect(() => {
-        // Skip initial render - already tracked above
-        if (!hasTracked.current) return;
+        const currentPath = location.pathname;
         
-        // Track the new path
-        trackPageView(location.pathname);
+        // Only track if:
+        // 1. Initial PageView has already fired
+        // 2. Path has actually changed
+        if (initialPageViewFired && lastPathRef.current !== currentPath) {
+            lastPathRef.current = currentPath;
+            trackPageView(currentPath);
+        }
     }, [location.pathname]);
 
     return null;

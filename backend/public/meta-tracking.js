@@ -40,7 +40,8 @@ class MetaTracker {
     'https://connect.facebook.net/en_US/fbevents.js');
 
     fbq('init', this.pixelId);
-    fbq('track', 'PageView');
+    // DO NOT fire PageView here - let the React SDK handle it
+    // to prevent duplicate PageView events
     
     this.log('Meta Pixel initialized with ID:', this.pixelId);
   }
@@ -212,11 +213,29 @@ class MetaTracker {
   // ==================== E-COMMERCE EVENT METHODS ====================
 
   /**
-   * Track PageView
+   * Track PageView with deduplication
    */
   async trackPageView(pageData = {}) {
+    const GLOBAL_PAGE_VIEW_KEY = '__META_PAGE_VIEW_FIRED__';
+    const PAGE_VIEW_TIMEOUT = 30000; // 30 seconds
+    
+    const now = Date.now();
+    const path = pageData.pageId || window.location.pathname;
+    
+    // Check global flag to prevent duplicates
+    if (window[GLOBAL_PAGE_VIEW_KEY]) {
+      const timeSinceLastFire = now - window[GLOBAL_PAGE_VIEW_KEY];
+      if (timeSinceLastFire < PAGE_VIEW_TIMEOUT) {
+        this.log('PageView blocked - already fired', timeSinceLastFire, 'ms ago');
+        return { eventId: null, success: false, reason: 'duplicate' };
+      }
+    }
+    
+    // Set global flag
+    window[GLOBAL_PAGE_VIEW_KEY] = now;
+    
     return this.trackEvent('PageView', {
-      pageId: pageData.pageId || window.location.pathname,
+      pageId: path,
       value: pageData.value || 0,
       currency: pageData.currency || 'INR',
     });
