@@ -153,11 +153,11 @@ import { useWishlist } from './context/WishlistContext';
 
 import { FiArrowUp, FiHome, FiGrid, FiHeart, FiShoppingCart, FiUser } from 'react-icons/fi';
 
-// Import components that are needed immediately
+import { initMetaPixel, trackPageView } from './utils/metaPixelSdk';
+
 import Header from './components/Header';
 import Footer from './components/Footer';
 
-// Lazy load pages for better performance
 const Home = lazy(() => import('./Pages/Home'));
 const ProductListing = lazy(() => import('./Pages/ProductListing'));
 const Productsdetailsh = lazy(() => import('./Pages/Productsdetailsh'));
@@ -186,8 +186,6 @@ const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
-
-import { initMetaPixel, trackPageView } from './utils/metaPixelSdk';
 
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
