@@ -270,9 +270,14 @@ const safeTrack = async (eventName, params, eventId) => {
         return false;
     }
 
-    // Check for duplicate event
-    if (wasEventFired(eventId)) {
-        if (DEBUG_MODE) console.warn(`[Meta Pixel] ${eventName} - Duplicate prevented (eventId: ${eventId})`);
+    // Create deduplication key from event name + content identifier (without timestamp)
+    const contentId = params.content_ids?.[0] || params.content_name || params.content_type || 'default';
+    const dedupKey = `${eventName}_${contentId}`;
+    
+    // Check for duplicate event within 5 second window
+    const now = Date.now();
+    const windowKey = `${dedupKey}_${Math.floor(now / 5000)}`;
+    if (wasEventFired(windowKey)) {
         return false;
     }
 
@@ -332,9 +337,9 @@ const sendToCapi = async (endpoint, data) => {
         return null;
     }
 
-    // Prevent duplicate CAPI events
-    if (wasEventFired(`capi_${data.eventId}`)) {
-        if (DEBUG_MODE) console.warn(`[Meta CAPI] Duplicate prevented (eventId: ${data.eventId})`);
+    // Prevent duplicate CAPI events - use endpoint + event name as key
+    const capiKey = `capi_${endpoint}_${Math.floor(Date.now() / 5000)}`;
+    if (wasEventFired(capiKey)) {
         return null;
     }
 
@@ -820,15 +825,10 @@ let lastPageViewPath = '';
 export const trackPageView = async (pagePath = null) => {
     const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
     
-    console.log(`[Meta SDK] trackPageView called for: ${path}`);
-    
     // Use module-level pageViewTracker for bulletproof deduplication
     if (pageViewTracker.isFired(path)) {
-        console.warn(`[Meta SDK] PageView BLOCKED for ${path} - already fired`);
         return { success: false, eventId: null, reason: 'duplicate' };
     }
-    
-    console.log(`[Meta SDK] PageView ALLOWED for: ${path}`);
     
     const eventId = generateEventId('PageView', path);
     
