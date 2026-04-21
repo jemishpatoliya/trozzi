@@ -24,6 +24,39 @@ const FIRED_EVENTS_MAX_SIZE = 100;
 // Track if pixel is initialized
 let pixelInitialized = false;
 
+// Global PageView deduplication - module level survives all React re-renders
+const pageViewTracker = {
+    lastPath: '',
+    lastFired: 0,
+    firedPaths: new Set(),
+    isFired: function(path) {
+        const now = Date.now();
+        const key = `${path}`;
+        
+        // Check if fired within last 10 seconds
+        if (this.lastPath === key && (now - this.lastFired) < 10000) {
+            return true;
+        }
+        
+        // Check if this exact path was ever fired
+        if (this.firedPaths.has(key)) {
+            // Still allow if more than 10 seconds passed
+            if ((now - this.lastFired) >= 10000) {
+                this.lastFired = now;
+                this.lastPath = key;
+                return false;
+            }
+            return true;
+        }
+        
+        // First time firing this path
+        this.firedPaths.add(key);
+        this.lastPath = key;
+        this.lastFired = now;
+        return false;
+    }
+};
+
 /**
  * Generate unique event ID for deduplication
  * Same ID sent to both Pixel (browser) and CAPI (server)
@@ -787,23 +820,11 @@ let lastPageViewPath = '';
 export const trackPageView = async (pagePath = null) => {
     const path = pagePath || (typeof window !== 'undefined' ? window.location.pathname : '');
     
-    // ULTRA-STRONG deduplication: Only ONE PageView per path, EVER (within 5 seconds)
-    const now = Date.now();
-    const dedupKey = `pageview_${path}_${Math.floor(now / 5000)}`; // 5-second window
-    
-    if (wasEventFired(dedupKey)) {
-        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - already fired for this path in last 5s:', path);
+    // Use module-level pageViewTracker for bulletproof deduplication
+    if (pageViewTracker.isFired(path)) {
+        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - already fired for path:', path);
         return { success: false, eventId: null, reason: 'duplicate' };
     }
-    
-    // Extra guard: prevent same path firing twice
-    if (globalPageViewFired && lastPageViewPath === path) {
-        if (DEBUG_MODE) console.warn('[Meta Pixel] PageView BLOCKED - same path already fired:', path);
-        return { success: false, eventId: null, reason: 'duplicate_path' };
-    }
-    
-    globalPageViewFired = true;
-    lastPageViewPath = path;
     
     const eventId = generateEventId('PageView', path);
     

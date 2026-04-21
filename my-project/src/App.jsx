@@ -187,30 +187,41 @@ const AdminSettings = lazy(() => import('./Pages/AdminSettings'));
 // Create MyContext for backward compatibility
 export const MyContext = createContext();
 
+// Module-level flag - survives React StrictMode double-mount
+let pixelInitDone = false;
+let lastTrackedPath = '';
+
 const MetaPixelRouteTracker = () => {
     const location = useLocation();
-    const isInitialized = useRef(false);
 
-    // Initialize Meta Pixel once on app load + track initial PageView
+    // Initialize Meta Pixel ONCE only (module-level flag survives StrictMode)
     useEffect(() => {
-        if (isInitialized.current) return;
-        isInitialized.current = true;
+        if (pixelInitDone) return;
+        pixelInitDone = true;
         
         initMetaPixel();
         
-        // Small delay to ensure pixel is loaded before firing PageView
+        // Track initial PageView after pixel loads
         setTimeout(() => {
-            trackPageView(location.pathname);
-        }, 100);
+            const path = location.pathname;
+            if (lastTrackedPath !== path) {
+                lastTrackedPath = path;
+                trackPageView(path);
+            }
+        }, 150);
         
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Track PageView ONLY on route changes (NOT on initial mount)
+    // Track PageView ONLY on actual route changes
     useEffect(() => {
-        // Skip initial mount - only track when location actually changes after mount
-        if (!isInitialized.current) return;
+        const path = location.pathname;
         
-        trackPageView(location.pathname);
+        // Skip if same path already tracked
+        if (lastTrackedPath === path) return;
+        
+        lastTrackedPath = path;
+        trackPageView(path);
+        
     }, [location.pathname, location.search]);
 
     return null;
